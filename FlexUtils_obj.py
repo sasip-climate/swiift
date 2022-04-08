@@ -139,7 +139,8 @@ def BreakFloes(x, t, Floes, wave):
                 Etot += Eel1
 
         if Broke:
-            PlotFloes(x, t, NewFloes, wave)
+            if x[-1] < 300:
+                PlotFloes(x, t, NewFloes, wave)
             Floes = NewFloes
         else:
             for floe in Floes:
@@ -182,53 +183,75 @@ def PlotFSD(L, **kwargs):
 
     # Process optional inputs
     DoSave = False
+    fn = ''
     wle = False
     he = False
     ne = False
-    fn = ''
+
+    # Process optional inputs
     for key, value in kwargs.items():
-        if key == 'h':
-            h = value
+        if key == 'DoSave':
+            DoSave = value
+        elif key == 'FileName':
+            fn = value
+        elif key == 'h':
+            hv = value
             he = True
         elif key == 'wl':
             wl = value
             wle = True
-        elif key == 'n':
-            n = value
+        elif key == 'n0':
+            n0 = value
             ne = True
-        elif key == 'DoSave':
-            DoSave = value
-        elif key == 'FileName':
-            fn = value
 
-    hist, bin_edges = np.histogram(Ll, np.arange(1, round(max(Ll)) + 1))
+    values, edges = np.histogram(Ll, np.arange(1, round(max(Ll)) + 1))
 
     fac = [1]
-    fac.append(1 / hist.sum())
-    fac.append((bin_edges[:-1] + 0.5) / hist.sum())
+    fac.append(1 / values.sum())
+    fac.append((edges[:-1] + 0.5) / values.sum())
 
     ylab = ['Number', 'Frequency', 'Length-fraction']
 
+    if wle:
+        Lines = [[wl / 2, '$\lambda$/2']]
+        if he:
+            Lines.append([hv * wl / 4, '$h\lambda$/4'])
+            if ne:
+                Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
+
     for ifac in np.arange(len(fac)):
-        fig, hax = plt.subplots()
-        plt.bar(bin_edges[:-1], hist * fac[ifac], align='edge', width=1)
+        fig, hax = PlotHist(edges, values * fac[ifac])
+        hax.set(ylabel=ylab[ifac])
+        addLines(hax, Lines)
 
-        hax.set(xlabel='Floe length (m)', ylabel=ylab[ifac])
+    if DoSave:
+        root = f'FSD_{ylab[ifac]}{fn}'
 
-        offset = 0.02 * max(Ll)
+        plt.savefig('FigsSum/' + root + '.png')
 
-        if wle:
-            ylims = hax.get_ylim()
-            hax.plot(wl * np.ones(2) / 2, ylims, color='orange')
-            hax.text(wl / 2 + offset, ylims[1] * 0.9, '$\lambda$/2', fontsize=20)
-            if he:
-                hax.plot(h * wl * np.ones(2) / 4, ylims, 'y:')
-                hax.text(h * wl / 4 + offset, ylims[1] * 0.7, '$h\lambda$/4', fontsize=20)
-                if ne:
-                    hax.plot(h * wl * np.ones(2) / (18 * n), ylims, 'r:')
-                    hax.text(h * wl / (18 * n) + offset, ylims[1] * 0.5, '$h\lambda$/18$\eta$', fontsize=20)
+    return(edges, values)
 
-        if DoSave:
-            root = f'FSD_{ylab[ifac]}{fn}'
 
-            plt.savefig('FigsSum/' + root + '.png')
+def PlotHist(edges, values):
+
+    fig, hax = plt.subplots()
+    plt.bar(edges[:-1], values, align='edge', width=1)
+
+    hax.set(xlabel='Floe length (m)')
+
+    return(fig, hax)
+
+
+def addLines(hax, Lines):
+
+    ylims = hax.get_ylim()
+    xlims = hax.get_xlim()
+    xoffset = 0.02 * (xlims[1] - xlims[0])
+
+    colors = ['magenta', 'red', 'orange', 'yellow', 'green']
+    styles = ['-', '--', '-.', ':', 'loosely dotted']
+    yoffset = np.arange(1, 1 / len(Lines), -1 / len(Lines)) * 0.9
+
+    for iL in np.arange(len(Lines)):
+        hax.plot(Lines[iL][0] * np.ones(2), ylims, color=colors[iL], linestyle=styles[iL])
+        hax.text(Lines[iL][0] + xoffset, ylims[1] * yoffset[iL], Lines[iL][1], fontsize=20)

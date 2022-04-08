@@ -90,6 +90,6 @@ if reset:
     plt.savefig('FigsSum/' + root + '.png')
 
     fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-            f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}')
+          f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}')
 
-    PlotFSD(FL, wl=wvlength, h=h, n=n_0, DoSave=True, FileName=fn)
+    PlotFSD(FL, wl=wvlength, h=h, n0=n_0, DoSave=True, FileName=fn)
