@@ -77,11 +77,10 @@ for iL in range(n_Loops):
     FL[iL] = FL_temp
 
 if reset:
+    fig, hax = PlotLengths(tw, FL, wave, floe1.x0)
     if growing:
-        fig, hax = PlotLengths(tw, FL, wave, floe1.x0)
         lab = 'g'
     else:
-        PlotLengths(tw, FL)
         lab = '0'
 
     root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'

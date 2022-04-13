@@ -224,10 +224,10 @@ def PlotFSD(L, **kwargs):
         hax.set(ylabel=ylab[ifac])
         addLines(hax, Lines)
 
-    if DoSave:
-        root = f'FSD_{ylab[ifac]}{fn}'
+        if DoSave:
+            root = f'FSD_{ylab[ifac]}{fn}'
 
-        plt.savefig('FigsSum/' + root + '.png')
+            plt.savefig('FigsSum/' + root + '.png')
 
     return(edges, values)
 
