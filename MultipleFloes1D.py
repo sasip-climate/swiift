@@ -15,6 +15,10 @@ from IceDef import Floe
 
 growing = True
 reset = True
+if growing:
+    lab = 'g'
+else:
+    lab = '0'
 
 # Wave Parameters
 n_0 = 0.2
@@ -83,10 +87,6 @@ for iL in range(n_Loops):
 
 if reset:
     fig, hax = PlotLengths(tw, FL, wave, floe1.x0)
-    if growing:
-        lab = 'g'
-    else:
-        lab = '0'
 
     root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
             f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
