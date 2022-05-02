@@ -15,11 +15,11 @@ def PlotFloes(x, t, Floes, wave, *args):
     nFloes = len(Floes)
 
     Eel = (nFloes - 1) * Floes[0].k
-    for iF in range(nFloes):
-        _, _ = Floes[iF].Plot(x, t, wave, fig, hax)
-        Eel += Floes[iF].Eel
-        if Floes[iF].hw > hfac:
-            hfac = Floes[iF].hw
+    for floe in Floes:
+        _, _ = floe.Plot(x, t, wave, fig, hax)
+        Eel += floe.Eel
+        if floe.hw > hfac:
+            hfac = floe.hw
 
     Hfac = 1.5 * hfac + wave.n0
     _ = hax.axis([x[0], x[-1], -Hfac, Hfac])
@@ -92,24 +92,45 @@ def PlotFracE(floe, Eel_floes, x_frac):
                loc='best')
 
 
-def PlotSum(t, y, *args):
-    fmt = ['g', 'o b', '+:r']
+def PlotSum(t, y, **kwargs):
+    DoSave = False
+    DoLeg = False
+    for key, value in kwargs.items():
+        if key == 'pstr':
+            pstr = value
+            DoSave = True
+        elif key == 'leg':
+            leg = value
+            DoLeg = True
+
+    fmt = ['x-r', 'x--m', '^:b']
     fig, hax = plt.subplots()
-    for iF in range(y.shape[1]):
-        if max(y[:, 1]) < 10 * max(y[:, 0]):
-            hax.plot(t, y[:, iF], fmt[iF])
+    for iF in np.arange(y.shape[1]):
+        if y.shape[1] > 1:
+            if max(y[:, 1]) < 10 * max(y[:, 0]):
+                hax.plot(t, y[:, iF], fmt[iF])
+            else:
+                hax.semilogy(t, y[:, iF], fmt[iF])
         else:
-            hax.semilogy(t, y[:, iF], fmt[iF])
+            hax.plot(t, y[:, iF], fmt[iF])
 
     hax.set(ylabel='Elastic Energy (J/m$^2$)', xlabel='Time (s)')
 
-    if len(args) > 0:
-        plt.savefig('Figs/' + args[0] + '.png')
+    if DoLeg:
+        hax.legend(leg)
+
+    if DoSave:
+        plt.savefig('Figs/' + pstr + '.png')
 
     return(fig, hax)
 
 
-def BreakFloes(x, t, Floes, wave):
+def BreakFloes(x, t, Floes, wave, *args):
+    if len(args) > 0:
+        EType = args[0]
+    else:
+        EType = 'Disp'
+
     Broke = True
     nFrac = 0
     while Broke:
@@ -121,11 +142,11 @@ def BreakFloes(x, t, Floes, wave):
         Offset = 0
         Etot = 0
         for iF in range(len(Floes)):
-            Eel1 = Floes[iF].calc_Eel(wave, t)
+            Eel1 = Floes[iF].calc_Eel(wave=wave, t=t, EType=EType)
 
             # Check if it is worth looking for fractures
             if Floes[iF].Eel > Floes[iF].k:
-                x_frac, floe1, floe2, EelF, _ = Floes[iF].FindE_min(wave, t)
+                x_frac, floe1, floe2, EelF, _ = Floes[iF].FindE_min(wave, t, EType)
                 if EelF < Eel1:
                     Broke = True
                     nFrac += 1
@@ -215,7 +236,7 @@ def PlotFSD(L, **kwargs):
     if wle:
         Lines = [[wl / 2, '$\lambda$/2']]
         if he:
-            Lines.append([hv * wl / 4, '$h\lambda$/4'])
+            Lines.append([(hv * wl)**(1 / 2), '$h\lambda$/4'])
             if ne:
                 Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
 
@@ -250,7 +271,7 @@ def addLines(hax, Lines):
 
     colors = ['magenta', 'red', 'orange', 'yellow', 'green']
     styles = ['-', '--', '-.', ':', 'loosely dotted']
-    yoffset = np.arange(1, 1 / len(Lines), -1 / len(Lines)) * 0.9
+    yoffset = np.arange(1, 1 / len(Lines) - 1e-12, -1 / len(Lines)) * 0.9
 
     for iL in np.arange(len(Lines)):
         hax.plot(Lines[iL][0] * np.ones(2), ylims, color=colors[iL], linestyle=styles[iL])

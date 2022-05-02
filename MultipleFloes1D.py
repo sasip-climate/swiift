@@ -8,7 +8,7 @@ Created on Wed Jan 12 11:48:40 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
-from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD, PlotSum
 from WaveUtils import calc_k
 from WaveDef import Wave
 from IceDef import Floe
@@ -26,6 +26,7 @@ h = 1
 x0 = 10
 L = 150
 DispType = 'Open'
+EType = 'Flex'
 
 # Initialize wave object
 if growing:
@@ -53,10 +54,11 @@ FL = [0] * n_Loops
 
 for iL in range(n_Loops):
     t = np.arange(tw[iL], t_max + tw[iL], wave.T / 20)
+    Evec = np.zeros([len(t), 1])
 
     wvf = wave.waves(x, t[0], floes=[floe1])  # over the whole domain
 
-    floe1.calc_Eel(wave, t[0])
+    floe1.calc_Eel(wave=wave, t=t[0], EType=EType)
     Floes = [floe1]
     if not reset and growing:
         PlotFloes(x, t[0], Floes, wave)
@@ -65,7 +67,10 @@ for iL in range(n_Loops):
 
         wvf = wave.waves(x, t[it], floes=Floes)  # over the whole domain
         nF = len(Floes)
-        Floes = BreakFloes(x, t[it], Floes, wave)
+        Floes = BreakFloes(x, t[it], Floes, wave, EType)
+        # Evec[it] = (len(Floes) - 1) * Floes[0].k
+        for floe in Floes:
+            Evec[it] += floe.Eel
         if len(Floes) == nF and not reset and growing:
             PlotFloes(x, t[it], Floes, wave)
         if reset and growing and it % np.floor(len(t) / 10) == 0:
@@ -84,11 +89,20 @@ if reset:
         lab = '0'
 
     root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-            f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}')
+            f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+            f'E_{EType}')
 
     plt.savefig('FigsSum/' + root + '.png')
 
     fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-          f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}')
+          f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+          f'E_{EType}')
 
     PlotFSD(FL, wl=wvlength, h=h, n0=n_0, DoSave=True, FileName=fn)
+else:
+    PlotSum(t, Evec, leg=[EType])
+    root = (f'Energy_Time_Series_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
+            f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+            f'E_{EType}')
+
+    plt.savefig('FigsSum/' + root + '.png')

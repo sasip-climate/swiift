@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import copy
 
 from ElasticMaterials import FracToughness, Lame
-from WaveDef import Wave
 from pars import g, rho_i, rho_w, E, v, K
 
 
@@ -99,7 +98,7 @@ class Floe(object):
         b = -rho_w * g * (wvf - self.mslf_int(wvf))
         self.w = np.linalg.solve(A, b)
 
-    def calc_du(self):
+    def calc_du(self, fname=''):
         x = self.xF
         w = self.w
         dx = x[1] - x[0]
@@ -114,39 +113,73 @@ class Floe(object):
         fit = np.polyfit(x, dw, 0)
         self.du = dw  - fit[0]
 
-        # fitw = np.polyfit(x, w, 1)
-        # fig, hax = plt.subplots()
-        # hax.plot(x-x[0], w)
-        # hax.plot(x-x[0], x*fitw[0] + fitw[1],':')
-        # hax.set_title(f'Deformations fit: {fitw[0]:0.6}x + {fitw[1]:0.6}')
+        if len(fname) > 0:
+            fitw = np.polyfit(x, w, 1)
+            fig, hax = plt.subplots(1, 2)
 
-        # fig, hax = plt.subplots()
-        # hax.plot(x-x[0], dw)
-        # hax.plot(x-x[0], fit * np.ones_like(x),':')
-        # hax.set_title(f'Deformation gradient: {fit[0]:0.6}')
+            hax[0].plot(x - x[0], w)
+            hax[0].plot(x - x[0], x * fitw[0] + fitw[1], ':')
+            hax[0].set_title(f'Deformations fit:\n {fitw[0]:0.6}x + {fitw[1]:0.6}')
+
+            hax[1].plot(x - x[0], dw)
+            hax[1].plot(x - x[0], fit * np.ones_like(x), ':')
+            hax[1].set_title(f'Deformation gradient: {fit[0]:.6f}\n')
+
+            plt.savefig(fname + '.png')
 
         self.slope = fit[0]
+        return self.du
 
-    def calc_Eel(self, *args):
-        if len(args) > 1:
-            t = args[1]
-            if (type(args[0]) == Wave):
-                wave = args[0]
-                wvf = wave.waves(self.xF, t, amp=self.a0, phi=self.phi0, floes=[self])
+    def calc_curv(self):
+        x = self.xF
+        w = self.w
+        dx = x[1] - x[0]
+
+        d2w = np.zeros(len(w))
+        d2w[0]  = (  2 * w[0]  - 5 * w[1]  + 4 * w[2]  - 1 * w[3])
+        d2w[-1] = ( -2 * w[-1] + 5 * w[-2] - 4 * w[-3] + 1 * w[-4])
+        d2w[1:-1] = (w[:-2] - 2 * w[1:-1] + w[2:])
+        d2w = d2w / (dx**2)
+
+        return d2w
+
+    def calc_Eel(self, **kwargs):
+        EType = 'Flex'
+        calc_wvf = False
+        for key, value in kwargs.items():
+            if key == 't':
+                t = value
+            elif key == 'wave':
+                wave = value
+                calc_wvf = True
+            elif key == 'EType':
+                EType = value
             else:
                 raise ValueError('Unknown input wave data type')
+
+        if calc_wvf:
+            wvf = wave.waves(self.xF, t, amp=self.a0, phi=self.phi0, floes=[self])
             self.calc_w(wvf)
-            self.calc_du()
 
-        du = self.du
-        du_int2 = (du[0]**2 / 2 + du[-1]**2 / 2 + (du[1:-1]**2).sum()) * self.dx
+        if EType == 'Disp':
+            intV = self.calc_du()
+            (l, u) = Lame(E, v)
+            prefac = u
+        elif EType == 'Flex':
+            intV = self.calc_curv()
+            prefac = (1 / 2) * E * self.I / self.h
 
-        (l, u) = Lame(E, v)
-        self.Eel = (l + 2 * u) * du_int2
+        int2 = (intV[0]**2 / 2 + intV[-1]**2 / 2 + (intV[1:-1]**2).sum()) * self.dx
+
+        self.Eel = prefac * int2
 
         return(self.Eel)
 
-    def FindE_min(self, wave, t):
+    def FindE_min(self, wave, t, *args):
+        if len(args) > 0:
+            EType = args[0]
+        else:
+            EType = 'Disp'
 
         Eel_floes = np.empty((len(self.xF), 2))
 
@@ -172,8 +205,8 @@ class Floe(object):
                 floe2.a0 = a_vec[iFrac]
                 floe2.phi0 = self.phi0 + self.kw * floe1.L
 
-                Eel1 = floe1.calc_Eel(wave, t)
-                Eel2 = floe2.calc_Eel(wave, t)
+                Eel1 = floe1.calc_Eel(wave=wave, t=t, EType=EType)
+                Eel2 = floe2.calc_Eel(wave=wave, t=t, EType=EType)
 
                 Eel_floes[iFrac, 0] = Eel1
                 Eel_floes[iFrac, 1] = Eel2
@@ -215,7 +248,12 @@ class Floe(object):
         msl = self.mslf_int(wvf)
         self.z_calc(msl, t)
 
-        slope = getattr(self, 'slope', 0)
+        if hasattr(self, 'slope'):
+            slope = self.slope
+        else:
+            fitw = np.polyfit(self.xF, self.w, 1)
+            slope = fitw[0]
+
         sfac = slope * self.L / 2
         z_vec = np.array([sfac, -sfac])
 

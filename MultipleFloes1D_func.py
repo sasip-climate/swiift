@@ -28,6 +28,7 @@ def MF1D(**kwargs):
     x0 = 10
     L = 150
     DispType = 'Open'
+    EType = 'Disp'
 
     for key, value in kwargs.items():
         if key == 'growing':
@@ -48,6 +49,8 @@ def MF1D(**kwargs):
             L = value
         elif key == 'DispType':
             DispType = value
+        elif key == 'EType':
+            EType = value
 
     # Initialize wave object
     if growing:
@@ -78,7 +81,7 @@ def MF1D(**kwargs):
 
         _ = wave.waves(x, t[0], floes=[floe1])  # assign waves over the whole domain
 
-        floe1.calc_Eel(wave, t[0])
+        floe1.calc_Eel(wave=wave, t=t[0], EType=EType)
         Floes = [floe1]
         if not reset and growing:
             PlotFloes(x, t[0], Floes, wave)
@@ -87,10 +90,10 @@ def MF1D(**kwargs):
 
             _ = wave.waves(x, t[it], floes=Floes)  # assign waves over the whole domain
             nF = len(Floes)
-            Floes = BreakFloes(x, t[it], Floes, wave)
+            Floes = BreakFloes(x, t[it], Floes, wave, EType)
             if len(Floes) == nF and not reset and growing:
                 PlotFloes(x, t[it], Floes, wave)
-            if reset and growing and it % np.floor(len(t) / 10) == 0:
+            if reset and growing and it % np.floor(len(t) / 5) == 0:
                 print(f'{iL}-{it}')
 
         FL_temp = []
@@ -106,12 +109,14 @@ def MF1D(**kwargs):
             lab = '0'
 
         root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-                f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}')
+                f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+                f'E_{EType}')
 
         plt.savefig('FigsSum/' + root + '.png')
 
         fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-              f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}')
+              f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+              f'E_{EType}')
 
         edges, values = PlotFSD(FL, wl=wvlength, h=h, n=n_0, DoSave=True, FileName=fn)
 
