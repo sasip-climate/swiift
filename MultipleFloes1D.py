@@ -75,10 +75,15 @@ for iL in range(n_Loops):
         # Evec[it] = (len(Floes) - 1) * Floes[0].k
         for floe in Floes:
             Evec[it] += floe.Eel
-        if len(Floes) == nF and not reset and growing:
+        if not reset:
             PlotFloes(x, t[it], Floes, wave)
-        if reset and growing and it % np.floor(len(t) / 10) == 0:
-            print(f'{iL}-{it}')
+        elif growing and it % np.floor(len(t) / 10) == 0:
+            if it == 0:
+                print(f'{iL:02}/{n_Loops-1}:', end='')
+            elif it > 0.8 * len(t):
+                print('#')
+            else:
+                print('#', end='')
 
     FL_temp = []
     for floe in Floes:
@@ -86,23 +91,23 @@ for iL in range(n_Loops):
     FL[iL] = FL_temp
 
 if reset:
-    fig, hax = PlotLengths(tw, FL, wave, floe1.x0)
+    fig, hax = PlotLengths(tw, FL, waves=wave, x0=floe1.x0, h=floe1.h)
 
     root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-            f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+            f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
             f'E_{EType}')
 
     plt.savefig('FigsSum/' + root + '.png')
 
     fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-          f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+          f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
           f'E_{EType}')
 
     PlotFSD(FL, wl=wvlength, h=h, n0=n_0, DoSave=True, FileName=fn)
 else:
     PlotSum(t, Evec, leg=[EType])
     root = (f'Energy_Time_Series_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-            f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
+            f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
             f'E_{EType}')
 
     plt.savefig('FigsSum/' + root + '.png')

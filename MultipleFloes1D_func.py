@@ -15,8 +15,12 @@ def MF1D(**kwargs):
     from WaveDef import Wave
     from IceDef import Floe
 
+    # Variable to control plots to be made
+    # 0: None, 1: Lengths, 2: Lengths and FSD
+    DoPlots = 1
+
     growing = True
-    reset = False
+    reset = True
 
     # Wave Parameters
     n_0 = 0.2
@@ -51,6 +55,8 @@ def MF1D(**kwargs):
             DispType = value
         elif key == 'EType':
             EType = value
+        elif key == 'DoPlots':
+            DoPlots = value
 
     # Initialize wave object
     if growing:
@@ -89,12 +95,16 @@ def MF1D(**kwargs):
         for it in range(len(t)):
 
             _ = wave.waves(x, t[it], floes=Floes)  # assign waves over the whole domain
-            nF = len(Floes)
             Floes = BreakFloes(x, t[it], Floes, wave, EType)
-            if len(Floes) == nF and not reset and growing:
+            if not reset:
                 PlotFloes(x, t[it], Floes, wave)
-            if reset and growing and it % np.floor(len(t) / 5) == 0:
-                print(f'{iL}-{it}')
+            elif growing and it % np.floor(len(t) / 5) == 0:
+                if it == 0:
+                    print(f'{iL:02}/{n_Loops-1}:', end='')
+                elif it > 0.8 * len(t):
+                    print('#')
+                else:
+                    print('#', end='')
 
         FL_temp = []
         for floe in Floes:
@@ -102,22 +112,31 @@ def MF1D(**kwargs):
         FL[iL] = FL_temp
 
     if reset:
-        fig, hax = PlotLengths(tw, FL, wave, floe1.x0)
-        if growing:
-            lab = 'g'
+        if DoPlots > 0:
+            fig, hax = PlotLengths(tw, FL, waves=wave, x0=floe1.x0, h=floe1.h)
+            if growing:
+                lab = 'g'
+            else:
+                lab = '0'
+
+            root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_wl_{wave.wl:02}_'
+                    f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
+                    f'E_{EType}')
+
+            plt.savefig('FigsSum/' + root + '.png')
+
+        if DoPlots > 1:
+            fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
+                  f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
+                  f'E_{EType}')
+
+            edges, values = PlotFSD(FL, wl=wvlength, h=h, n=n_0, DoSave=True, FileName=fn)
         else:
-            lab = '0'
+            Ll = []
+            for l in FL:
+                Ll += l
+            values, edges = np.histogram(Ll, bins=np.arange(1, round(max(Ll)) + 1))
 
-        root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-                f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
-                f'E_{EType}')
-
-        plt.savefig('FigsSum/' + root + '.png')
-
-        fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-              f'h_{Floes[0].h:3.1f}_L0_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_'
-              f'E_{EType}')
-
-        edges, values = PlotFSD(FL, wl=wvlength, h=h, n=n_0, DoSave=True, FileName=fn)
-
-    return(edges, values)
+        return(FL, edges, values)
+    else:
+        return(FL)

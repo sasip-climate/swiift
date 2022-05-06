@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from MultipleFloes1D_func import MF1D
 from FlexUtils_obj import PlotHist, addLines
+from pars import E, v, rho_w, g
 
 growing = [True, False]
-reset = True
 
 # Wave Parameters
 n_0 = [0.1, 0.2, 0.3]
@@ -25,10 +25,14 @@ L = 1000
 DispType = 'Open'
 ETypes = ['Disp', 'Flex']
 
-Edges = {}
-Values = {}
+# Check if variables already exist and don't initialize them if they do to keep data
+if 'FL' not in locals():
+    Edges = {}
+    Values = {}
+    FL = {}
 count = [0, 0, 0, 0, 0]
 max_count = [len(growing), len(n_0), len(wvlength), len(h), len(ETypes)]
+
 for gr in growing:
     count[0] += 1
     count[1] = 0
@@ -43,23 +47,34 @@ for gr in growing:
                 count[4] = 0
                 for EType in ETypes:
                     count[4] += 1
-                    print(f'{count} of {max_count}:')
-                    print(f"Working on {'growing' if gr else 'constant'}, {n0}m waves "
+                    key = (gr, n0, wl, hv, EType)
+                    ID = (f"{'growing' if gr else 'constant'}, {n0}m waves "
                           f"of {wl}m wavelength, with {hv:03.2f}m thick ice and {EType} energy.")
-                    Edges[gr, n0, wl, hv], Values[gr, n0, wl, hv] = \
-                        MF1D(growing=gr, reset=reset, n_0=n0, wvlength=wl, h=hv, L=L, EType=EType)
+
+                    print(f'{count} of {max_count}:')
+                    if key in FL:
+                        print('Already calculated', ID)
+                    else:
+                        print('Launching', ID)
+                        FL[key], Edges[key], Values[key] = \
+                            MF1D(growing=gr, n_0=n0, wvlength=wl, h=hv, L=L, EType=EType)
 
 for gr in growing:
     for n0 in n_0:
         for wl in wvlength:
             for hv in h:
                 for EType in ETypes:
-                    edges = Edges[gr, n0, wl, hv]
-                    values = Values[gr, n0, wl, hv]
+                    edges = Edges[gr, n0, wl, hv, EType]
+                    values = Values[gr, n0, wl, hv, EType]
                     ind = edges <= wl
+
                     if sum(ind) != len(edges):
                         edges = edges[ind]
                         values = values[ind[:-1]][:-1]
+
+                    # Check if there were no floes smaller than a wavelength, ie nothing interesting
+                    if values.sum() == 0:
+                        continue
 
                     fac = [1]
                     fac.append(1 / values.sum())
@@ -68,7 +83,8 @@ for gr in growing:
                     ylab = ['Number', 'Frequency', 'Length-fraction']
 
                     Lines = [[wl / 2, '$\lambda$/2'],
-                             [hv * wl / 4, '$h\lambda$/4'],
+                             [(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'],
+                             [(np.pi / 4) * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x^*$'],
                              [hv * wl / (18 * n0), '$h\lambda$/18$\eta$']]
 
                     for ifac in np.arange(len(fac)):
@@ -79,7 +95,7 @@ for gr in growing:
                         addLines(hax, Lines)
 
                         root = (f'FSD_{ylab[ifac]}_'
-                                f"{'growing' if gr else 'constant'} waves"
+                                f"{'growing' if gr else 'constant'}_waves"
                                 f'_{DispType}_n_{n0:3}_l_{wl:2}_'
-                                f'h_{hv:3.1f}_L0_{L:02}')
+                                f'h_{hv:3.1f}_L0_{L:04}_E_{EType}')
                         plt.savefig('FigsSum/' + root + '.png')

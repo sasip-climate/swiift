@@ -26,7 +26,7 @@ class Floe(object):
         self.h = h
         self.x0 = x0
         self.L = L
-        self.dx = L / 100
+        self.dx = min(1, L / 100)
         self.hw = rho_i / rho_w * h
         self.ha = h - self.hw
         self.I = h**3 / (12 * (1 - v**2))
@@ -40,6 +40,8 @@ class Floe(object):
                 self.dx = value
 
         self.xF = np.arange(x0, x0 + L + self.dx / 2, self.dx)
+
+        self.A = self.FlexA()
 
     def __repr__(self):
         return(f'Floe object ({self.h}, {self.x0:4.1f}, {self.L:4.1f})')
@@ -94,9 +96,8 @@ class Floe(object):
         return (wv[:-1].sum() + wv[1:].sum()) * (x[1] - x[0]) / ( 2 * (x[-1] - x[0]))
 
     def calc_w(self, wvf):
-        A = self.FlexA()
         b = -rho_w * g * (wvf - self.mslf_int(wvf))
-        self.w = np.linalg.solve(A, b)
+        self.w = np.linalg.solve(self.A, b)
 
     def calc_du(self, fname=''):
         x = self.xF

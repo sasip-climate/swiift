@@ -7,6 +7,7 @@ Created on Thu Jan  6 14:23:52 2022
 """
 import matplotlib.pyplot as plt
 import numpy as np
+from pars import E, v, rho_w, g
 
 
 def PlotFloes(x, t, Floes, wave, *args):
@@ -160,8 +161,6 @@ def BreakFloes(x, t, Floes, wave, *args):
                 Etot += Eel1
 
         if Broke:
-            if x[-1] < 300:
-                PlotFloes(x, t, NewFloes, wave)
             Floes = NewFloes
         else:
             for floe in Floes:
@@ -173,21 +172,43 @@ def BreakFloes(x, t, Floes, wave, *args):
     return Floes
 
 
-def PlotLengths(x, L, *args):
-    nx = len(x)
+def PlotLengths(t, L, **kwargs):
+    nt = len(t)
+    addThickness = False
+    tstring = ''
+    addWaves = False
+    wstring = ''
+
+    for key, value in kwargs.items():
+        if key == 'waves':
+            addWaves = True
+            waves = value
+            wstring = (f'$\lambda$={waves.wl}m, $\eta_0$={waves.n0}m, '
+                       f"{'constant' if {waves.beta == 0} else 'growing'} waves")
+        elif key == 'x0':
+            x0 = value
+        elif key == 'h':
+            addThickness = True
+            hstring = f'{value}m ice'
+
     fig, hax = plt.subplots()
     frmt = ['x-c', 'x-b', 'x-m', 'x-r', 'x-y']
-    for ix in range(nx):
-        xvec = [x[ix], x[ix]]
-        hax.plot(xvec, [0, L[ix][0]], frmt[0])
-        L0 = L[ix][0]
-        for iL in range(1, len(L[ix])):
-            hax.plot(xvec, L0 + np.array([0, L[ix][iL]]), frmt[iL % 5])
-            L0 = L0 + L[ix][iL]
+    for it in range(nt):
+        tvec = [t[it], t[it]]
+        hax.plot(tvec, [0, L[it][0]], frmt[0])
+        L0 = L[it][0]
+        for iL in range(1, len(L[it])):
+            hax.plot(tvec, L0 + np.array([0, L[it][iL]]), frmt[iL % 5])
+            L0 = L0 + L[it][iL]
 
-    if len(args) > 0:
-        hax.plot(x, L0 * 1.2 + L0 * 0.1 * args[0].waves(args[1], x, amp=1))
+    if addWaves:
+        hax.plot(t, L0 * 1.2 + L0 * 0.1 * waves.waves(x0, t) / waves.amp(t[-1]))
+        if addThickness:
+            hstring += ' with '
 
+    if addThickness or addWaves:
+        tstring = 'Floe lengths for ' + hstring + wstring
+        hax.set_title(tstring)
     hax.set(xlabel='Initial time (s)', ylabel='Floe length (m)')
 
     return(fig, hax)
@@ -225,7 +246,7 @@ def PlotFSD(L, **kwargs):
             n0 = value
             ne = True
 
-    values, edges = np.histogram(Ll, np.arange(1, round(max(Ll)) + 1))
+    values, edges = np.histogram(Ll, bins=np.arange(1, round(max(Ll)) + 1))
 
     fac = [1]
     fac.append(1 / values.sum())
@@ -236,7 +257,8 @@ def PlotFSD(L, **kwargs):
     if wle:
         Lines = [[wl / 2, '$\lambda$/2']]
         if he:
-            Lines.append([(hv * wl)**(1 / 2), '$h\lambda$/4'])
+            Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
+            Lines.append([(np.pi/4)*(E*hv**3/(36*(1-v**2)*rho_w*g))**(1/4), '$x^*$'])
             if ne:
                 Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
 
