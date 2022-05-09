@@ -73,17 +73,18 @@ def MF1D(**kwargs):
     # Initial setup
     x = np.arange(2 * x0 + L)
 
-    tw = np.linspace(0, wave.T, num=21)
+    phi = 2 * np.pi * np.linspace(0, 1, num=21)
 
     if reset:
-        n_Loops = len(tw)
+        n_Loops = len(phi)
     else:
         n_Loops = 1
 
     FL = [0] * n_Loops
 
+    t = np.arange(0, t_max, wave.T / 20)
     for iL in range(n_Loops):
-        t = np.arange(tw[iL], t_max + tw[iL], wave.T / 20)
+        wave.phi = phi[iL]
 
         _ = wave.waves(x, t[0], floes=[floe1])  # assign waves over the whole domain
 
@@ -98,14 +99,13 @@ def MF1D(**kwargs):
             Floes = BreakFloes(x, t[it], Floes, wave, EType)
             if not reset:
                 PlotFloes(x, t[it], Floes, wave)
-            elif growing and it % np.floor(len(t) / 5) == 0:
+            elif it % np.floor(len(t) / 5) < 0.001:
                 if it == 0:
                     print(f'{iL:02}/{n_Loops-1}:', end='')
-                elif it > 0.8 * len(t):
-                    print('#')
                 else:
                     print('#', end='')
 
+        print('#')
         FL_temp = []
         for floe in Floes:
             FL_temp.append(floe.L)
@@ -113,7 +113,7 @@ def MF1D(**kwargs):
 
     if reset:
         if DoPlots > 0:
-            fig, hax = PlotLengths(tw, FL, waves=wave, x0=floe1.x0, h=floe1.h)
+            fig, hax = PlotLengths(phi, FL, waves=wave, x0=x0, h=h)
             if growing:
                 lab = 'g'
             else:

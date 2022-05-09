@@ -202,14 +202,15 @@ def PlotLengths(t, L, **kwargs):
             L0 = L0 + L[it][iL]
 
     if addWaves:
-        hax.plot(t, L0 * 1.2 + L0 * 0.1 * waves.waves(x0, t) / waves.amp(t[-1]))
+        hax.plot(t, L0 * 1.2 + L0 * 0.1 * waves.waves(x0, t * waves.T / (2 * np.pi), amp=1))
         if addThickness:
             hstring += ' with '
 
     if addThickness or addWaves:
         tstring = 'Floe lengths for ' + hstring + wstring
         hax.set_title(tstring)
-    hax.set(xlabel='Initial time (s)', ylabel='Floe length (m)')
+    hax.set(xlabel='Initial phase (rad)', ylabel='Floe length (m)')
+    plt.xticks(np.arange(0, 2.5, 0.5) * np.pi, ['0', '$\pi/2$', '$\pi$', '$3\pi/2$', '$2\pi$'])
 
     return(fig, hax)
 

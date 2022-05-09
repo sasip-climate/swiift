@@ -26,10 +26,10 @@ DispType = 'Open'
 ETypes = ['Disp', 'Flex']
 
 # Check if variables already exist and don't initialize them if they do to keep data
-if 'FL' not in locals():
+if 'Edges' not in locals():
     Edges = {}
     Values = {}
-    FL = {}
+    FloeLengths = {}
 count = [0, 0, 0, 0, 0]
 max_count = [len(growing), len(n_0), len(wvlength), len(h), len(ETypes)]
 
@@ -52,11 +52,11 @@ for gr in growing:
                           f"of {wl}m wavelength, with {hv:03.2f}m thick ice and {EType} energy.")
 
                     print(f'{count} of {max_count}:')
-                    if key in FL:
+                    if key in Edges:
                         print('Already calculated', ID)
                     else:
                         print('Launching', ID)
-                        FL[key], Edges[key], Values[key] = \
+                        FloeLengths[key], Edges[key], Values[key] = \
                             MF1D(growing=gr, n_0=n0, wvlength=wl, h=hv, L=L, EType=EType)
 
 for gr in growing:

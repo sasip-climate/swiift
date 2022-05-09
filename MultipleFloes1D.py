@@ -47,17 +47,18 @@ floe1.kw = calc_k(1 / wave.T, h, DispType=DispType)
 # Initial setup
 x = np.arange(2 * x0 + L)
 
-tw = np.linspace(0, wave.T, num=21)
+phi = 2 * np.pi * np.linspace(0, 1, num=21)
 
 if reset:
-    n_Loops = len(tw)
+    n_Loops = len(phi)
 else:
     n_Loops = 1
 
 FL = [0] * n_Loops
 
+t = np.arange(0, t_max, wave.T / 20)
 for iL in range(n_Loops):
-    t = np.arange(tw[iL], t_max + tw[iL], wave.T / 20)
+    wave.phi = phi[iL]
     Evec = np.zeros([len(t), 1])
 
     wvf = wave.waves(x, t[0], floes=[floe1])  # over the whole domain
@@ -77,21 +78,20 @@ for iL in range(n_Loops):
             Evec[it] += floe.Eel
         if not reset:
             PlotFloes(x, t[it], Floes, wave)
-        elif growing and it % np.floor(len(t) / 10) == 0:
+        elif it % np.floor(len(t) / 10) == 0:
             if it == 0:
                 print(f'{iL:02}/{n_Loops-1}:', end='')
-            elif it > 0.8 * len(t):
-                print('#')
             else:
                 print('#', end='')
 
+    print('#')
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
     FL[iL] = FL_temp
 
 if reset:
-    fig, hax = PlotLengths(tw, FL, waves=wave, x0=floe1.x0, h=floe1.h)
+    fig, hax = PlotLengths(phi, FL, waves=wave, x0=x0, h=h)
 
     root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
             f'h_{Floes[0].h:3.1f}_L0_{L:04}_'

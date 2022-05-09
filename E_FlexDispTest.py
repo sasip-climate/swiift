@@ -14,7 +14,7 @@ from IceDef import Floe
 
 growing = True
 reset = False
-stop = False
+stop = True
 
 # Wave Parameters
 (n_0, _, _, _, wvlength) = SpecVars(5)  # Spectral parameters from wind speeds in m/s
@@ -43,17 +43,18 @@ floe1.kw = calc_k(1 / wave.T, h, DispType=DispType)
 # Initial setup
 x = np.arange(2 * x0 + L)
 
-tw = np.linspace(0, wave.T, num=21)
+phi = 2 * np.pi * np.linspace(0, 1, num=21)
 
 if reset:
-    n_Loops = len(tw)
+    n_Loops = len(phi)
 else:
     n_Loops = 1
 
 FL = [0] * n_Loops
 
+t = np.arange(0, t_max, wave.T / 20)
 for iL in range(n_Loops):
-    t = np.arange(tw[iL], t_max + tw[iL], wave.T / 20)
+    wave.phi = phi[iL]
     Evec = np.zeros([len(t), 2])
 
     Floes = [floe1]
