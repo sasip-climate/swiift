@@ -128,6 +128,21 @@ def PlotSum(t, y, **kwargs):
 
 
 def BreakFloes(x, t, Floes, wave, *args):
+    '''
+        Searches if a fracture can occur and where would it be
+    ----------
+    x : np.array -> mesh of the scene
+    t : float -> time of simulation
+    Floes : list(Floe) -> current floes list (order from left to right)
+    wave : Wave class -> wave
+    *args :
+        Etype: string -> energy type among 'Flex' and 'Disp'
+
+    Returns
+    -------
+    Floes : list(Floe) -> updated list of floes, still in order from left to right
+
+    '''
     if len(args) > 0:
         EType = args[0]
     else:
@@ -139,7 +154,7 @@ def BreakFloes(x, t, Floes, wave, *args):
 
         Broke = False
 
-        # Calculate Elastic Energy and break Floes
+        # Computes Elastic Energy and break Floes
         NewFloes = Floes.copy()
         Offset = 0
         Etot = 0

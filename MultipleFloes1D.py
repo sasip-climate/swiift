@@ -5,10 +5,12 @@ Created on Wed Jan 12 11:48:40 2022
 
 @author: auclaije
 """
-
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+from tqdm import tqdm
 import config
+
 from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD, PlotSum
 from WaveUtils import calc_k
 from WaveDef import Wave
@@ -69,7 +71,8 @@ for iL in range(n_Loops):
     if not reset and growing:
         PlotFloes(x, t[0], Floes, wave)
 
-    for it in range(len(t)):
+    tstart = time.time()
+    for it in tqdm(range(len(t))):
 
         wvf = wave.waves(x, t[it], floes=Floes)  # over the whole domain
         nF = len(Floes)
@@ -79,11 +82,9 @@ for iL in range(n_Loops):
             Evec[it] += floe.Eel
         if not reset:
             PlotFloes(x, t[it], Floes, wave)
-        elif it % np.floor(len(t) / 10) == 0:
-            if it == 0:
-                print(f'{iL:02}/{n_Loops-1}:', end='')
-            else:
-                print('#', end='')
+
+    duration = time.time() - tstart
+    print(duration)
 
     print('#')
     FL_temp = []

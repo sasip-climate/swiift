@@ -12,17 +12,17 @@ import copy
 import config
 
 # Allows faster computation of displacement
-from scipy.sparse.csc import csc_matrix
 from scipy.sparse.linalg import spsolve
+import scipy.sparse as sp
 
 from ElasticMaterials import FracToughness, Lame
-from pars import g, rho_i, rho_w, E, v, K
+from pars import g, rho_i, rho_w, E, v, K, Deriv101
 
 
 class Floe(object):
     """ Floe object for floe breaking experiment
     Inputs: h:  ice thickness (m)
-            x0: first point within the floe
+            x0: first point within the floe (m)
             L:  floe length (m)
     """
 
@@ -46,8 +46,7 @@ class Floe(object):
 
         self.xF = np.arange(x0, x0 + L + self.dx / 2, self.dx)
 
-        self.A = self.FlexA()
-        self.Asparse = csc_matrix(self.A)
+        self.initMatrix()
 
     def __repr__(self):
         return(f'Floe object ({self.h}, {self.x0:4.1f}, {self.L:4.1f})')
@@ -58,7 +57,7 @@ class Floe(object):
     def fracture(self, x_frac):
         L1 = x_frac - self.x0
         floe1 = Floe(self.h, self.x0, L1, DispType=self.DispType, dx=min(self.dx, L1 / 100))
-        L2 = self.x0 + self.L - x_frac
+        L2 = self.L - L1
         floe2 = Floe(self.h, x_frac, L2, DispType=self.DispType, dx=min(self.dx, L2 / 100))
 
         if hasattr(self, 'kw'):
@@ -71,31 +70,73 @@ class Floe(object):
         self.z = msl - self.hw + self.h / 2
 
     def FlexA(self):
+        # Computes the np.array version of flex matrix
+
         x = self.xF
         I = self.I
 
         dx = x[1] - x[0]
+        N = len(x)
 
-        A = np.zeros((len(x), len(x)))
+        if N == 101:
+            # For all floes at or under 100m, ie 101 points, use a precalculated matrix
+            self.A = E * I * Deriv101 / (dx**4) + rho_w * g * np.eye(101)
+        else:
+            # Computes the five bands of the matrix -> centered differences
+            A = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) \
+                + np.eye(N, k=2) + np.eye(N, k=-2)
+
+            # First two rows can't use centered difference
+            A[0, [0, 1, 2]] = np.array([2, -4, 2])
+            A[1, [0, 1, 2, 3]] = np.array([-2, 5, -4, 1])
+
+            # Last two rows can't use centered difference either
+            A[-1, [-3, -2, -1]] = np.array([2, -4, 2])
+            A[-2, [-4, -3, -2, -1]] = np.array([1, -4, 5, -2])
+
+            # Derivation factor
+            A *= E * I / (dx**4)
+
+            # Last term of homogeneous equation
+            A += rho_w * g * np.eye(N)
+
+            self.A = A
+
+    def FlexA_sparse(self):
+        # Computes the scipy.sparse version of the flex matrix
+
+        x = self.xF
+        I = self.I
+        dx = x[1] - x[0]
+        N = len(x)
+
+        # Diagonal bands
+        C0 = np.ones(N)
+
+        A = sp.spdiags([C0, -4 * C0, 6 * C0, -4 * C0, C0], [-2, -1, 0, 1, 2], N, N, format='csr')
         # First two rows can't use centered difference
-        A[0, [0, 1, 2]] = E * I * np.array([2, -4, 2]) / dx**4
-        A[0, 0] += rho_w * g
-        A[1, [0, 1, 2, 3]] = E * I * np.array([-2, 5, -4, 1]) / dx**4
-        A[1, 1] += rho_w * g
+        A[0, [0, 1, 2]] = np.array([2, -4, 2])
+        A[1, [0, 1, 2, 3]] = np.array([-2, 5, -4, 1])
 
         # Last two rows can't use centered difference either
-        A[-1, [-3, -2, -1]] = E * I * np.array([2, -4, 2]) / dx**4
-        A[-1, -1] += rho_w * g
-        A[-2, [-4, -3, -2, -1]] = E * I * np.array([1, -4, 5, -2]) / dx**4
-        A[-2, -2] += rho_w * g
+        A[-1, [-3, -2, -1]] = np.array([2, -4, 2])
+        A[-2, [-4, -3, -2, -1]] = np.array([1, -4, 5, -2])
 
-        stencil = np.arange(-2, 3)
-        coeffs = np.array([1, -4, 6, -4, 1])
-        for i in range(2, len(A) - 2):
-            A[i, stencil + i] = E * I * coeffs / dx**4
-            A[i, i] += rho_w * g
+        A *= E * I / (dx**4)
+        A += rho_w * g * sp.eye(N, format='csr')
 
-        return(A)
+        self.Asp = A
+
+    def initMatrix(self):
+        # Chooses matrix type (np.ndarray or scipy.sparse) to be more efficient
+        # -> cf Overleaf CodeEfficiency internship TLILI
+        N = len(self.xF)
+        if N > 250:
+            self.FlexA_sparse()
+        elif N >= 100:
+            self.FlexA()
+        else:
+            raise ValueError('Floe should have more points')
 
     def mslf_int(self, wv):
         x = self.xF
@@ -103,8 +144,11 @@ class Floe(object):
 
     def calc_w(self, wvf):
         b = -rho_w * g * (wvf - self.mslf_int(wvf))
-        self.w = spsolve(self.Asparse, b)
-        #Use of sparse properties to improve efficiency when L>>1
+        if wvf.size > 250:
+            # Use of sparse properties to improve efficiency #points >> 1
+            self.w = spsolve(self.Asp, b)
+        else:
+            self.w = np.linalg.solve(self.A, b)
 
     def calc_du(self, fname=''):
         x = self.xF
@@ -230,17 +274,8 @@ class Floe(object):
         return(x_fracm, floe1m, floe2m, Eel_min, Eel_floes)
 
     def calc_strain(self):
-        x = self.xF
-        dx = x[1] - x[0]
-        du = self.du
-
-        du2 = np.zeros(len(du))
-        du2[0]  = (-3 * du[0]  + 4 * du[1]  - du[2])
-        du2[-1] = ( 3 * du[-1] - 4 * du[-2] + du[-3])
-        du2[1:-1] = (-du[:-2] + du[2:])
-        du2 = du2 / (2 * dx)
-
-        self.strain = self.h * du2 / 2
+        dw2 = self.calc_curv()
+        self.strain = self.h * dw2 / 2
 
     def Plot(self, x, t, wave, *args):
         if len(args) == 2:
