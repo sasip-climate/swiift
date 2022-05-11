@@ -10,14 +10,16 @@ Created on Wed Jan 12 11:48:40 2022
 def MF1D(**kwargs):
     import numpy as np
     import matplotlib.pyplot as plt
+    import config
     from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
     from WaveUtils import calc_k
     from WaveDef import Wave
     from IceDef import Floe
 
     # Variable to control plots to be made
-    # 0: None, 1: Lengths, 2: Lengths and FSD
+    # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and Floes
     DoPlots = 1
+    FigsDirSumry = config.FigsDirSumry
 
     growing = True
     reset = True
@@ -57,6 +59,8 @@ def MF1D(**kwargs):
             EType = value
         elif key == 'DoPlots':
             DoPlots = value
+        elif key == 'SaveDirectory':
+            FigsDirSumry = value
 
     # Initialize wave object
     if growing:
@@ -97,7 +101,7 @@ def MF1D(**kwargs):
 
             _ = wave.waves(x, t[it], floes=Floes)  # assign waves over the whole domain
             Floes = BreakFloes(x, t[it], Floes, wave, EType)
-            if not reset:
+            if not reset and DoPlots > 2:
                 PlotFloes(x, t[it], Floes, wave)
             elif it % np.floor(len(t) / 5) < 0.001:
                 if it == 0:
@@ -123,7 +127,7 @@ def MF1D(**kwargs):
                     f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
                     f'E_{EType}')
 
-            plt.savefig('FigsSum/' + root + '.png')
+            plt.savefig(FigsDirSumry + root + '.png')
 
         if DoPlots > 1:
             fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'

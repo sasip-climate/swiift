@@ -9,6 +9,11 @@ Created on Tue Jan  4 14:30:37 2022
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
+import config
+
+# Allows faster computation of displacement
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.linalg import spsolve
 
 from ElasticMaterials import FracToughness, Lame
 from pars import g, rho_i, rho_w, E, v, K
@@ -42,6 +47,7 @@ class Floe(object):
         self.xF = np.arange(x0, x0 + L + self.dx / 2, self.dx)
 
         self.A = self.FlexA()
+        self.Asparse = csc_matrix(self.A)
 
     def __repr__(self):
         return(f'Floe object ({self.h}, {self.x0:4.1f}, {self.L:4.1f})')
@@ -97,7 +103,8 @@ class Floe(object):
 
     def calc_w(self, wvf):
         b = -rho_w * g * (wvf - self.mslf_int(wvf))
-        self.w = np.linalg.solve(self.A, b)
+        self.w = spsolve(self.Asparse, b)
+        #Use of sparse properties to improve efficiency when L>>1
 
     def calc_du(self, fname=''):
         x = self.xF
@@ -126,7 +133,7 @@ class Floe(object):
             hax[1].plot(x - x[0], fit * np.ones_like(x), ':')
             hax[1].set_title(f'Deformation gradient: {fit[0]:.6f}\n')
 
-            plt.savefig(fname + '.png')
+            plt.savefig(config.FigsDirFloes + '.png')
 
         self.slope = fit[0]
         return self.du

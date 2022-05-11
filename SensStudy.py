@@ -8,11 +8,13 @@ Created on Mon Apr  4 14:52:15 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
+import config
 from MultipleFloes1D_func import MF1D
 from FlexUtils_obj import PlotHist, addLines
 from pars import E, v, rho_w, g
 
 growing = [True, False]
+reset = True
 
 # Wave Parameters
 n_0 = [0.1, 0.2, 0.3]
@@ -56,8 +58,12 @@ for gr in growing:
                         print('Already calculated', ID)
                     else:
                         print('Launching', ID)
-                        FloeLengths[key], Edges[key], Values[key] = \
-                            MF1D(growing=gr, n_0=n0, wvlength=wl, h=hv, L=L, EType=EType)
+                        if reset:
+                            FloeLengths[key], Edges[key], Values[key] = \
+                                MF1D(growing=gr, n_0=n0, wvlength=wl, h=hv, L=L, EType=EType, reset=reset)
+                        else:
+                            FloeLengths[key] = \
+                                MF1D(growing=gr, n_0=n0, wvlength=wl, h=hv, L=L, EType=EType, reset=reset)
 
 for gr in growing:
     for n0 in n_0:
@@ -98,4 +104,4 @@ for gr in growing:
                                 f"{'growing' if gr else 'constant'}_waves"
                                 f'_{DispType}_n_{n0:3}_l_{wl:2}_'
                                 f'h_{hv:3.1f}_L0_{L:04}_E_{EType}')
-                        plt.savefig('FigsSum/' + root + '.png')
+                        plt.savefig(config.FigsDirSumry + root + '.png')

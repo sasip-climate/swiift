@@ -7,6 +7,7 @@ Created on Thu Jan  6 14:23:52 2022
 """
 import matplotlib.pyplot as plt
 import numpy as np
+import config
 from pars import E, v, rho_w, g
 
 
@@ -58,7 +59,7 @@ def PlotFloes(x, t, Floes, wave, *args):
             root = (f'OneFloe_n_{wave.n0:3}_l_{wave.wvlength:2}_'
                     'h_{Floes[0].h:3}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_t_{args[0]:03}')
 
-        plt.savefig('Figs/' + root + '.png')
+        plt.savefig(config.FigsDirFloes + root + '.png')
 
     plt.show()
 
@@ -121,7 +122,7 @@ def PlotSum(t, y, **kwargs):
         hax.legend(leg)
 
     if DoSave:
-        plt.savefig('Figs/' + pstr + '.png')
+        plt.savefig(config.FigsDirSumry + pstr + '.png')
 
     return(fig, hax)
 
@@ -271,7 +272,7 @@ def PlotFSD(L, **kwargs):
         if DoSave:
             root = f'FSD_{ylab[ifac]}{fn}'
 
-            plt.savefig('FigsSum/' + root + '.png')
+            plt.savefig(config.FigsDirSumry + root + '.png')
 
     return(edges, values)
 

@@ -8,6 +8,7 @@ Created on Wed Jan 12 11:48:40 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
+import config
 from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD, PlotSum
 from WaveUtils import calc_k
 from WaveDef import Wave
@@ -97,7 +98,7 @@ if reset:
             f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
             f'E_{EType}')
 
-    plt.savefig('FigsSum/' + root + '.png')
+    plt.savefig(config.FigsDirSumry + root + '.png')
 
     fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
           f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
@@ -110,4 +111,4 @@ else:
             f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
             f'E_{EType}')
 
-    plt.savefig('FigsSum/' + root + '.png')
+    plt.savefig(config.FigsDirSumry + root + '.png')
