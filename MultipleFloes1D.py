@@ -86,7 +86,6 @@ for iL in range(n_Loops):
     duration = time.time() - tstart
     print(duration)
 
-    print('#')
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
