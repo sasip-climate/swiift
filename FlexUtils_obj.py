@@ -12,18 +12,34 @@ from pars import E, v, rho_w, g, strainCrit
 
 
 def PlotFloes(x, t, Floes, wave, *args):
-    fig, hax = wave.Plot(x, t, floes=Floes)
     hfac = 0
     nFloes = len(Floes)
 
+    if wave.type == 'WaveSpec':
+        fig, hax = wave.plot(x)
+        n0 = wave.calcHs()
+        n = n0
+        wvstring = f'Hs_{wave.Hs:4.2f}_wl_{wave.wlp:2.0f}'
+        wvtstring = f'$H_s$: {wave.Hs:4.2f}m'
+    else:
+        fig, hax = wave.plot(x, t, floes=Floes)
+        n0 = wave.n0
+        n = wave.amp(t)
+        wvstring = f'n_{wave.n0:0.3}_l_{wave.wvlength:2.0f}'
+        wvtstring = f'$\eta_0$: {n:0.3f}m'
+
     Eel = (nFloes - 1) * Floes[0].k
     for floe in Floes:
-        _, _ = floe.Plot(x, t, wave, fig, hax)
+        if wave.type == 'WaveSpec':
+            wvf = wave.calc_waves(floe.xF)
+        else:
+            wvf = wave.waves(floe.xF, t, amp=floe.a0, phi=floe.phi0, floes=[floe])
+        _, _ = floe.plot(x, t, wvf, fig, hax)
         Eel += floe.Eel
         if floe.hw > hfac:
             hfac = floe.hw
 
-    Hfac = 1.5 * hfac + wave.n0
+    Hfac = 1.5 * hfac + n0
     _ = hax.axis([x[0], x[-1], -Hfac, Hfac])
 
     if Eel == 0:
@@ -32,7 +48,7 @@ def PlotFloes(x, t, Floes, wave, *args):
         oom = np.floor(np.log10(Eel))
         E_string = str(round(Eel * 10**(2 - oom)) / 100) + 'x10$^{' + str(int(oom)) + '}$'
 
-    tstr = f'Time: {t:.2f}s - $\eta_0$: {wave.amp(t):0.3}m - Energy: ' + E_string + 'Jm$^{-2}$'
+    tstr = f'Time: {t:.2f}s - ' + wvtstring + ' - Energy: ' + E_string + 'Jm$^{-2}$'
 
     hax.set_title(tstr)
     hax.set(ylabel='Height (m)', xlabel='Distance (m)')
@@ -52,16 +68,20 @@ def PlotFloes(x, t, Floes, wave, *args):
         plt.text(x[-1] * 0.8, Hfac * 0.6, f'max: {maxL:.0f}m')
 
     if len(args) > 0:
-        if nFloes > 2:
-            root = (f'{nFloes:3}Floes_n_{wave.n0:3}_l_{wave.wvlength:2}_'
-                    'h_{Floes[0].h:3}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_t_{args[0]:03}')
-        else:
-            root = (f'OneFloe_n_{wave.n0:3}_l_{wave.wvlength:2}_'
-                    'h_{Floes[0].h:3}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_t_{args[0]:03}')
+        itlab = ''
+        Explab = 'Floes'
+        for arg in len(args):
+            if type(arg) is str:
+                Explab = arg
+            elif isinstance(arg, (int, np.int32, np.int64)):
+                itlab = f'_t_{arg:03}'
+        root = (f'{Explab}_{wvstring}_'
+                f'h_{Floes[0].h:3}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}{itlab}')
 
         plt.savefig(config.FigsDirFloes + root + '.png')
-
-    plt.show()
+        plt.close(fig)
+    else:
+        plt.show()
 
 
 def PlotFracE(floe, Eel_floes, x_frac):
@@ -135,6 +155,7 @@ def PlotSum(t, y, **kwargs):
 
     if DoSave:
         plt.savefig(config.FigsDirSumry + pstr + '.png')
+        plt.close()
 
     return(fig, hax)
 
@@ -156,10 +177,8 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     Floes : list(Floe) -> updated list of floes, still in order from left to right
     '''
 
-    if len(args) > 0:
-        EType = args[0]
-    else:
-        EType = 'Disp'
+    EType = args[0] if len(args) > 0 else 'Flex'
+    Spec = True if wave.type == 'WaveSpec' else False
 
     Broke = True
     nFrac = 0
@@ -173,7 +192,12 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
         Offset = 0
         Etot = 0
         for iF in range(len(Floes)):
-            Eel1 = Floes[iF].calc_Eel(wave=wave, t=t, EType=EType)
+            if Spec:
+                wvf = wave.calc_waves(Floes[iF].xF)
+            else:
+                wvf = wave.waves(Floes[iF].xF, t, amp=Floes[iF].a0,
+                                 phi=Floes[iF].phi0, floes=[Floes[iF]])
+            Eel1 = Floes[iF].calc_Eel(EType=EType, wvf=wvf)
 
             # Check if it is worth looking for fractures
             maxFrac = Floes[iF].Eel / Floes[iF].k
@@ -286,6 +310,7 @@ def PlotLengths(t, L, **kwargs):
     tstring = ''
     addWaves = False
     wstring = ''
+    xu = 'phase'
 
     for key, value in kwargs.items():
         if key == 'waves':
@@ -293,11 +318,27 @@ def PlotLengths(t, L, **kwargs):
             waves = value
             wstring = (f'$\lambda$={waves.wl}m, $\eta_0$={waves.n0}m, '
                        f"{'constant' if {waves.beta == 0} else 'growing'} waves")
+        elif key == 'Spec':
+            addWaves = True
+            Spec = value
+            wstring = (f'$\lambda$={Spec.wlp}m, $H_s$={Spec.Hs}m waves')
         elif key == 'x0':
             x0 = value
         elif key == 'h':
             addThickness = True
             hstring = f'{value}m ice'
+        elif key == 'xunits':
+            xu = value
+
+    if addWaves and addThickness:
+        wstring += ' with '
+
+    if addWaves or addThickness:
+        tstring = 'Floe lengths for ' + hstring + wstring
+
+    if nt == 1:
+        fig, hax = PlotLengths1(L, tstring)
+        return(fig, hax)
 
     fig, hax = plt.subplots()
     frmt = ['x-c', 'x-b', 'x-m', 'x-r', 'x-y']
@@ -311,15 +352,26 @@ def PlotLengths(t, L, **kwargs):
 
     if addWaves:
         hax.plot(t, L0 * 1.2 + L0 * 0.1 * waves.waves(x0, t * waves.T / (2 * np.pi), amp=1))
-        if addThickness:
-            hstring += ' with '
 
     if addThickness or addWaves:
-        tstring = 'Floe lengths for ' + hstring + wstring
         hax.set_title(tstring)
-    hax.set(xlabel='Initial phase (rad)', ylabel='Floe length (m)')
-    plt.xticks(np.arange(0, 2.5, 0.5) * np.pi, ['0', '$\pi/2$', '$\pi$', '$3\pi/2$', '$2\pi$'])
 
+    hax.set(ylabel='Floe length (m)')
+    if xu == 'phase':
+        hax.set(xlabel='Initial phase (rad)')
+        plt.xticks(np.arange(0, 2.5, 0.5) * np.pi, ['0', '$\pi/2$', '$\pi$', '$3\pi/2$', '$2\pi$'])
+    elif xu == 'trials':
+        hax.set(xlabel='Trial number')
+
+    return(fig, hax)
+
+
+def PlotLengths1(L, *args):
+    fig, hax = plt.subplots()
+    nFloes = len(L[0])
+    for iF in range(nFloes):
+        hax.plot([0, L[0][iF]], [iF, iF])
+    hax.set(xlabel='Floe Length (m)', ylabel='Floe number')
     return(fig, hax)
 
 
@@ -340,6 +392,7 @@ def PlotFSD(L, **kwargs):
     wle = False
     he = False
     ne = False
+    Lines = []
 
     L_min = np.floor(min(Ll)) - 1
     L_max = np.ceil(max(Ll)) + 1
@@ -347,9 +400,8 @@ def PlotFSD(L, **kwargs):
 
     # Process optional inputs
     for key, value in kwargs.items():
-        if key == 'DoSave':
-            DoSave = value
-        elif key == 'FileName':
+        if key == 'FileName':
+            DoSave = True
             fn = value
         elif key == 'h':
             hv = value
@@ -362,6 +414,8 @@ def PlotFSD(L, **kwargs):
             ne = True
         elif key == 'dL':
             dL = value
+        elif key == 'Lines':
+            Lines = value
 
     values, edges = np.histogram(Ll, bins=np.arange(L_min, L_max, dL))
 
@@ -372,12 +426,12 @@ def PlotFSD(L, **kwargs):
     ylab = ['Number', 'Frequency', 'Length-fraction']
 
     if wle:
-        Lines = [[wl / 2, '$\lambda$/2']]
-        if he:
-            # Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
-            Lines.append([np.pi / 4 * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x_c$'])
-            # if ne:
-            #     Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
+        Lines.append = [[wl / 2, '$\lambda$/2']]
+    if he:
+        Lines.append([(np.pi / 4) * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x^*$'])
+        # Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
+        # if ne:
+        #     Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
 
     for ifac in np.arange(len(fac)):
         fig, hax = PlotHist(edges, values * fac[ifac])
@@ -388,6 +442,7 @@ def PlotFSD(L, **kwargs):
             root = f'FSD_{ylab[ifac]}{fn}'
 
             plt.savefig(config.FigsDirSumry + root + '.png')
+            plt.close()
 
     return(edges, values)
 

@@ -14,70 +14,111 @@ from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
 from IceDef import Floe
 
-growing = False
-reset = True
-
-# Wave Parameters
-u = 10  # Wind speed (m/s)
-# Initialize wave object
-Spec = WaveSpec(u=u)
+DoPlots = True
+SavePlots = True
+repeats = 10
 
 # Ice parameters
 h = 1
-x0 = 450
-L = 1500
-DispType = 'ElML'
+x0 = 10
+L = 200
+DispType = 'ML'
+EType = 'Flex'
 # Initialize ice floe object
 floe1 = Floe(h, x0, L, DispType=DispType)
 
+# Wave Parameters
+u = 5  # Wind speed (m/s)
+# Initialize wave object
+Spec = WaveSpec(u=u)
+
 # calculate wave properties in ice
-Spec.ki = calc_k(Spec.f, h, DispType=DispType)
-Spec.cgi = calc_cg(Spec.ki, h, DispType=DispType)
+ki = calc_k(Spec.f, h, DispType=DispType)
+ind = np.isnan(ki) + (abs(ki) > 10)
+Spec.nf = sum(~ind)
+Spec.f = Spec.f[~ind]
+Spec.df = Spec.df[~ind]
+Spec.Ei = Spec.Ei[~ind]
+floe1.setWPars(Spec)
+
+ki = ki[~ind]
+cgi = calc_cg(ki, h, DispType=DispType)
+xi = 1 / ((1 / 2) * h * ki ** 2)
+if L > 5 * xi[6]:
+    print('Warning: Floe is more than 5x the attenuation length of the peak')
+
 plotDisp(Spec.f, h)
 plot_cg(Spec.f, h)
 
 # Initial setup
 x = np.arange(2 * x0 + L + 1)
-tProp = max(2 * x0 / Spec.cgw + L / Spec.cgi)
+tProp = (2 * x0 / Spec.cgw[~ind] + L / cgi)
+tPropMax = max(tProp)
+tSpecM = max(tProp[Spec.Ei > 0.1 * max(Spec.Ei)])
 
+Floes = [floe1]
 # Visualize energy propagation in the domain
-for t in np.arange(10, 2 * tProp + 1 / Spec.f[0], 10):
-    Spec.calcExt(x, t, [floe1])
-    if t < tProp * 1.1:
-        Spec.plotExt(x)
-        plt.savefig(f'Spec/Spec_{t:04.0f}.png')
-    Spec.plotWMean(x, t, floes=[floe1], DoSave=True)
-
-exit
+for t in np.arange(Spec.Tp, 2 * tSpecM + 1 / Spec.f[0], tSpecM / 10):
+    Spec.calcExt(x, t, Floes)
+    if t < tSpecM * 1.1:
+        Spec.plotEx(fname=f'Spec/Spec_{DispType}_L0_{L:04}_{t:04.0f}.png', t=t)
+    # Spec.set_phases(x, t, Floes)
+    # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
 
 FL = [0] * repeats
+t = np.arange(0, 2 * tSpecM + 1 / Spec.f[0], Spec.Tp / 20)
 
+print(f'Launching {repeats} experiments with {round(t[-1])}s duration.')
 for iL in range(repeats):
-    t = np.arange(0, 2 * tProp + 1 / Spec.f[0], Spec.Tp / 20)
 
-    Spec.calcExt(x, t, [floe1])
-    wvf = Spec.waves(floe1.xf, t, floes=[floe1])
+    Spec.calcExt(x, t[0], [floe1])
+    # Spec.plotEx()
+    Spec.set_phases(x, t[0], [floe1])
 
-    floe1.calc_Eel(wvf)
+    wvf = Spec.calc_waves(floe1.xF)
+    floe1.calc_Eel(wvf=wvf, EType=EType)
     Floes = [floe1]
-    if not reset and growing:
+    if repeats == 1:
         PlotFloes(x, t[0], Floes, Spec)
 
     for it in range(len(t)):
 
         nF = len(Floes)
-        Floes = BreakFloes(x, t[it], Floes, Spec)
-        if len(Floes) == nF:
-            _ = Spec.waves(x, t[it], Floes)  # over the whole domain
-            for iF in range(len(Floes)):
-                Floes[iF].Eel_calc(wave, t[it])
-            PlotFloes(x, t[it], Floes, wave)
+        Spec.calcExt(x, t[it], Floes)
+        # Spec.plotEx(t=t[it])
+        Spec.set_phases(x, t[it], Floes)
+        # Spec.plotWMean(x, floes=Floes)
+        Floes = BreakFloes(x, t[it], Floes, Spec, EType)
+        if DoPlots:
+            for floe in Floes:
+                floe.calc_Eel(wvf=Spec.calc_waves(floe.xF), EType=EType)
+            if SavePlots:
+                PlotFloes(x, t[it], Floes, Spec, f'Exp_{iL:02}_')
+            else:
+                PlotFloes(x, t[it], Floes, Spec)
 
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
     FL[iL] = FL_temp
 
-if reset and (not growing):
-    PlotLengths(tw, FL, wave, floe1.x0)
-    PlotFSD(FL, wvlength)
+wvlength = 2 * np.pi / calc_k(1 / Spec.Tp, floe1.h, DispType=floe1.DispType)
+n0 = Spec.calcHs()
+
+fig, hax = PlotLengths(np.arange(repeats), FL, x0=x0, h=h, xunits='trials')
+
+root = (f'FloeLengths_Spec_{DispType}_n_{n0:1.2f}_l_{wvlength:06.2f}_'
+        f'h_{h:3.1f}_L0_{L:04}_E_{EType}')
+
+plt.savefig('FigsSum/' + root + '.png')
+
+fn = (f'_Spec_{DispType}_n_{n0:05.2f}_l_{wvlength:06.2f}_'
+      f'h_{h:3.1f}_L0_{L:04}_E_{EType}')
+
+Lines = [[wvlength / 2, '$\lambda_p/2$']]
+wvl_max = 2 * np.pi / calc_k(Spec.f[0], floe1.h, DispType=floe1.DispType)
+Lines.append([wvl_max / 2, '$\lambda_{max}/2$'])
+wvl_min = 2 * np.pi / calc_k(Spec.f[-1], floe1.h, DispType=floe1.DispType)
+Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
+
+PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines)

@@ -16,9 +16,10 @@ import scipy.sparse as sp
 
 # For multifracturing
 from itertools import combinations
-from tqdm import tqdm
+# from tqdm import tqdm
 
 from ElasticMaterials import FracToughness, Lame
+from WaveUtils import calc_k, calc_cg
 from pars import g, rho_i, rho_w, E, v, K, Deriv101
 
 
@@ -84,7 +85,7 @@ class Floe(object):
 
         return floes
 
-    def z_calc(self, msl, t):
+    def z_calc(self, msl):
         self.z = msl - self.hw + self.h / 2
 
     def FlexA(self):
@@ -215,20 +216,17 @@ class Floe(object):
 
     def calc_Eel(self, **kwargs):
         EType = 'Flex'
-        calc_wvf = False
+        calc_w = False
         for key, value in kwargs.items():
-            if key == 't':
-                t = value
-            elif key == 'wave':
-                wave = value
-                calc_wvf = True
+            if key == 'wvf':
+                wvf = value
+                calc_w = True
             elif key == 'EType':
                 EType = value
             else:
                 raise ValueError('Unknown input wave data type')
 
-        if calc_wvf:
-            wvf = wave.waves(self.xF, t, amp=self.a0, phi=self.phi0, floes=[self])
+        if calc_w:
             self.calc_w(wvf)
 
         if EType == 'Disp':
@@ -245,7 +243,7 @@ class Floe(object):
 
         return(self.Eel)
 
-    def computeEnergyIfFrac(self, iFracs, a_vec, wave, t, EType):
+    def computeEnergyIfFrac(self, iFracs, wave, t, EType):
         ''' Computes the resulting energy is a fracture occurs at indices iFrac
         Inputs:
             iFrac (int or list of int): points where an hypothetical fracture would occur
@@ -261,6 +259,10 @@ class Floe(object):
             iFracs = list(iFracs)
         assert min(iFracs) > 0 and max(iFracs) < len(self.xF) - 1
 
+        Spec = True if wave.type == 'WaveSpec' else False
+        if not Spec:
+            a_vec = wave.amp_att(self.xF, self.a0, [self])
+
         # Computes the fracture points and the resulting floes
         xFracs = [self.xF[i] for i in iFracs]
         floes = self.fracture(xFracs)
@@ -269,13 +271,18 @@ class Floe(object):
         distanceFromX0 = 0
         Eel_list = []
         nFloes = len(floes)
-        for k in range(nFloes):
-            floes[k].a0 = a_vec[0] if k == 0 else a_vec[iFracs[k - 1]]
-            floes[k].phi0 = self.phi0 + self.kw * distanceFromX0
+        for iF in range(nFloes):
+            if Spec:
+                wvf = wave.calc_waves(floes[iF].xF)
+            else:
+                floes[iF].a0 = a_vec[0] if iF == 0 else a_vec[iFracs[iF - 1]]
+                floes[iF].phi0 = self.phi0 + self.kw * distanceFromX0
+                wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
+                                 phi=floes[iF].phi0, floes=[floes[iF]])
 
-            Eel_list.append(floes[k].calc_Eel(wave=wave, t=t, EType=EType))
+            Eel_list.append(floes[iF].calc_Eel(EType=EType, wvf=wvf))
 
-            distanceFromX0 += floes[k].L
+            distanceFromX0 += floes[iF].L
 
         return xFracs, Eel_list, floes
 
@@ -291,12 +298,8 @@ class Floe(object):
             Eel_floes (list): energy of each individual floe
         '''
 
-        if len(args) > 0:
-            EType = args[0]
-        else:
-            EType = 'Disp'
+        EType = args[0] if len(args) > 0 else 'Disp'
 
-        a_vec = wave.amp_att(self.xF, self.a0, [self])
         maxFrac = len(self.xF) - 1
         admissibleIndices = np.arange(start=1, stop=maxFrac, dtype=int)
 
@@ -311,7 +314,7 @@ class Floe(object):
 
             # TODO: could be done a lot faster with parallelization or numpy operations
             # Array of all computed energies
-            e_temp = [self.computeEnergyIfFrac(iFracs, a_vec, wave, t, EType)[1]
+            e_temp = [self.computeEnergyIfFrac(iFracs, wave, t, EType)[1]
                       for iFracs in indicesFrac]
             #         for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
             e_lists[numberFrac] = e_temp
@@ -327,7 +330,7 @@ class Floe(object):
         Et_min = energyMins[globalMin]
         # TODO: Make it less expensive because no need to recompute energy
         xFracs, _, floes = \
-            self.computeEnergyIfFrac(indicesMin[globalMin], a_vec, wave, t, EType)
+            self.computeEnergyIfFrac(indicesMin[globalMin], wave, t, EType)
 
         return xFracs, floes, Et_min, e_lists
 
@@ -335,7 +338,7 @@ class Floe(object):
         dw2 = self.calc_curv()
         self.strain = self.h * dw2 / 2
 
-    def Plot(self, x, t, wave, *args):
+    def plot(self, x, t, wvf, *args):
         if len(args) == 2:
             fig = args[0]
             hax = args[1]
@@ -345,9 +348,8 @@ class Floe(object):
         xv = np.array(self.xF[[0, -1]])
 
         # Floe plots
-        wvf = wave.waves(self.xF, t, amp=self.a0, phi=self.phi0, floes=[self])
         msl = self.mslf_int(wvf)
-        self.z_calc(msl, t)
+        self.z_calc(msl)
 
         if hasattr(self, 'slope'):
             slope = self.slope
@@ -368,3 +370,13 @@ class Floe(object):
         hax.plot(self.xF, -self.w + msl - self.hw, 'k')
 
         return(fig, hax)
+
+    def setWPars(self, wave):
+        if wave.type == 'WaveSpec':
+            self.kv = np.zeros_like(wave.f)
+            self.cg = np.zeros_like(wave.f)
+            for iF in range(len(wave.f)):
+                self.kv[iF] = calc_k(wave.f[iF], self.h, DispType=self.DispType)
+                self.cg[iF] = calc_cg(self.kv[iF], self.h, DispType=self.DispType)
+        else:
+            self.k = calc_k(wave.f, self.h, DispType=self.DispType)

@@ -20,6 +20,7 @@ class Wave(object):
     """
 
     def __init__(self, n_0, wvlength, **kwargs):
+        self.type = 'Wave'
         self.n0 = n_0
         self.E0 = (n_0**2) / 2
 
@@ -63,22 +64,24 @@ class Wave(object):
             output = self.n0 * (1 - np.e**(-self.beta * t))
         return(output)
 
-    def waves(self, x, t, **kwargs):
-        '''Computes the wave field over the domain,
-           taking into account the different dispersion for water and ice'''
-        amp = self.amp(t)
-        phi0 = self.phi
-        calc_phi = True
+    def calc_phase(self, x, t, **kwargs):
         floes = []
+        phi0 = self.phi
+        calc_phi0 = True
+        Spec = False
 
         for key, value in kwargs.items():
-            if key == 'amp':
-                amp = value
-            elif key == 'phi':
-                phi0 = value
-                calc_phi = False
+            if key == 'phi':
+                if np.isscalar(value):
+                    phi0 = value
+                    calc_phi0 = False
+                elif len(value) == len(x):
+                    return(value)
             elif key == 'floes':
                 floes = value
+            elif key == 'iF':
+                iF = value
+                Spec = True
 
         # array of phase over the domain
         phase = self.k * x - self.omega * t + phi0
@@ -87,11 +90,13 @@ class Wave(object):
         for floe in floes:
             if hasattr(floe, 'kw'):
                 k = floe.kw
+            elif hasattr(floe, 'kv') and Spec:
+                k = floe.kv[iF]
             else:
                 k = calc_k(self.omega / (2 * np.pi), floe.h, DispType=floe.DispType)
 
             # Phase under the floe
-            if calc_phi:
+            if calc_phi0:
                 # gets two last phase values before entering the floe
                 ind = np.where(x <= floe.x0)[0][-2:]
                 phip = phase[ind]
@@ -106,8 +111,32 @@ class Wave(object):
             ind = x > floe.x0 + floe.L
             phase[ind] = phi0 + k * floe.L + self.k * (x[ind] - floe.x0 - floe.L)
 
+        return phase
+
+    def waves(self, x, t, **kwargs):
+        '''Computes the wave field over the domain,
+           taking into account the different dispersion for water and ice'''
+        amp = []
+        phase = []
+        floes = []
+
+        for key, value in kwargs.items():
+            if key == 'amp':
+                amp = value
+            elif key == 'phi':
+                phase = value
+            elif key == 'floes':
+                floes = value
+
+        if np.isscalar(phase) or len(phase) == 0:
+            phase = self.calc_phase(x, t, **kwargs)
+
         if np.isscalar(amp) and len(floes) > 0:
             amp = self.amp_att(x, amp, floes)
+        elif len(amp) == 0 and len(floes) > 0:
+            amp = self.amp_att(x, self.amp(t), floes)
+        elif len(amp) == 0:
+            amp = self.amp(t)
         return amp * np.sin(phase)
 
     def mslf(self, x0, L, t):
@@ -116,7 +145,7 @@ class Wave(object):
         P2 = np.cos(self.k * (x0 + L) - self.omega * t + self.phi)
         return(A * (P1 - P2))
 
-    def Plot(self, x, t, **kwargs):
+    def plot(self, x, t, **kwargs):
         # Sea surface plot
         (fig, hax) = plt.subplots()
         if len(kwargs) > 0:

@@ -66,14 +66,16 @@ for iL in range(n_Loops):
 
         if len(Floes) == nF:
             for floe in Floes:
-                floe.calc_Eel(wave=wave, t=t[it], EType='Disp')
+                wvf = wave.waves(floe.xF, t, amp=floe.a0, phi=floe.phi0, floes=[floe])
+                floe.calc_Eel(EType='Disp', wvf=wvf)
             PlotFloes(x, t[it], Floes, wave)
 
         if nF == 1:
             # floe1.calc_w(wave.waves(floe1.xF, t[0], amp=floe1.a0, phi=floe1.phi0, floes=[floe1]))
             # floe1.calc_du(f'FitFigs/Fits_x0_{floe1.x0}_L_{floe1.L:02.2f}_t_0')
-            Evec[it, 1] = floe1.calc_Eel(wave=wave, t=t[0], EType='Disp')
-            Evec[it, 0] = floe1.calc_Eel(wave=wave, t=t[0], EType='Flex')
+            wvf = wave.waves(floe.xF, t, amp=floe.a0, phi=floe.phi0, floes=[floe])
+            Evec[it, 1] = floe1.calc_Eel(EType='Disp', wvf=wvf)
+            Evec[it, 0] = floe1.calc_Eel(EType='Flex', wvf=wvf)
             itf = it
             print(f'Elastic energy at step {it:02} with amplitude {wave.amp(t[it]):3.2f}: '
                   f'Flexion: {Evec[it,0]:04.3f} - Displacement: {Evec[it,1]:04.3f}')

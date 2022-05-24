@@ -89,11 +89,12 @@ def MF1D(**kwargs):
     t = np.arange(0, t_max, wave.T / 20)
     for iL in range(n_Loops):
         wave.phi = phi[iL]
-
-        _ = wave.waves(x, t[0], floes=[floe1])  # assign waves over the whole domain
-
-        floe1.calc_Eel(wave=wave, t=t[0], EType=EType)
         Floes = [floe1]
+
+        _ = wave.waves(x, t[0], floes=Floes)  # assign waves over the whole domain
+
+        wvf = wave.waves(floe1.xF, t, amp=floe1.a0, phi=floe1.phi0, floes=Floes)
+        floe1.calc_Eel(EType=EType, wvf=wvf)
         if not reset and growing:
             PlotFloes(x, t[0], Floes, wave)
 
