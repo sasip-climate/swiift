@@ -8,7 +8,6 @@ Created on Tue Jan  4 14:30:37 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
-import copy
 import config
 
 # Allows faster computation of displacement
@@ -56,8 +55,9 @@ class Floe(object):
 
     def fracture(self, x_frac):
         L1 = x_frac - self.x0
-        floe1 = Floe(self.h, self.x0, L1, DispType=self.DispType, dx=min(self.dx, L1 / 100))
         L2 = self.L - L1
+
+        floe1 = Floe(self.h, self.x0, L1, DispType=self.DispType, dx=min(self.dx, L1 / 100))
         floe2 = Floe(self.h, x_frac, L2, DispType=self.DispType, dx=min(self.dx, L2 / 100))
 
         if hasattr(self, 'kw'):
@@ -227,51 +227,61 @@ class Floe(object):
 
         return(self.Eel)
 
+    def computeEnergyIfFrac(self, iFrac, a_vec, wave, t, EType):
+        '''Computes the resulting energy if a fracture occurs at position xFrac'''
+        xFrac = self.xF[iFrac]
+        # Creates the two resulting floes
+        (floe1, floe2) = self.fracture(xFrac)
+
+        # Sets properties induced by the wave
+        floe1.a0 = self.a0
+        floe1.phi0 = self.phi0
+        floe2.a0 = a_vec[iFrac]
+        floe2.phi0 = self.phi0 + self.kw * floe1.L
+
+        # Computes both elastic energies
+        Eel1 = floe1.calc_Eel(wave=wave, t=t, EType=EType)
+        Eel2 = floe2.calc_Eel(wave=wave, t=t, EType=EType)
+
+        return(Eel1, Eel2)
+
     def FindE_min(self, wave, t, *args):
+        x = self.xF
+
         if len(args) > 0:
             EType = args[0]
         else:
             EType = 'Disp'
 
-        Eel_floes = np.empty((len(self.xF), 2))
-
         a_vec = wave.amp_att(self.xF, self.a0, [self])
+        nFrac = len(self.xF) - 1
 
-        # Can't run calculations on floes less than 4 long, so cut 3 from the end
-        nFrac = len(self.xF) - 3
+        # Vectorized function to compute energies
+        vect_computeEnergy = \
+            np.vectorize(lambda iFrac: self.computeEnergyIfFrac(iFrac, a_vec, wave, t, EType))
+        indicesFrac = np.arange(start=1, stop=nFrac, dtype=int)
 
-        Eel_min = self.Eel
+        EF1, EF2 = vect_computeEnergy(indicesFrac)
+        Energies = EF1 + EF2 + self.k
 
-        if nFrac < 4:
-            x_fracm = self.xF[0]
-            floe1m = self
-            floe2m = []
-        else:
-            for iFrac in range(3, nFrac):
-                x_frac = self.xF[iFrac]
+        # Computes the positiof of minimum energy and indice of fracture
+        indMin = np.argmin(Energies)
+        indFrac_min = indicesFrac[indMin]
 
-                (floe1, floe2) = self.fracture(x_frac)
+        (floe1, floe2) = self.fracture(x[indFrac_min])
 
-                floe1.a0 = self.a0
-                floe1.phi0 = self.phi0
-                floe2.a0 = a_vec[iFrac]
-                floe2.phi0 = self.phi0 + self.kw * floe1.L
+        # Sets properties induced by the wave
+        floe1.a0 = self.a0
+        floe1.phi0 = self.phi0
+        floe2.a0 = a_vec[indMin]
+        floe2.phi0 = self.phi0 + self.kw * floe1.L
 
-                Eel1 = floe1.calc_Eel(wave=wave, t=t, EType=EType)
-                Eel2 = floe2.calc_Eel(wave=wave, t=t, EType=EType)
+        # Vector of elastic floe energies for all possible fractures
+        Eel_floes = np.zeros((len(self.xF), 2))
+        Eel_floes[1:-1, 0] += EF1
+        Eel_floes[1:-1, 1] += EF2
 
-                Eel_floes[iFrac, 0] = Eel1
-                Eel_floes[iFrac, 1] = Eel2
-
-                Eel_f_t = Eel1 + Eel2 + self.k
-
-                if Eel_f_t < Eel_min or iFrac == 3:
-                    x_fracm = x_frac
-                    Eel_min = Eel_f_t
-                    floe1m = copy.deepcopy(floe1)
-                    floe2m = copy.deepcopy(floe2)
-
-        return(x_fracm, floe1m, floe2m, Eel_min, Eel_floes)
+        return(x[indFrac_min], floe1, floe2, Energies[indMin], Eel_floes)
 
     def calc_strain(self):
         dw2 = self.calc_curv()

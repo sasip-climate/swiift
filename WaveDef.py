@@ -64,6 +64,8 @@ class Wave(object):
         return(output)
 
     def waves(self, x, t, **kwargs):
+        '''Computes the wave field over the domain,
+           taking into account the different dispersion for water and ice'''
         amp = self.amp(t)
         phi0 = self.phi
         calc_phi = True
@@ -78,8 +80,10 @@ class Wave(object):
             elif key == 'floes':
                 floes = value
 
+        # array of phase over the domain
         phase = self.k * x - self.omega * t + phi0
 
+        # computes the phase along the floes from left to right
         for floe in floes:
             if hasattr(floe, 'kw'):
                 k = floe.kw
@@ -88,9 +92,11 @@ class Wave(object):
 
             # Phase under the floe
             if calc_phi:
+                # gets two last phase values before entering the floe
                 ind = np.where(x <= floe.x0)[0][-2:]
                 phip = phase[ind]
                 xp = x[ind]
+                # computes the phase at point x0, where the floe starts
                 phi0 = phip[0] + (floe.x0 - xp[0]) * (phip[1] - phip[0]) / (xp[1] - xp[0])
                 floe.phi0 = phi0
 

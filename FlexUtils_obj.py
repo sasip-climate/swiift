@@ -211,7 +211,7 @@ def PlotLengths(t, L, **kwargs):
     frmt = ['x-c', 'x-b', 'x-m', 'x-r', 'x-y']
     for it in range(nt):
         tvec = [t[it], t[it]]
-        hax.plot(tvec, [0, L[it][0]], frmt[0])
+        hax.plot(tvec, [0, L[it][0]], frmt[0], linewidth=3)
         L0 = L[it][0]
         for iL in range(1, len(L[it])):
             hax.plot(tvec, L0 + np.array([0, L[it][iL]]), frmt[iL % 5])
@@ -236,9 +236,11 @@ def PlotFSD(L, **kwargs):
     if type(L[0]) == list:
         Ll = []
         for l in L:
-            Ll += l
+            Ll += l[:-1]  # Do not consider the last floe in the FSD
     else:
         Ll = L
+
+    Ll = np.array(Ll)
 
     # Process optional inputs
     DoSave = False
@@ -274,10 +276,10 @@ def PlotFSD(L, **kwargs):
     if wle:
         Lines = [[wl / 2, '$\lambda$/2']]
         if he:
-            Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
-            Lines.append([(np.pi/4)*(E*hv**3/(36*(1-v**2)*rho_w*g))**(1/4), '$x^*$'])
-            if ne:
-                Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
+            # Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
+            Lines.append([np.pi / 4 * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x^*$'])
+            # if ne:
+            #     Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
 
     for ifac in np.arange(len(fac)):
         fig, hax = PlotHist(edges, values * fac[ifac])

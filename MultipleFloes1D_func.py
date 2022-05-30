@@ -6,16 +6,17 @@ Created on Wed Jan 12 11:48:40 2022
 @author: auclaije
 """
 
+import numpy as np
+import matplotlib.pyplot as plt
+import config
+from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
+from WaveUtils import calc_k
+from WaveDef import Wave
+from IceDef import Floe
+from tqdm import tqdm
+
 
 def MF1D(**kwargs):
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import config
-    from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
-    from WaveUtils import calc_k
-    from WaveDef import Wave
-    from IceDef import Floe
-
     # Variable to control plots to be made
     # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and Floes
     DoPlots = 1
@@ -97,19 +98,13 @@ def MF1D(**kwargs):
         if not reset and growing:
             PlotFloes(x, t[0], Floes, wave)
 
-        for it in range(len(t)):
+        for it in tqdm(range(len(t))):
 
             _ = wave.waves(x, t[it], floes=Floes)  # assign waves over the whole domain
             Floes = BreakFloes(x, t[it], Floes, wave, EType)
             if not reset and DoPlots > 2:
                 PlotFloes(x, t[it], Floes, wave)
-            elif it % np.floor(len(t) / 5) < 0.001:
-                if it == 0:
-                    print(f'{iL:02}/{n_Loops-1}:', end='')
-                else:
-                    print('#', end='')
 
-        print('#')
         FL_temp = []
         for floe in Floes:
             FL_temp.append(floe.L)

@@ -35,6 +35,7 @@ h = [0.2, 0.5, 0.7, 1.]
 x0 = 10
 L = [500]
 G = FracToughness(E, v, K)
+# TODO: For now, E, nu are taken in pars and G computed -> modify modules
 
 # Type of simulation
 growing = True  # Other value would raise error for now #FIXME
@@ -78,9 +79,10 @@ for index, row in tqdm(zerosDf.iterrows(), total=totalSize, initial=initialPos):
     results[key] = (xc, FloeSizes)
 
     # regularly save data in case of error
-    if addedData % 20 == 19:
-        PartialDFName = config.DataTempDir + 'dataTemp_' + str((initialPos + addedData) // 20) + '.pkl'
+    if addedData % 10 == 9:
+        PartialDFName = config.DataTempDir + 'dataTemp_' + str((initialPos + addedData) // 10) + '.pkl'
         dataSaving.saveDataFrame(df, PartialDFName)
+
     addedData += 1
 
 dataSaving.saveDataFrame(df, config.DataFileName)
