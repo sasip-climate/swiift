@@ -25,7 +25,7 @@ def PlotFloes(x, t, Floes, wave, *args):
         fig, hax = wave.plot(x, t, floes=Floes)
         n0 = wave.n0
         n = wave.amp(t)
-        wvstring = f'n_{wave.n0:0.3}_l_{wave.wvlength:2.0f}'
+        wvstring = f'n_{wave.n0:0.3}_l_{wave.wl:2.0f}'
         wvtstring = f'$\eta_0$: {n:0.3f}m'
 
     Eel = (nFloes - 1) * Floes[0].k
@@ -232,10 +232,14 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     return Floes
 
 
-def BreakFloesStrain(x, t, Floes, wave):
+def BreakFloesStrain(x, t, Floes, wave, *args):
     ''' Use of a breaking parametrization based on strain (cf Dumont2011)
     Inputs/Outputs: same as BreakFloes
     '''
+
+    EType = args[0] if len(args) > 0 else 'Flex'
+    Spec = True if wave.type == 'WaveSpec' else False
+
     # Note: in the code, the nergy is computed with calc_Eel since it also computed displacement
     Broke = True
     nFrac = 0
@@ -251,7 +255,12 @@ def BreakFloesStrain(x, t, Floes, wave):
             kw = Floes[iF].kw
 
             # Compute energy to compute displacement
-            _ = Floes[iF].calc_Eel(wave=wave, t=t, EType='Flex')
+            if Spec:
+                wvf = wave.calc_waves(Floes[iF].xF)
+            else:
+                wvf = wave.waves(Floes[iF].xF, t, amp=Floes[iF].a0,
+                                 phi=Floes[iF].phi0, floes=[Floes[iF]])
+            _ = Floes[iF].calc_Eel(EType=EType, wvf=wvf)
 
             # Computes the strain at top and bottom edges of the floe
             Floes[iF].calc_strain()
@@ -284,10 +293,15 @@ def BreakFloesStrain(x, t, Floes, wave):
                 distanceFromLeft = 0
                 nFloes = len(iFracs) + 1
                 for iNF in range(nFloes):
-                    # Set properties
-                    createdFloes[iNF].a0 = a_vec[0] if iNF == 0 else a_vec[iFracs[iNF - 1]]
-                    createdFloes[iNF].phi0 = phi0 + kw * distanceFromLeft
-                    _ = createdFloes[iNF].calc_Eel(wave=wave, t=t, EType='Flex')
+                    # Set properties and calculate waves
+                    if Spec:
+                        wvf = wave.calc_waves(createdFloes[iNF].xF)
+                    else:
+                        createdFloes[iNF].a0 = a_vec[0] if iNF == 0 else a_vec[iFracs[iNF - 1]]
+                        createdFloes[iNF].phi0 = phi0 + kw * distanceFromLeft
+                        wvf = wave.waves(createdFloes[iNF].xF, t, amp=createdFloes[iNF].a0,
+                                         phi=createdFloes[iNF].phi0, floes=[createdFloes[iNF]])
+                    _ = createdFloes[iNF].calc_Eel(EType=EType, wvf=wvf)
 
                     distanceFromLeft += createdFloes[iNF].L
                     # Insert in list
@@ -331,7 +345,7 @@ def PlotLengths(t, L, **kwargs):
             xu = value
 
     if addWaves and addThickness:
-        wstring += ' with '
+        hstring += ' with '
 
     if addWaves or addThickness:
         tstring = 'Floe lengths for ' + hstring + wstring
@@ -426,7 +440,7 @@ def PlotFSD(L, **kwargs):
     ylab = ['Number', 'Frequency', 'Length-fraction']
 
     if wle:
-        Lines.append = [[wl / 2, '$\lambda$/2']]
+        Lines.append([wl / 2, '$\lambda$/2'])
     if he:
         Lines.append([(np.pi / 4) * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x^*$'])
         # Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])

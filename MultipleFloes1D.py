@@ -68,7 +68,7 @@ for iL in range(n_Loops):
 
     _ = wave.waves(x, t[0], floes=Floes)  # assign waves over the whole domain
 
-    wvf = wave.waves(floe1.xF, t, amp=floe1.a0, phi=floe1.phi0, floes=Floes)
+    wvf = wave.waves(floe1.xF, t[0], amp=floe1.a0, phi=floe1.phi0, floes=Floes)
     floe1.calc_Eel(EType=EType, wvf=wvf)
     if not reset and growing:
         PlotFloes(x, t[0], Floes, wave)
@@ -110,7 +110,7 @@ if reset:
           f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
           f'E_{EType}_B_{FractureCriterion}')
 
-    PlotFSD(FL, wl=wvlength, h=h, n0=n_0, DoSave=True, FileName=fn)
+    PlotFSD(FL, wl=wvlength, h=h, n0=n_0, FileName=fn)
 else:
     PlotSum(t, Evec, leg=[EType])
     root = (f'Energy_Time_Series_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'

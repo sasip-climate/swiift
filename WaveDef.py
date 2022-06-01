@@ -44,7 +44,10 @@ class Wave(object):
                     self.phi = value
 
     def __repr__(self):
-        string = f'Wave object ({self.n0}, {self.wl}'
+        n0str = f'{self.n0:.2f}' if self.n0 > 0.1 else f'{self.n0:.2E}'
+        Tstr  = f'{self.T:.2f}' if self.T  > 0.1 else f'{self.T:.2E}'
+        wlstr  = f'{self.wl:.0f}' if self.wl  > 1 else f'{self.T:.2E}'
+        string = f'Wave object (n0: {n0str}m, T: {Tstr}s, wl: {wlstr}m'
         if self.beta > 0:
             string += f', {self.beta})'
         else:
@@ -52,7 +55,10 @@ class Wave(object):
         return(string)
 
     def __str__(self):
-        string = f'Wave object of wave height {self.n0}m and wavelength {self.wl}m'
+        n0str = f'{self.n0:.2f}' if self.n0 > 0.1 else f'{self.n0:.2E}'
+        Tstr  = f'{self.T:.2f}' if self.T  > 0.1 else f'{self.T:.2E}'
+        wlstr  = f'{self.wl:.0f}' if self.wl  > 1 else f'{self.wl:.2E}'
+        string = f'Wave object of wave height {n0str}m, period {Tstr}s and wavelength {wlstr}m'
         if self.beta > 0:
             string += f' growing over a time scale of {1/self.beta}s'
         return(string)
@@ -89,9 +95,10 @@ class Wave(object):
         # computes the phase along the floes from left to right
         for floe in floes:
             if hasattr(floe, 'kw'):
-                k = floe.kw
-            elif hasattr(floe, 'kv') and Spec:
-                k = floe.kv[iF]
+                if Spec:
+                    k = floe.kw[iF]
+                else:
+                    k = floe.kw
             else:
                 k = calc_k(self.omega / (2 * np.pi), floe.h, DispType=floe.DispType)
 
@@ -133,9 +140,9 @@ class Wave(object):
 
         if np.isscalar(amp) and len(floes) > 0:
             amp = self.amp_att(x, amp, floes)
-        elif len(amp) == 0 and len(floes) > 0:
+        elif amp == [] and len(floes) > 0:
             amp = self.amp_att(x, self.amp(t), floes)
-        elif len(amp) == 0:
+        elif amp == []:
             amp = self.amp(t)
         return amp * np.sin(phase)
 
@@ -159,12 +166,10 @@ class Wave(object):
         # Note:  for a single wave, E = (1/8) * rho_w * g * H^2 (laing1998guide)
         # Note2: attenuation is calculated using Sutherland et al, 2019
         #        with free parameter \epsilon \Delta_0 = 0.5 from BicWin Data
-        def alpha(h, k):
-            return (1 / 2) * h * k**2
 
-        def a_att(x, h, a0, k):
+        def a_att(x, floe, a0, k):
             E0 = (1 / 8) * rho_w * g * (2 * a0)**2
-            Ex = E0 * np.exp(-alpha(h, k) * x)
+            Ex = E0 * np.exp(-floe.calc_alpha(k) * x)
             ax = np.sqrt(8 * Ex / (rho_w * g)) / 2
             return ax
 
@@ -178,7 +183,7 @@ class Wave(object):
             floes[iF].a0 = a0
             pFloe = (x >= floes[iF].x0) * (x <= floes[iF].x0 + floes[iF].L)
             xvec = np.append([floes[iF].x0], np.append(x[pFloe], floes[iF].x0 + floes[iF].L))
-            avec = a_att(xvec - floes[iF].x0, floes[iF].h, a0, self.k)
+            avec = a_att(xvec - floes[iF].x0, floes[iF], a0, self.k)
             ax[pFloe] = avec[1:-1]
             ax[x > floes[iF].xF[-1]] = avec[-1]
             a0 = avec[-1]

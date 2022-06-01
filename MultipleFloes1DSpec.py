@@ -8,8 +8,9 @@ Created on Wed Jan 12 11:48:40 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
-from WaveUtils import calc_k, calc_cg
+from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
 from IceDef import Floe
@@ -20,8 +21,8 @@ repeats = 10
 
 # Ice parameters
 h = 1
-x0 = 10
-L = 200
+x0 = 50
+L = 400
 DispType = 'ML'
 EType = 'Flex'
 # Initialize ice floe object
@@ -33,18 +34,12 @@ u = 5  # Wind speed (m/s)
 Spec = WaveSpec(u=u)
 
 # calculate wave properties in ice
-ki = calc_k(Spec.f, h, DispType=DispType)
-ind = np.isnan(ki) + (abs(ki) > 10)
-Spec.nf = sum(~ind)
-Spec.f = Spec.f[~ind]
-Spec.df = Spec.df[~ind]
-Spec.Ei = Spec.Ei[~ind]
+Spec.checkSpec(floe1)
+ki = floe1.kw
 floe1.setWPars(Spec)
 
-ki = ki[~ind]
-cgi = calc_cg(ki, h, DispType=DispType)
-xi = 1 / ((1 / 2) * h * ki ** 2)
-if L > 5 * xi[6]:
+xi = 1 / floe1.alpha
+if L > 5 * xi[Spec.f == Spec.fp]:
     print('Warning: Floe is more than 5x the attenuation length of the peak')
 
 plotDisp(Spec.f, h)
@@ -52,7 +47,9 @@ plot_cg(Spec.f, h)
 
 # Initial setup
 x = np.arange(2 * x0 + L + 1)
-tProp = (2 * x0 / Spec.cgw[~ind] + L / cgi)
+xProp = 4 / floe1.alpha
+xProp[xProp > L] = L
+tProp = (2 * x0 / Spec.cgw + xProp / floe1.cg)
 tPropMax = max(tProp)
 tSpecM = max(tProp[Spec.Ei > 0.1 * max(Spec.Ei)])
 
@@ -66,10 +63,12 @@ for t in np.arange(Spec.Tp, 2 * tSpecM + 1 / Spec.f[0], tSpecM / 10):
     # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
 
 FL = [0] * repeats
-t = np.arange(0, 2 * tSpecM + 1 / Spec.f[0], Spec.Tp / 20)
+t = np.arange(0, 1.2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)
 
-print(f'Launching {repeats} experiments with {round(t[-1])}s duration.')
+print(f'Launching {repeats} experiments:')
 for iL in range(repeats):
+    # Change the phases of each wave
+    Spec.setWaves()
 
     Spec.calcExt(x, t[0], [floe1])
     # Spec.plotEx()
@@ -78,10 +77,8 @@ for iL in range(repeats):
     wvf = Spec.calc_waves(floe1.xF)
     floe1.calc_Eel(wvf=wvf, EType=EType)
     Floes = [floe1]
-    if repeats == 1:
-        PlotFloes(x, t[0], Floes, Spec)
 
-    for it in range(len(t)):
+    for it in tqdm(range(len(t))):
 
         nF = len(Floes)
         Spec.calcExt(x, t[it], Floes)
@@ -93,7 +90,7 @@ for iL in range(repeats):
             for floe in Floes:
                 floe.calc_Eel(wvf=Spec.calc_waves(floe.xF), EType=EType)
             if SavePlots:
-                PlotFloes(x, t[it], Floes, Spec, f'Exp_{iL:02}_')
+                PlotFloes(x, t[it], Floes, Spec, f'Exp_{iL:02}_E_{EType}_')
             else:
                 PlotFloes(x, t[it], Floes, Spec)
 

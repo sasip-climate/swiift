@@ -78,10 +78,16 @@ class Floe(object):
         floes = [Floe(self.h, x_fracs[k], Lengths[k], DispType=self.DispType,
                       dx=min(self.dx, Lengths[k] / 100)) for k in range(nFrac + 1)]
 
-        # Relay the wave attribute
+        # Relay the wave attributes if present
         if hasattr(self, 'kw'):
             for floe in floes:
                 floe.kw = self.kw
+        if hasattr(self, 'cg'):
+            for floe in floes:
+                floe.cg = self.cg
+        if hasattr(self, 'alpha'):
+            for floe in floes:
+                floe.alpha = self.alpha
 
         return floes
 
@@ -371,12 +377,18 @@ class Floe(object):
 
         return(fig, hax)
 
+    def calc_alpha(self, kw=0):
+        if kw == 0:
+            kw = self.kw
+        return (1 / 4) * kw**2 * self.h
+
     def setWPars(self, wave):
         if wave.type == 'WaveSpec':
-            self.kv = np.zeros_like(wave.f)
+            self.kw = np.zeros_like(wave.f)
             self.cg = np.zeros_like(wave.f)
-            for iF in range(len(wave.f)):
-                self.kv[iF] = calc_k(wave.f[iF], self.h, DispType=self.DispType)
-                self.cg[iF] = calc_cg(self.kv[iF], self.h, DispType=self.DispType)
+            self.kw = calc_k(wave.f, self.h, DispType=self.DispType)
+            self.cg = calc_cg(self.kw, self.h, DispType=self.DispType)
         else:
-            self.k = calc_k(wave.f, self.h, DispType=self.DispType)
+            self.kw = calc_k(wave.f, self.h, DispType=self.DispType)
+
+        self.alpha = self.calc_alpha()
