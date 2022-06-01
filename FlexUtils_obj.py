@@ -66,27 +66,36 @@ def PlotFloes(x, t, Floes, wave, *args):
 
 def PlotFracE(floe, Eel_floes, x_frac):
     fig, hax = plt.subplots()
-    x = floe.xF[3:-4] - floe.x0
+    x = floe.xF[1:-1] - floe.x0
+
+    if type(Eel_floes) is list:
+        nF = len(Eel_floes[1])
+        Etemp = np.zeros((nF, 2))
+        for iF in range(nF):
+            Etemp[iF, :] = np.array(Eel_floes[1][iF])
+        Eel_floes = Etemp
 
     # Left floe
-    left, = hax.semilogy(x, Eel_floes[3:-4, 0], 'b')
+    left, = hax.semilogy(x, Eel_floes[:, 0], 'b')
     # Right floe
-    right, = hax.semilogy(x, Eel_floes[3:-4, 1], 'r')
+    right, = hax.semilogy(x, Eel_floes[:, 1], 'r')
     # Combined with fracture energy
-    tot, = hax.semilogy(x, Eel_floes[3:-4, 0] + Eel_floes[3:-4, 1] + floe.k, ':m', linewidth=3)
+    Etot = Eel_floes[:, 0] + Eel_floes[:, 1] + floe.k
+    imin = np.argmin(Etot)
+    tot, = hax.semilogy(x, Etot, ':m', linewidth=3)
     # Initial floe energy
     init, = hax.semilogy(x[[1, -1]], floe.Eel * np.array([1, 1]))
     # Fracture location
-    minE = min(min(Eel_floes[3:-4, 0]), min(Eel_floes[3:-4, 1]))
-    maxE = max(max(Eel_floes[3:-4, 0]), max(Eel_floes[3:-4, 1]))
-    hax.semilogy(x_frac * np.ones(2) - floe.x0, [minE, maxE], 'k', linewidth=1)
+    minE = min(min(Eel_floes[:, 0]), min(Eel_floes[:, 1]))
+    maxE = max(max(Eel_floes[:, 0]), max(Eel_floes[:, 1]))
+    hax.semilogy(x[imin] * np.ones(2), [minE, maxE], 'k', linewidth=1)
 
     hax.set(ylabel='Elastic Energy (J/m$^2$)', xlabel='Along floe distance (m)')
 
     # Strain if available
     if hasattr(floe, 'strain'):
         hax2 = hax.twinx()
-        hax2.plot(x, floe.strain[3:-4], 'g')
+        hax2.plot(x, floe.strain[1:-1], 'g')
         hax2.set_ylabel('Elastic strain (m$^{-1}$)', color='green')
 
     hax.legend([init, left, right, tot],
@@ -97,6 +106,7 @@ def PlotFracE(floe, Eel_floes, x_frac):
 def PlotSum(t, y, **kwargs):
     DoSave = False
     DoLeg = False
+    multiFrac = 1
     for key, value in kwargs.items():
         if key == 'pstr':
             pstr = value
@@ -104,6 +114,8 @@ def PlotSum(t, y, **kwargs):
         elif key == 'leg':
             leg = value
             DoLeg = True
+        elif key == 'multiFrac':
+            multiFrac = value
 
     fmt = ['x-r', 'x--m', '^:b']
     fig, hax = plt.subplots()
@@ -116,7 +128,7 @@ def PlotSum(t, y, **kwargs):
         else:
             hax.plot(t, y[:, iF], fmt[iF])
 
-    hax.set(ylabel='Elastic Energy (J/m$^2$)', xlabel='Time (s)')
+    hax.set(ylabel='Total energy (J/m$^2$)', xlabel='Time (s)')
 
     if DoLeg:
         hax.legend(leg)
@@ -127,7 +139,7 @@ def PlotSum(t, y, **kwargs):
     return(fig, hax)
 
 
-def BreakFloes(x, t, Floes, wave, *args):
+def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     '''
         Searches if a fracture can occur and where would it be
     ----------
@@ -135,14 +147,15 @@ def BreakFloes(x, t, Floes, wave, *args):
     t : float -> time of simulation
     Floes : list(Floe) -> current floes list (order from left to right)
     wave : Wave class -> wave
+    multiFrac: int -> maximum number of simultaneous fractures to look for
     *args :
         Etype: string -> energy type among 'Flex' and 'Disp'
 
     Returns
     -------
     Floes : list(Floe) -> updated list of floes, still in order from left to right
-
     '''
+
     if len(args) > 0:
         EType = args[0]
     else:
@@ -150,6 +163,7 @@ def BreakFloes(x, t, Floes, wave, *args):
 
     Broke = True
     nFrac = 0
+
     while Broke:
 
         Broke = False
@@ -162,15 +176,20 @@ def BreakFloes(x, t, Floes, wave, *args):
             Eel1 = Floes[iF].calc_Eel(wave=wave, t=t, EType=EType)
 
             # Check if it is worth looking for fractures
-            if Floes[iF].Eel > Floes[iF].k:
-                x_frac, floe1, floe2, EelF, _ = Floes[iF].FindE_min(wave, t, EType)
-                if EelF < Eel1:
+            maxFrac = Floes[iF].Eel / Floes[iF].k
+            if maxFrac > 1:
+
+                # Don't search for two fractures if k < Eel <2*k for instance
+                maxFrac = min(int(maxFrac), multiFrac)
+                xFracs, floes, Etot_floes, E_floes = Floes[iF].FindE_min(maxFrac, wave, t, EType)
+                if Etot_floes < Eel1:
                     Broke = True
-                    nFrac += 1
-                    NewFloes[iF + Offset] = floe1
-                    Offset += 1
-                    NewFloes.insert(iF + Offset, floe2)
-                    Etot += EelF
+                    nFrac += len(xFracs)
+                    NewFloes[iF + Offset] = floes[0]
+                    for k in range(1, len(xFracs) + 1):
+                        Offset += 1
+                        NewFloes.insert(iF + Offset, floes[k])
+                    Etot += Etot_floes
                 else:
                     Etot += Eel1
             else:
@@ -178,11 +197,12 @@ def BreakFloes(x, t, Floes, wave, *args):
 
         if Broke:
             Floes = NewFloes
+            PlotFloes(x, t, Floes, wave)
         else:
             for floe in Floes:
                 if floe.Eel > 10 * floe.k:
-                    xf, _, _, _, Emat = floe.FindE_min(wave, t)
-                    PlotFracE(floe, Emat, xf)
+                    xf, _, _, E_lists = floe.FindE_min(1, wave, t, EType)
+                    PlotFracE(floe, E_lists, xf)
             break
 
     return Floes

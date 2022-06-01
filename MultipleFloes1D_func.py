@@ -13,7 +13,6 @@ from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
 from WaveUtils import calc_k
 from WaveDef import Wave
 from IceDef import Floe
-from tqdm import tqdm
 
 
 def MF1D(**kwargs):
@@ -98,7 +97,7 @@ def MF1D(**kwargs):
         if not reset and growing:
             PlotFloes(x, t[0], Floes, wave)
 
-        for it in tqdm(range(len(t))):
+        for it in range(len(t)):
 
             _ = wave.waves(x, t[it], floes=Floes)  # assign waves over the whole domain
             Floes = BreakFloes(x, t[it], Floes, wave, EType)

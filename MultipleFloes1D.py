@@ -16,6 +16,7 @@ from WaveUtils import calc_k
 from WaveDef import Wave
 from IceDef import Floe
 
+multiFrac = 3
 growing = True
 reset = True
 if growing:
@@ -72,12 +73,11 @@ for iL in range(n_Loops):
         PlotFloes(x, t[0], Floes, wave)
 
     tstart = time.time()
-    for it in tqdm(range(len(t))):
-
+    for it in tqdm(range(len(t)), desc='Time Loop'):
         wvf = wave.waves(x, t[it], floes=Floes)  # over the whole domain
         nF = len(Floes)
-        Floes = BreakFloes(x, t[it], Floes, wave, EType)
-        # Evec[it] = (len(Floes) - 1) * Floes[0].k
+        Floes = BreakFloes(x, t[it], Floes, wave, multiFrac, EType)
+        Evec[it] = (len(Floes) - 1) * Floes[0].k
         for floe in Floes:
             Evec[it] += floe.Eel
         if not reset:

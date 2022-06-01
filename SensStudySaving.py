@@ -63,7 +63,7 @@ addedData = 0
 # Dictionary to save results in spyder
 results = {}
 
-for index, row in tqdm(zerosDf.iterrows(), total=totalSize, initial=initialPos):
+for index, row in tqdm(zerosDf.iterrows(), total=totalSize, initial=initialPos, desc='Pars Loop'):
     # computes characteristic length
     I = row['h']**3 / (12 * (1 - row['nu']**2))
     xc = (row['E'] * I / (rho_w * g))**0.25

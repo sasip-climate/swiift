@@ -14,6 +14,10 @@ import config
 from scipy.sparse.linalg import spsolve
 import scipy.sparse as sp
 
+# For multifracturing
+from itertools import combinations
+from tqdm import tqdm
+
 from ElasticMaterials import FracToughness, Lame
 from pars import g, rho_i, rho_w, E, v, K, Deriv101
 
@@ -53,18 +57,32 @@ class Floe(object):
     def __str__(self):
         return(f'Floe object of thickness {self.h}m and length {self.L}m')
 
-    def fracture(self, x_frac):
-        L1 = x_frac - self.x0
-        L2 = self.L - L1
+    def fracture(self, x_fracs):
+        ''' Returns the list of floes induced by fractures at points x_fracs
+        Input: x_fracs (list of float): list, tuple or float of fracture point(s) in (x0, x0+L)
+        Output: floes (list of floes): list of resulting floes
+        '''
 
-        floe1 = Floe(self.h, self.x0, L1, DispType=self.DispType, dx=min(self.dx, L1 / 100))
-        floe2 = Floe(self.h, x_frac, L2, DispType=self.DispType, dx=min(self.dx, L2 / 100))
+        # Sort the fractures to keep all breaking points (including edges)
+        if type(x_fracs) in {list, tuple}:
+            nFrac = len(x_fracs)
+            x_fracs = [self.x0] + sorted(x_fracs) + [self.x0 + self.L]
+        else:  # int or float
+            nFrac = 1
+            x_fracs = [self.x0, x_fracs, self.x0 + self.L]
+        assert (self.x0 < x_fracs[1]) and (x_fracs[-2] < self.x0 + self.L)
 
+        # Compute lengths and resulting floes
+        Lengths = [x_fracs[k + 1] - x_fracs[k] for k in range(nFrac + 1)]
+        floes = [Floe(self.h, x_fracs[k], Lengths[k], DispType=self.DispType,
+                      dx=min(self.dx, Lengths[k] / 100)) for k in range(nFrac + 1)]
+
+        # Relay the wave attribute
         if hasattr(self, 'kw'):
-            floe1.kw = self.kw
-            floe2.kw = self.kw
+            for floe in floes:
+                floe.kw = self.kw
 
-        return(floe1, floe2)
+        return floes
 
     def z_calc(self, msl, t):
         self.z = msl - self.hw + self.h / 2
@@ -227,26 +245,51 @@ class Floe(object):
 
         return(self.Eel)
 
-    def computeEnergyIfFrac(self, iFrac, a_vec, wave, t, EType):
-        '''Computes the resulting energy if a fracture occurs at position xFrac'''
-        xFrac = self.xF[iFrac]
-        # Creates the two resulting floes
-        (floe1, floe2) = self.fracture(xFrac)
+    def computeEnergyIfFrac(self, iFracs, a_vec, wave, t, EType):
+        ''' Computes the resulting energy is a fracture occurs at indices iFrac
+        Inputs:
+            iFrac (int or list of int): points where an hypothetical fracture would occur
+        Outputs:
+            xFracs (list of float): points of fracture
+            Eel (float): resulting elastic energy
+            floes (list of Floes): list of resulting floes
+        '''
 
-        # Sets properties induced by the wave
-        floe1.a0 = self.a0
-        floe1.phi0 = self.phi0
-        floe2.a0 = a_vec[iFrac]
-        floe2.phi0 = self.phi0 + self.kw * floe1.L
+        if isinstance(iFracs, (int, np.int32, np.int64)):
+            iFracs = [iFracs]
+        else:
+            iFracs = list(iFracs)
+        assert min(iFracs) > 0 and max(iFracs) < len(self.xF) - 1
 
-        # Computes both elastic energies
-        Eel1 = floe1.calc_Eel(wave=wave, t=t, EType=EType)
-        Eel2 = floe2.calc_Eel(wave=wave, t=t, EType=EType)
+        # Computes the fracture points and the resulting floes
+        xFracs = [self.xF[i] for i in iFracs]
+        floes = self.fracture(xFracs)
 
-        return(Eel1, Eel2)
+        # Set properties induces by the wave and compute elastic energies
+        distanceFromX0 = 0
+        Eel_list = []
+        nFloes = len(floes)
+        for k in range(nFloes):
+            floes[k].a0 = a_vec[0] if k == 0 else a_vec[iFracs[k - 1]]
+            floes[k].phi0 = self.phi0 + self.kw * distanceFromX0
 
-    def FindE_min(self, wave, t, *args):
-        x = self.xF
+            Eel_list.append(floes[k].calc_Eel(wave=wave, t=t, EType=EType))
+
+            distanceFromX0 += floes[k].L
+
+        return xFracs, Eel_list, floes
+
+    def FindE_min(self, multiFrac, wave, t, *args):
+        ''' Finds the minimum of energy for all fracturation possible
+        Inputs:
+            multiFrac (int): maximum number of simultaneous fractures
+            wave, t (usual)
+        Outputs:
+            xFracs (list of float): points inside the floe where minimal fracture occurs
+            floes (list of Floe): resulting floes
+            Et_min (float): minimal total energy
+            Eel_floes (list): energy of each individual floe
+        '''
 
         if len(args) > 0:
             EType = args[0]
@@ -254,34 +297,38 @@ class Floe(object):
             EType = 'Disp'
 
         a_vec = wave.amp_att(self.xF, self.a0, [self])
-        nFrac = len(self.xF) - 1
+        maxFrac = len(self.xF) - 1
+        admissibleIndices = np.arange(start=1, stop=maxFrac, dtype=int)
 
-        # Vectorized function to compute energies
-        vect_computeEnergy = \
-            np.vectorize(lambda iFrac: self.computeEnergyIfFrac(iFrac, a_vec, wave, t, EType))
-        indicesFrac = np.arange(start=1, stop=nFrac, dtype=int)
+        # Arrays to compare solutions given for different number of fractures
+        energyMins = np.empty(multiFrac)  # Total energy
+        indicesMin = np.empty(multiFrac, dtype=object)
 
-        EF1, EF2 = vect_computeEnergy(indicesFrac)
-        Energies = EF1 + EF2 + self.k
+        e_lists = [self.Eel] * (multiFrac + 1)
+        for numberFrac in range(1, multiFrac + 1):
+            # List of all tuple of {numberFrac} indices where a frac will me calculated
+            indicesFrac = list(combinations(admissibleIndices, numberFrac))
 
-        # Computes the positiof of minimum energy and indice of fracture
-        indMin = np.argmin(Energies)
-        indFrac_min = indicesFrac[indMin]
+            # TODO: could be done a lot faster with parallelization or numpy operations
+            # Array of all computed energies
+            e_temp = [self.computeEnergyIfFrac(iFracs, a_vec, wave, t, EType)[1]
+                      for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
+            e_lists[numberFrac] = e_temp
+            energies = [sum(e_list) + (len(e_list) - 1) * self.k for e_list in e_lists[numberFrac]]
 
-        (floe1, floe2) = self.fracture(x[indFrac_min])
+            # Find min and add it array of minimums
+            indMin = np.argmin(energies)
+            energyMins[numberFrac - 1] = energies[indMin] + numberFrac * self.k
+            indicesMin[numberFrac - 1] = indicesFrac[indMin]
 
-        # Sets properties induced by the wave
-        floe1.a0 = self.a0
-        floe1.phi0 = self.phi0
-        floe2.a0 = a_vec[indMin]
-        floe2.phi0 = self.phi0 + self.kw * floe1.L
+        # Compute global minimum to get the fracture(s) which minimizes total energy
+        globalMin = np.argmin(energyMins)
+        Et_min = energyMins[globalMin]
+        # TODO: Make it less expensive because no need to recompute energy
+        xFracs, _, floes = \
+            self.computeEnergyIfFrac(indicesMin[globalMin], a_vec, wave, t, EType)
 
-        # Vector of elastic floe energies for all possible fractures
-        Eel_floes = np.zeros((len(self.xF), 2))
-        Eel_floes[1:-1, 0] += EF1
-        Eel_floes[1:-1, 1] += EF2
-
-        return(x[indFrac_min], floe1, floe2, Energies[indMin], Eel_floes)
+        return xFracs, floes, Et_min, e_lists
 
     def calc_strain(self):
         dw2 = self.calc_curv()
