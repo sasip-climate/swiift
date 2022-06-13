@@ -312,7 +312,8 @@ class Floe(object):
             # TODO: could be done a lot faster with parallelization or numpy operations
             # Array of all computed energies
             e_temp = [self.computeEnergyIfFrac(iFracs, a_vec, wave, t, EType)[1]
-                      for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
+                      for iFracs in indicesFrac]
+            #         for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
             e_lists[numberFrac] = e_temp
             energies = [sum(e_list) + (len(e_list) - 1) * self.k for e_list in e_lists[numberFrac]]
 

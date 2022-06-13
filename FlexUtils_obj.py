@@ -8,7 +8,7 @@ Created on Thu Jan  6 14:23:52 2022
 import matplotlib.pyplot as plt
 import numpy as np
 import config
-from pars import E, v, rho_w, g
+from pars import E, v, rho_w, g, strainCrit
 
 
 def PlotFloes(x, t, Floes, wave, *args):
@@ -208,6 +208,78 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     return Floes
 
 
+def BreakFloesStrain(x, t, Floes, wave):
+    ''' Use of a breaking parametrization based on strain (cf Dumont2011)
+    Inputs/Outputs: same as BreakFloes
+    '''
+    # Note: in the code, the nergy is computed with calc_Eel since it also computed displacement
+    Broke = True
+    nFrac = 0
+    while Broke:
+
+        Broke = False
+        NewFloes = Floes.copy()
+        Offset = 0
+        for iF in range(len(Floes)):
+            # Computes the wave amplitude and information along the floe
+            a_vec = wave.amp_att(Floes[iF].xF, Floes[iF].a0, [Floes[iF]])
+            phi0 = Floes[iF].phi0
+            kw = Floes[iF].kw
+
+            # Compute energy to compute displacement
+            _ = Floes[iF].calc_Eel(wave=wave, t=t, EType='Flex')
+
+            # Computes the strain at top and bottom edges of the floe
+            Floes[iF].calc_strain()
+            strain = np.abs(Floes[iF].strain)
+
+            if np.max(strain) > strainCrit:
+                Broke = True
+
+                # Since time discretization causes intervals where strain is too high
+                # we dont want to break the floe at each point of the interval
+                iFracs = []
+                lengthInterval = 0
+                startInterval = -1
+                for ix in range(len(Floes[iF].xF)):
+                    if strain[ix] > strainCrit:
+                        if lengthInterval == 0:
+                            startInterval = ix
+                        lengthInterval += 1
+                    else:
+                        if lengthInterval > 0:
+                            iFracs.append(startInterval + (lengthInterval - 1) // 2)
+                            lengthInterval = 0
+
+                # Computes positions of fracturation and resulting floes
+                xFracs = [Floes[iF].xF[i] for i in iFracs]
+                createdFloes = Floes[iF].fracture(xFracs)
+                nFrac += len(iFracs)
+
+                # Set properties induced by wave and insert floes in list
+                distanceFromLeft = 0
+                nFloes = len(iFracs) + 1
+                for iNF in range(nFloes):
+                    # Set properties
+                    createdFloes[iNF].a0 = a_vec[0] if iNF == 0 else a_vec[iFracs[iNF - 1]]
+                    createdFloes[iNF].phi0 = phi0 + kw * distanceFromLeft
+                    _ = createdFloes[iNF].calc_Eel(wave=wave, t=t, EType='Flex')
+
+                    distanceFromLeft += createdFloes[iNF].L
+                    # Insert in list
+                    if iNF == 0:
+                        NewFloes[iF + Offset] = createdFloes[0]
+                    else:
+                        Offset += 1
+                        NewFloes.insert(iF + Offset, createdFloes[iNF])
+
+        if Broke:
+            Floes = NewFloes
+            PlotFloes(x, t, Floes, wave)
+
+    return Floes
+
+
 def PlotLengths(t, L, **kwargs):
     nt = len(t)
     addThickness = False
@@ -269,6 +341,10 @@ def PlotFSD(L, **kwargs):
     he = False
     ne = False
 
+    L_min = np.floor(min(Ll)) - 1
+    L_max = np.ceil(max(Ll)) + 1
+    dL = 0.2 if L_min < 10 else 0.5
+
     # Process optional inputs
     for key, value in kwargs.items():
         if key == 'DoSave':
@@ -284,8 +360,10 @@ def PlotFSD(L, **kwargs):
         elif key == 'n0':
             n0 = value
             ne = True
+        elif key == 'dL':
+            dL = value
 
-    values, edges = np.histogram(Ll, bins=np.arange(1, round(max(Ll)) + 1))
+    values, edges = np.histogram(Ll, bins=np.arange(L_min, L_max, dL))
 
     fac = [1]
     fac.append(1 / values.sum())
@@ -297,7 +375,7 @@ def PlotFSD(L, **kwargs):
         Lines = [[wl / 2, '$\lambda$/2']]
         if he:
             # Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
-            Lines.append([np.pi / 4 * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x^*$'])
+            Lines.append([np.pi / 4 * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x_c$'])
             # if ne:
             #     Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
 
@@ -317,7 +395,7 @@ def PlotFSD(L, **kwargs):
 def PlotHist(edges, values):
 
     fig, hax = plt.subplots()
-    plt.bar(edges[:-1], values, align='edge', width=1)
+    plt.bar(edges[:-1], values, align='edge', width=edges[1] - edges[0])
 
     hax.set(xlabel='Floe length (m)')
 

@@ -19,6 +19,9 @@ E = 6e9  # Elastic modulus
 v = 0.3  # Poisson's ratio
 K = 1e5  # Fracture energy
 
+# Critical strain supported by ice before fracture -> Dumont2011/Roach2018
+strainCrit = 3e-5
+
 N = 101
 Deriv101 = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) + np.eye(N, k=2) + np.eye(N, k=-2)
 # First two rows can't use centered difference
