@@ -14,6 +14,7 @@ sys.path.append(os.getcwd() + '/' + LibPath)
 
 FigsDirFloes = 'Figs/Floes/'
 FigsDirSumry = 'Figs/Summary/'
+FigsDirSpec = 'Figs/Spec/'
 
 DataFileName = 'database/dataSensStudy.pkl'
 DataTempDir = 'database/temp/'

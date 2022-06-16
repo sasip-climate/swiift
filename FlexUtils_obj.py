@@ -14,41 +14,49 @@ from pars import E, v, rho_w, g, strainCrit
 def PlotFloes(x, t, Floes, wave, *args):
     hfac = 0
     nFloes = len(Floes)
+    ShowE = hasattr(Floes[0], 'Eel')
+    Eel = []
 
     if wave.type == 'WaveSpec':
         fig, hax = wave.plot(x)
         n0 = wave.calcHs()
         n = n0
-        wvstring = f'Hs_{wave.Hs:4.2f}_wl_{wave.wlp:2.0f}'
+        wvstring = f'Hs_{wave.Hs:4.2f}_wlp_{wave.wlp:2.0f}'
         wvtstring = f'$H_s$: {wave.Hs:4.2f}m'
     else:
         fig, hax = wave.plot(x, t, floes=Floes)
         n0 = wave.n0
         n = wave.amp(t)
-        wvstring = f'n_{wave.n0:0.3}_l_{wave.wl:2.0f}'
+        wvstring = f'n0_{wave.n0:0.3}_wl_{wave.wl:2.0f}'
         wvtstring = f'$\eta_0$: {n:0.3f}m'
 
-    Eel = (nFloes - 1) * Floes[0].k
+    if ShowE:
+        Eel = (nFloes - 1) * Floes[0].k
     for floe in Floes:
         if wave.type == 'WaveSpec':
             wvf = wave.calc_waves(floe.xF)
         else:
             wvf = wave.waves(floe.xF, t, amp=floe.a0, phi=floe.phi0, floes=[floe])
         _, _ = floe.plot(x, t, wvf, fig, hax)
-        Eel += floe.Eel
+        if ShowE:
+            Eel += floe.Eel
         if floe.hw > hfac:
             hfac = floe.hw
 
     Hfac = 1.5 * hfac + n0
     _ = hax.axis([x[0], x[-1], -Hfac, Hfac])
 
-    if Eel == 0:
+    if Eel == []:
+        E_string = ''
+    elif Eel == 0:
         E_string = '0'
     else:
         oom = np.floor(np.log10(Eel))
-        E_string = str(round(Eel * 10**(2 - oom)) / 100) + 'x10$^{' + str(int(oom)) + '}$'
+        E_string = ' - Energy: '
+        E_string += str(round(Eel * 10**(2 - oom)) / 100)
+        E_string += 'x10$^{' + str(int(oom)) + '}$ Jm$^{-2}$'
 
-    tstr = f'Time: {t:.2f}s - ' + wvtstring + ' - Energy: ' + E_string + 'Jm$^{-2}$'
+    tstr = f'Time: {t:.2f}s - ' + wvtstring + E_string
 
     hax.set_title(tstr)
     hax.set(ylabel='Height (m)', xlabel='Distance (m)')
@@ -70,13 +78,13 @@ def PlotFloes(x, t, Floes, wave, *args):
     if len(args) > 0:
         itlab = ''
         Explab = 'Floes'
-        for arg in len(args):
+        for arg in args:
             if type(arg) is str:
                 Explab = arg
             elif isinstance(arg, (int, np.int32, np.int64)):
-                itlab = f'_t_{arg:03}'
+                itlab = f'it_{arg:03}'
         root = (f'{Explab}_{wvstring}_'
-                f'h_{Floes[0].h:3}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}{itlab}')
+                f'h_{Floes[0].h:03}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_{itlab}')
 
         plt.savefig(config.FigsDirFloes + root + '.png')
         plt.close(fig)
@@ -84,7 +92,7 @@ def PlotFloes(x, t, Floes, wave, *args):
         plt.show()
 
 
-def PlotFracE(floe, Eel_floes, x_frac):
+def PlotFracE(floe, Eel_floes):
     fig, hax = plt.subplots()
     x = floe.xF[1:-1] - floe.x0
 
@@ -221,23 +229,21 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
 
         if Broke:
             Floes = NewFloes
-            PlotFloes(x, t, Floes, wave)
         else:
             for floe in Floes:
                 if floe.Eel > 10 * floe.k:
                     xf, _, _, E_lists = floe.FindE_min(1, wave, t, EType)
-                    PlotFracE(floe, E_lists, xf)
+                    PlotFracE(floe, E_lists)
             break
 
     return Floes
 
 
-def BreakFloesStrain(x, t, Floes, wave, *args):
+def BreakFloesStrain(x, t, Floes, wave):
     ''' Use of a breaking parametrization based on strain (cf Dumont2011)
     Inputs/Outputs: same as BreakFloes
     '''
 
-    EType = args[0] if len(args) > 0 else 'Flex'
     Spec = True if wave.type == 'WaveSpec' else False
 
     # Note: in the code, the nergy is computed with calc_Eel since it also computed displacement
@@ -249,18 +255,18 @@ def BreakFloesStrain(x, t, Floes, wave, *args):
         NewFloes = Floes.copy()
         Offset = 0
         for iF in range(len(Floes)):
-            # Computes the wave amplitude and information along the floe
-            a_vec = wave.amp_att(Floes[iF].xF, Floes[iF].a0, [Floes[iF]])
-            phi0 = Floes[iF].phi0
-            kw = Floes[iF].kw
 
             # Compute energy to compute displacement
             if Spec:
                 wvf = wave.calc_waves(Floes[iF].xF)
             else:
+                # Computes the wave amplitude and information along the floe
+                a_vec = wave.amp_att(Floes[iF].xF, Floes[iF].a0, [Floes[iF]])
+                phi0 = Floes[iF].phi0
+                kw = Floes[iF].kw
                 wvf = wave.waves(Floes[iF].xF, t, amp=Floes[iF].a0,
                                  phi=Floes[iF].phi0, floes=[Floes[iF]])
-            _ = Floes[iF].calc_Eel(EType=EType, wvf=wvf)
+            Floes[iF].calc_w(wvf)
 
             # Computes the strain at top and bottom edges of the floe
             Floes[iF].calc_strain()
@@ -301,7 +307,7 @@ def BreakFloesStrain(x, t, Floes, wave, *args):
                         createdFloes[iNF].phi0 = phi0 + kw * distanceFromLeft
                         wvf = wave.waves(createdFloes[iNF].xF, t, amp=createdFloes[iNF].a0,
                                          phi=createdFloes[iNF].phi0, floes=[createdFloes[iNF]])
-                    _ = createdFloes[iNF].calc_Eel(EType=EType, wvf=wvf)
+                    createdFloes[iNF].calc_w(wvf)
 
                     distanceFromLeft += createdFloes[iNF].L
                     # Insert in list
@@ -313,7 +319,6 @@ def BreakFloesStrain(x, t, Floes, wave, *args):
 
         if Broke:
             Floes = NewFloes
-            PlotFloes(x, t, Floes, wave)
 
     return Floes
 

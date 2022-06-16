@@ -15,7 +15,11 @@ from WaveUtils import calc_k
 from WaveDef import Wave
 from IceDef import Floe
 
-multiFrac = 3
+
+# Variable to control plots to be made
+# 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
+DoPlots = 3
+multiFrac = 2
 growing = True
 reset = True
 if growing:
@@ -34,7 +38,7 @@ x0 = 10
 L = 150
 DispType = 'Open'
 EType = 'Flex'
-FractureCriterion = 'Strain'  # 'Strain' or 'Energy'
+FractureCriterion = 'Energy'  # 'Strain' or 'Energy'
 
 # Initialize wave object
 if growing:
@@ -68,8 +72,6 @@ for iL in range(n_Loops):
 
     _ = wave.waves(x, t[0], floes=Floes)  # assign waves over the whole domain
 
-    wvf = wave.waves(floe1.xF, t[0], amp=floe1.a0, phi=floe1.phi0, floes=Floes)
-    floe1.calc_Eel(EType=EType, wvf=wvf)
     if not reset and growing:
         PlotFloes(x, t[0], Floes, wave)
 
@@ -81,15 +83,18 @@ for iL in range(n_Loops):
 
         if FractureCriterion == 'Energy':
             Floes = BreakFloes(x, t[it], Floes, wave, multiFrac, EType)
+            Evec[it] = (len(Floes) - 1) * Floes[0].k
+            for floe in Floes:
+                Evec[it] += floe.Eel
         elif FractureCriterion == 'Strain':
             Floes = BreakFloesStrain(x, t[it], Floes, wave)
         else:
             raise ValueError('Non existing fracturation criterion')
 
-        Evec[it] = (len(Floes) - 1) * Floes[0].k
-        for floe in Floes:
-            Evec[it] += floe.Eel
-        if not reset:
+        if DoPlots > 2 or len(Floes) > nF:
+            Explab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_{lab}'
+            PlotFloes(x, t[it], Floes, wave, Explab, it)
+        elif DoPlots > 3:
             PlotFloes(x, t[it], Floes, wave)
 
     FL_temp = []
@@ -97,24 +102,23 @@ for iL in range(n_Loops):
         FL_temp.append(floe.L)
     FL[iL] = FL_temp
 
-if reset:
+if DoPlots > 0:
     fig, hax = PlotLengths(phi, FL, waves=wave, x0=x0, h=h)
 
-    root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-            f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
-            f'E_{EType}_B_{FractureCriterion}')
+    root = (f'FloeLengths_E_{EType}_F_{FractureCriterion}_{lab}_'
+            f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:02.1f}_h_{Floes[0].h:03.1f}_L0_{L:04}')
 
     plt.savefig(config.FigsDirSumry + root + '.png')
 
-    fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-          f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
-          f'E_{EType}_B_{FractureCriterion}')
+if DoPlots > 1:
+    if reset:
+        fn = (f'_E_{EType}_F_{FractureCriterion}_{lab}_'
+              f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:2}_h_{Floes[0].h:3.1f}_L0_{L:04}')
 
-    PlotFSD(FL, wl=wvlength, h=h, n0=n_0, FileName=fn)
-else:
-    PlotSum(t, Evec, leg=[EType])
-    root = (f'Energy_Time_Series_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-            f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
-            f'E_{EType}_B_{FractureCriterion}')
+        PlotFSD(FL, wl=wvlength, h=h, n0=n_0, FileName=fn)
+    else:
+        PlotSum(t, Evec, leg=[EType])
+        root = (f'Energy_Time_Series__E_{EType}_F_{FractureCriterion}_{lab}_'
+                f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:2}_h_{Floes[0].h:3.1f}_L0_{L:04}')
 
-    plt.savefig(config.FigsDirSumry + root + '.png')
+        plt.savefig(config.FigsDirSumry + root + '.png')

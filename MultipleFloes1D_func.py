@@ -9,7 +9,7 @@ Created on Wed Jan 12 11:48:40 2022
 import numpy as np
 import matplotlib.pyplot as plt
 import config
-from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD
 from WaveUtils import calc_k
 from WaveDef import Wave
 from IceDef import Floe
@@ -17,9 +17,11 @@ from IceDef import Floe
 
 def MF1D(**kwargs):
     # Variable to control plots to be made
-    # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and Floes
+    # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
     DoPlots = 1
     FigsDirSumry = config.FigsDirSumry
+    multiFrac = 1
+    FractureCriterion = 'Energy'
 
     growing = True
     reset = True
@@ -61,14 +63,20 @@ def MF1D(**kwargs):
             DoPlots = value
         elif key == 'SaveDirectory':
             FigsDirSumry = value
+        elif key == 'multiFrac':
+            multiFrac = value
+        elif key == 'FracCrit':
+            FractureCriterion = value
 
     # Initialize wave object
     if growing:
         wave = Wave(n_0, wvlength, beta=beta)
         t_max = 6 / beta
+        lab = 'g'
     else:
         wave = Wave(n_0, wvlength)
         t_max = 2 * wave.T
+        lab = '0'
 
     # Initialize ice floe object
     floe1 = Floe(h, x0, L, DispType=DispType)
@@ -93,16 +101,25 @@ def MF1D(**kwargs):
 
         _ = wave.waves(x, t[0], floes=Floes)  # assign waves over the whole domain
 
-        wvf = wave.waves(floe1.xF, t, amp=floe1.a0, phi=floe1.phi0, floes=Floes)
-        floe1.calc_Eel(EType=EType, wvf=wvf)
         if not reset and growing:
             PlotFloes(x, t[0], Floes, wave)
 
         for it in range(len(t)):
 
             _ = wave.waves(x, t[it], floes=Floes)  # assign waves over the whole domain
-            Floes = BreakFloes(x, t[it], Floes, wave, EType)
-            if not reset and DoPlots > 2:
+            nF = len(Floes)
+
+            if FractureCriterion == 'Energy':
+                Floes = BreakFloes(x, t[it], Floes, wave, multiFrac, EType)
+            elif FractureCriterion == 'Strain':
+                Floes = BreakFloesStrain(x, t[it], Floes, wave)
+            else:
+                raise ValueError('Non existing fracturation criterion')
+
+            if DoPlots > 2 or len(Floes) > nF:
+                Explab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_{lab}'
+                PlotFloes(x, t[it], Floes, wave, Explab, it)
+            elif DoPlots > 3:
                 PlotFloes(x, t[it], Floes, wave)
 
         FL_temp = []
@@ -113,23 +130,17 @@ def MF1D(**kwargs):
     if reset:
         if DoPlots > 0:
             fig, hax = PlotLengths(phi, FL, waves=wave, x0=x0, h=h)
-            if growing:
-                lab = 'g'
-            else:
-                lab = '0'
 
-            root = (f'FloeLengths_{lab}_{DispType}_n_{wave.n0:3}_wl_{wave.wl:02}_'
-                    f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
-                    f'E_{EType}')
+            root = (f'FloeLengths_E_{EType}_F_{FractureCriterion}_{lab}_'
+                    f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:02.1f}_h_{h:03.1f}_L0_{L:04}')
 
             plt.savefig(FigsDirSumry + root + '.png')
 
         if DoPlots > 1:
-            fn = (f'_{lab}_{DispType}_n_{wave.n0:3}_l_{wave.wl:2}_'
-                  f'h_{Floes[0].h:3.1f}_L0_{L:04}_'
-                  f'E_{EType}')
+            fn = (f'_E_{EType}_F_{FractureCriterion}_{lab}_'
+                  f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:02.1f}_h_{h:03.1f}_L0_{L:04}')
 
-            edges, values = PlotFSD(FL, wl=wvlength, h=h, n=n_0, DoSave=True, FileName=fn)
+            edges, values = PlotFSD(FL, wl=wvlength, h=h, n=n_0, FileName=fn)
         else:
             Ll = []
             for l in FL:

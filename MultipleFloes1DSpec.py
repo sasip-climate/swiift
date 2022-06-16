@@ -8,21 +8,24 @@ Created on Wed Jan 12 11:48:40 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
+import config
 from tqdm import tqdm
-from FlexUtils_obj import PlotFloes, BreakFloes, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
 from IceDef import Floe
 
-DoPlots = True
-SavePlots = True
+# 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
+DoPlots = 3
 repeats = 10
+multiFrac = 2
+FractureCriterion = 'Energy'
 
 # Ice parameters
 h = 1
 x0 = 50
-L = 400
+L = 100
 DispType = 'ML'
 EType = 'Flex'
 # Initialize ice floe object
@@ -55,12 +58,13 @@ tSpecM = max(tProp[Spec.Ei > 0.1 * max(Spec.Ei)])
 
 Floes = [floe1]
 # Visualize energy propagation in the domain
-for t in np.arange(Spec.Tp, 2 * tSpecM + 1 / Spec.f[0], tSpecM / 10):
-    Spec.calcExt(x, t, Floes)
-    if t < tSpecM * 1.1:
-        Spec.plotEx(fname=f'Spec/Spec_{DispType}_L0_{L:04}_{t:04.0f}.png', t=t)
-    # Spec.set_phases(x, t, Floes)
-    # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
+if DoPlots > 0:
+    for t in np.arange(Spec.Tp, 2 * tSpecM + 1 / Spec.f[0], tSpecM / 10):
+        Spec.calcExt(x, t, Floes)
+        if t < tSpecM * 1.1:
+            Spec.plotEx(fname=(config.FigsDirSpec + f'Spec_{DispType}_L0_{L:04}_{t:04.0f}.png'), t=t)
+        # Spec.set_phases(x, t, Floes)
+        # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
 
 FL = [0] * repeats
 t = np.arange(0, 1.2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)
@@ -81,41 +85,47 @@ for iL in range(repeats):
     for it in tqdm(range(len(t))):
 
         nF = len(Floes)
+
         Spec.calcExt(x, t[it], Floes)
         # Spec.plotEx(t=t[it])
         Spec.set_phases(x, t[it], Floes)
         # Spec.plotWMean(x, floes=Floes)
-        Floes = BreakFloes(x, t[it], Floes, Spec, EType)
-        if DoPlots:
-            for floe in Floes:
-                floe.calc_Eel(wvf=Spec.calc_waves(floe.xF), EType=EType)
-            if SavePlots:
-                PlotFloes(x, t[it], Floes, Spec, f'Exp_{iL:02}_E_{EType}_')
-            else:
-                PlotFloes(x, t[it], Floes, Spec)
+        if FractureCriterion == 'Energy':
+            Floes = BreakFloes(x, t[it], Floes, Spec, multiFrac, EType)
+        elif FractureCriterion == 'Strain':
+            Floes = BreakFloesStrain(x, t[it], Floes, Spec)
+        else:
+            raise ValueError('Non existing fracturation criterion')
+
+        if DoPlots > 2 or len(Floes) > nF:
+            lab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}'
+            PlotFloes(x, t[it], Floes, Spec, lab, it)
+        elif DoPlots > 3:
+            PlotFloes(x, t[it], Floes, Spec)
 
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
     FL[iL] = FL_temp
 
-wvlength = 2 * np.pi / calc_k(1 / Spec.Tp, floe1.h, DispType=floe1.DispType)
 n0 = Spec.calcHs()
 
-fig, hax = PlotLengths(np.arange(repeats), FL, x0=x0, h=h, xunits='trials')
+if DoPlots > 0:
+    fig, hax = PlotLengths(np.arange(repeats), FL, x0=x0, h=h, xunits='trials')
 
-root = (f'FloeLengths_Spec_{DispType}_n_{n0:1.2f}_l_{wvlength:06.2f}_'
-        f'h_{h:3.1f}_L0_{L:04}_E_{EType}')
+    root = (f'FloeLengths_Spec_E_{EType}_F_{FractureCriterion}_'
+            f'{DispType}_Hs_{Spec.Hs}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
-plt.savefig('FigsSum/' + root + '.png')
+    plt.savefig(config.FigsDirSumry + root + '.png')
 
-fn = (f'_Spec_{DispType}_n_{n0:05.2f}_l_{wvlength:06.2f}_'
-      f'h_{h:3.1f}_L0_{L:04}_E_{EType}')
+if DoPlots > 1:
+    fn = (f'_Spec_E_{EType}_F_{FractureCriterion}_'
+          f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
-Lines = [[wvlength / 2, '$\lambda_p/2$']]
-wvl_max = 2 * np.pi / calc_k(Spec.f[0], floe1.h, DispType=floe1.DispType)
-Lines.append([wvl_max / 2, '$\lambda_{max}/2$'])
-wvl_min = 2 * np.pi / calc_k(Spec.f[-1], floe1.h, DispType=floe1.DispType)
-Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
+    Lines = [[Spec.wlp / 2, '$\lambda_p/2$']]
+    wvl_max = 2 * np.pi / calc_k(Spec.f[0], floe1.h, DispType=floe1.DispType)
+    Lines.append([wvl_max / 2, '$\lambda_{max}/2$'])
+    wvl_min = 2 * np.pi / calc_k(Spec.f[-1], floe1.h, DispType=floe1.DispType)
+    Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
 
-PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines)
+    PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines)
