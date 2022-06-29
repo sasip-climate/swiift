@@ -104,4 +104,4 @@ for gr in growing:
                                 f"{'growing' if gr else 'constant'}_waves"
                                 f'_{DispType}_n_{n0:3}_l_{wl:2}_'
                                 f'h_{hv:3.1f}_L0_{L:04}_E_{EType}')
-                        plt.savefig(config.FigsDirSumry + root + '.png')
+                        plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)

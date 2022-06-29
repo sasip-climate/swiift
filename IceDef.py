@@ -249,7 +249,7 @@ class Floe(object):
 
         return(self.Eel)
 
-    def computeEnergyIfFrac(self, iFracs, wave, t, EType):
+    def computeEnergyIfFrac(self, iFracs, wave, t, EType, verbose=False):
         ''' Computes the resulting energy is a fracture occurs at indices iFrac
         Inputs:
             iFrac (int or list of int): points where an hypothetical fracture would occur
@@ -257,6 +257,7 @@ class Floe(object):
             xFracs (list of float): points of fracture
             Eel (float): resulting elastic energy
             floes (list of Floes): list of resulting floes
+            verbose (logical): True for a list of energy, false for just a sum
         '''
 
         if isinstance(iFracs, (int, np.int32, np.int64)):
@@ -276,6 +277,7 @@ class Floe(object):
         # Set properties induces by the wave and compute elastic energies
         distanceFromX0 = 0
         Eel_list = []
+        Eel = 0
         nFloes = len(floes)
         for iF in range(nFloes):
             if Spec:
@@ -286,13 +288,19 @@ class Floe(object):
                 wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
                                  phi=floes[iF].phi0, floes=[floes[iF]])
 
-            Eel_list.append(floes[iF].calc_Eel(EType=EType, wvf=wvf))
+            if verbose:
+                Eel_list.append(floes[iF].calc_Eel(EType=EType, wvf=wvf))
+            else:
+                Eel += floes[iF].calc_Eel(EType=EType, wvf=wvf)
 
             distanceFromX0 += floes[iF].L
 
-        return xFracs, Eel_list, floes
+        if verbose:
+            return xFracs, Eel_list, floes
+        else:
+            return xFracs, Eel, floes
 
-    def FindE_min(self, multiFrac, wave, t, *args):
+    def FindE_min(self, multiFrac, wave, t, **kwargs):
         ''' Finds the minimum of energy for all fracturation possible
         Inputs:
             multiFrac (int): maximum number of simultaneous fractures
@@ -304,7 +312,14 @@ class Floe(object):
             Eel_floes (list): energy of each individual floe
         '''
 
-        EType = args[0] if len(args) > 0 else 'Disp'
+        EType = 'Flex'
+        verbose = False
+
+        for key, value in kwargs.items():
+            if key == 'EType':
+                EType = value
+            elif key == 'V':
+                verbose = value
 
         maxFrac = len(self.xF) - 1
         admissibleIndices = np.arange(start=1, stop=maxFrac, dtype=int)
@@ -320,15 +335,19 @@ class Floe(object):
 
             # TODO: could be done a lot faster with parallelization or numpy operations
             # Array of all computed energies
-            e_temp = [self.computeEnergyIfFrac(iFracs, wave, t, EType)[1]
-                      for iFracs in indicesFrac]
-            #         for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
-            e_lists[numberFrac] = e_temp
-            energies = [sum(e_list) + (len(e_list) - 1) * self.k for e_list in e_lists[numberFrac]]
+            if verbose:
+                e_temp = [self.computeEnergyIfFrac(iFracs, wave, t, EType, verbose=True)[1]
+                          for iFracs in indicesFrac]
+                #         for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
+                e_lists[numberFrac] = e_temp
+                energies = [sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]]
+            else:
+                energies = [self.computeEnergyIfFrac(iFracs, wave, t, EType)[1] + numberFrac * self.k
+                            for iFracs in indicesFrac]
 
             # Find min and add it array of minimums
             indMin = np.argmin(energies)
-            energyMins[numberFrac - 1] = energies[indMin] + numberFrac * self.k
+            energyMins[numberFrac - 1] = energies[indMin]
             indicesMin[numberFrac - 1] = indicesFrac[indMin]
 
         # Compute global minimum to get the fracture(s) which minimizes total energy
@@ -360,6 +379,8 @@ class Floe(object):
         if hasattr(self, 'slope'):
             slope = self.slope
         else:
+            if not hasattr(self, 'w'):
+                self.calc_w(wvf)
             fitw = np.polyfit(self.xF, self.w, 1)
             slope = fitw[0]
 

@@ -9,9 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import config
-
+from os import path
 from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD, PlotSum
-from WaveUtils import calc_k
+from WaveUtils import calc_k, omega
 from WaveDef import Wave
 from IceDef import Floe
 
@@ -30,18 +30,19 @@ else:
 # Wave Parameters
 n_0 = 0.2
 wvlength = 20
-beta = 0.1
 
 # Ice parameters
 h = 1
 x0 = 10
 L = 150
+dx = 0.5
 DispType = 'Open'
 EType = 'Flex'
 FractureCriterion = 'Energy'  # 'Strain' or 'Energy'
 
 # Initialize wave object
 if growing:
+    beta = omega((2 * np.pi / wvlength)) * wvlength / (2 * np.pi * L)
     wave = Wave(n_0, wvlength, beta=beta)
     t_max = 6 / beta
 else:
@@ -49,23 +50,35 @@ else:
     t_max = 2 * wave.T
 
 # Initialize ice floe object
-floe1 = Floe(h, x0, L, DispType=DispType)
+floe1 = Floe(h, x0, L, DispType=DispType, dx=dx)
 floe1.kw = calc_k(1 / wave.T, h, DispType=DispType)
 
 # Initial setup
 x = np.arange(2 * x0 + L)
 
-phi = 2 * np.pi * np.linspace(0, 1, num=21)
 
 if reset:
+    phi = 2 * np.pi * np.linspace(0, 1, num=21)
     n_Loops = len(phi)
 else:
+    phi = [0]
     n_Loops = 1
 
 FL = [0] * n_Loops
 
-t = np.arange(0, t_max, wave.T / 20)
+dt = dx / (5 * wave.omega / wave.k)
+
+t = np.arange(0, t_max, dt)  # wave.T / 20)
+
+print(f'Launching {n_Loops} experiments:')
 for iL in range(n_Loops):
+    LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_n0_{wave.n0:04.1f}m.txt'
+    DataPath = config.DataTempDir + LoopName
+    if path.isfile(DataPath):
+        print(f'Reading existing data for loop {iL:02}')
+        FL[iL] = list(np.loadtxt(DataPath))
+        continue
+
     wave.phi = phi[iL]
     Evec = np.zeros([len(t), 1])
     Floes = [floe1]
@@ -91,24 +104,25 @@ for iL in range(n_Loops):
         else:
             raise ValueError('Non existing fracturation criterion')
 
-        if DoPlots > 2 or len(Floes) > nF:
+        if DoPlots > 3:
+            PlotFloes(x, t[it], Floes, wave)
+        elif DoPlots > 2 or len(Floes) > nF:
             Explab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_{lab}'
             PlotFloes(x, t[it], Floes, wave, Explab, it)
-        elif DoPlots > 3:
-            PlotFloes(x, t[it], Floes, wave)
 
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
+    np.savetxt(DataPath, FL_temp)
     FL[iL] = FL_temp
 
-if DoPlots > 0:
+if DoPlots > 0 and len(FL[0]) > 1:
     fig, hax = PlotLengths(phi, FL, waves=wave, x0=x0, h=h)
 
     root = (f'FloeLengths_E_{EType}_F_{FractureCriterion}_{lab}_'
             f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:02.1f}_h_{Floes[0].h:03.1f}_L0_{L:04}')
 
-    plt.savefig(config.FigsDirSumry + root + '.png')
+    plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)
 
 if DoPlots > 1:
     if reset:
@@ -121,4 +135,4 @@ if DoPlots > 1:
         root = (f'Energy_Time_Series__E_{EType}_F_{FractureCriterion}_{lab}_'
                 f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:2}_h_{Floes[0].h:3.1f}_L0_{L:04}')
 
-        plt.savefig(config.FigsDirSumry + root + '.png')
+        plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)

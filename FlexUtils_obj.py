@@ -19,16 +19,20 @@ def PlotFloes(x, t, Floes, wave, *args):
 
     if wave.type == 'WaveSpec':
         fig, hax = wave.plot(x)
-        n0 = wave.calcHs()
-        n = n0
-        wvstring = f'Hs_{wave.Hs:4.2f}_wlp_{wave.wlp:2.0f}'
-        wvtstring = f'$H_s$: {wave.Hs:4.2f}m'
+        n0 = wave.Hs
+        n = wave.Hs
+        if len(wave.f) > 1:
+            wvstring = f'Hs_{wave.Hs:4.2f}_wlp_{wave.wlp:2.0f}'
+            wvtstring = f'$H_s$: {wave.Hs:4.2f}m'
+        else:
+            wvstring = f'n0_{wave.waves[0].n0:4.2f}_wl_{wave.waves[0].wl:2.0f}'
+            wvtstring = f'$\eta_0$: {wave.waves[0].n0:4.2ff}m'
     else:
         fig, hax = wave.plot(x, t, floes=Floes)
         n0 = wave.n0
         n = wave.amp(t)
-        wvstring = f'n0_{wave.n0:0.3}_wl_{wave.wl:2.0f}'
-        wvtstring = f'$\eta_0$: {n:0.3f}m'
+        wvstring = f'n0_{wave.n0:04.2f}_wl_{wave.wl:2.0f}'
+        wvtstring = f'$\eta_0$: {n:4.2f}m'
 
     if ShowE:
         Eel = (nFloes - 1) * Floes[0].k
@@ -86,7 +90,7 @@ def PlotFloes(x, t, Floes, wave, *args):
         root = (f'{Explab}_{wvstring}_'
                 f'h_{Floes[0].h:03}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_{itlab}')
 
-        plt.savefig(config.FigsDirFloes + root + '.png')
+        plt.savefig(config.FigsDirFloes + root + '.png', dpi=150)
         plt.close(fig)
     else:
         plt.show()
@@ -162,7 +166,7 @@ def PlotSum(t, y, **kwargs):
         hax.legend(leg)
 
     if DoSave:
-        plt.savefig(config.FigsDirSumry + pstr + '.png')
+        plt.savefig(config.FigsDirSumry + pstr + '.png', dpi=150)
         plt.close()
 
     return(fig, hax)
@@ -213,7 +217,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
 
                 # Don't search for two fractures if k < Eel <2*k for instance
                 maxFrac = min(int(maxFrac), multiFrac)
-                xFracs, floes, Etot_floes, E_floes = Floes[iF].FindE_min(maxFrac, wave, t, EType)
+                xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(maxFrac, wave, t, EType=EType)
                 if Etot_floes < Eel1:
                     Broke = True
                     nFrac += len(xFracs)
@@ -232,7 +236,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
         else:
             for floe in Floes:
                 if floe.Eel > 10 * floe.k:
-                    xf, _, _, E_lists = floe.FindE_min(1, wave, t, EType)
+                    xf, _, _, E_lists = floe.FindE_min(1, wave, t, EType=EType, V=True)
                     PlotFracE(floe, E_lists)
             break
 
@@ -330,6 +334,7 @@ def PlotLengths(t, L, **kwargs):
     addWaves = False
     wstring = ''
     xu = 'phase'
+    trim = False
 
     for key, value in kwargs.items():
         if key == 'waves':
@@ -339,8 +344,11 @@ def PlotLengths(t, L, **kwargs):
                        f"{'constant' if {waves.beta == 0} else 'growing'} waves")
         elif key == 'Spec':
             addWaves = True
-            Spec = value
-            wstring = (f'$\lambda$={Spec.wlp}m, $H_s$={Spec.Hs}m waves')
+            waves = value
+            if len(waves.f) > 1:
+                wstring = (f'$\lambda$={waves.wlp:4.1f}m, $H_s$={waves.Hs:4.1f}m waves')
+            else:
+                wstring = f'$\lambda$={waves.wlp:4.1f}m, $\eta_0$: {waves.waves[0].n0:4.1f}m waves'
         elif key == 'x0':
             x0 = value
         elif key == 'h':
@@ -348,6 +356,8 @@ def PlotLengths(t, L, **kwargs):
             hstring = f'{value}m ice'
         elif key == 'xunits':
             xu = value
+        elif key == 'trim':
+            trim = value
 
     if addWaves and addThickness:
         hstring += ' with '
@@ -365,12 +375,17 @@ def PlotLengths(t, L, **kwargs):
         tvec = [t[it], t[it]]
         hax.plot(tvec, [0, L[it][0]], frmt[0], linewidth=3)
         L0 = L[it][0]
-        for iL in range(1, len(L[it])):
+        if trim:
+            EndFloe = len(L[it][:-1])
+        else:
+            EndFloe = len(L[it])
+        for iL in range(1, EndFloe):
             hax.plot(tvec, L0 + np.array([0, L[it][iL]]), frmt[iL % 5])
             L0 = L0 + L[it][iL]
 
     if addWaves:
-        hax.plot(t, L0 * 1.2 + L0 * 0.1 * waves.waves(x0, t * waves.T / (2 * np.pi), amp=1))
+        if waves.type == 'Wave':
+            hax.plot(t, L0 * 1.2 + L0 * 0.1 * waves.waves(x0, t * waves.T / (2 * np.pi), amp=1))
 
     if addThickness or addWaves:
         hax.set_title(tstring)
@@ -396,7 +411,7 @@ def PlotLengths1(L, *args):
 
 def PlotFSD(L, **kwargs):
     # Process input
-    if type(L[0]) == list:
+    if isinstance(L[0], (list, np.ndarray)):
         Ll = []
         for l in L:
             Ll += l[:-1]  # Do not consider the last floe in the FSD
@@ -415,7 +430,7 @@ def PlotFSD(L, **kwargs):
 
     L_min = np.floor(min(Ll)) - 1
     L_max = np.ceil(max(Ll)) + 1
-    dL = 0.2 if L_min < 10 else 0.5
+    dL = 1 if L_min < 10 else 2
 
     # Process optional inputs
     for key, value in kwargs.items():
@@ -455,13 +470,16 @@ def PlotFSD(L, **kwargs):
     for ifac in np.arange(len(fac)):
         fig, hax = PlotHist(edges, values * fac[ifac])
         hax.set(ylabel=ylab[ifac])
-        addLines(hax, Lines)
+        if len(Lines):
+            addLines(hax, Lines)
 
         if DoSave:
             root = f'FSD_{ylab[ifac]}{fn}'
 
-            plt.savefig(config.FigsDirSumry + root + '.png')
+            plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)
             plt.close()
+        else:
+            plt.show()
 
     return(edges, values)
 
@@ -482,8 +500,8 @@ def addLines(hax, Lines):
     xlims = hax.get_xlim()
     xoffset = 0.02 * (xlims[1] - xlims[0])
 
-    colors = ['magenta', 'red', 'orange', 'yellow', 'green']
-    styles = ['-', '--', '-.', ':', 'loosely dotted']
+    colors = ['green', 'blue', 'purple', 'magenta', 'red', 'orange']
+    styles = ['-', '--', '-.', ':', '-.', '--']
     yoffset = np.arange(1, 1 / len(Lines) - 1e-12, -1 / len(Lines)) * 0.9
 
     for iL in np.arange(len(Lines)):

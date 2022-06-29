@@ -9,6 +9,7 @@ Created on Wed Jan 12 11:48:40 2022
 import numpy as np
 import matplotlib.pyplot as plt
 import config
+from os import path
 from tqdm import tqdm
 from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD
 from WaveUtils import calc_k
@@ -26,15 +27,21 @@ FractureCriterion = 'Energy'
 h = 1
 x0 = 50
 L = 100
+dx = 0.5
 DispType = 'ML'
 EType = 'Flex'
 # Initialize ice floe object
-floe1 = Floe(h, x0, L, DispType=DispType)
+floe1 = Floe(h, x0, L, DispType=DispType, dx=dx)
 
 # Wave Parameters
 u = 5  # Wind speed (m/s)
 # Initialize wave object
 Spec = WaveSpec(u=u)
+
+# Single frequency wave front
+# n0 = 1
+# Hs = (2 * n0) ** 0.5
+# Spec = WaveSpec(f=0.25, Hs=Hs)
 
 # calculate wave properties in ice
 Spec.checkSpec(floe1)
@@ -49,7 +56,7 @@ plotDisp(Spec.f, h)
 plot_cg(Spec.f, h)
 
 # Initial setup
-x = np.arange(2 * x0 + L + 1)
+x = np.arange(x0 + L + 2)
 xProp = 4 / floe1.alpha
 xProp[xProp > L] = L
 tProp = (2 * x0 / Spec.cgw + xProp / floe1.cg)
@@ -67,22 +74,34 @@ if DoPlots > 0:
         # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
 
 FL = [0] * repeats
-t = np.arange(0, 1.2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)
+
+dt = dx / (Spec.fp * Spec.wlp)
+t = np.arange(0, 1.2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)  # min(Spec.Tp / 20, dt))
+
+phi = 2 * np.pi * np.linspace(0, 1, num=repeats, endpoint=False)
 
 print(f'Launching {repeats} experiments:')
 for iL in range(repeats):
+    LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_Hs_{Spec.Hs:04.1f}m.txt'
+    DataPath = config.DataTempDir + LoopName
+    if path.isfile(DataPath):
+        print(f'Reading existing data for loop {iL:02}')
+        FL[iL] = list(np.loadtxt(DataPath))
+        continue
+
     # Change the phases of each wave
+    if len(Spec.f) == 1:
+        Spec.phi = np.array([phi[iL]])
     Spec.setWaves()
 
     Spec.calcExt(x, t[0], [floe1])
     # Spec.plotEx()
     Spec.set_phases(x, t[0], [floe1])
 
-    wvf = Spec.calc_waves(floe1.xF)
-    floe1.calc_Eel(wvf=wvf, EType=EType)
     Floes = [floe1]
 
-    for it in tqdm(range(len(t))):
+    tqdmlab = f'Time Loop {iL:02}' if repeats > 1 else 'Time Loop'
+    for it in tqdm(range(len(t)), desc=tqdmlab):
 
         nF = len(Floes)
 
@@ -97,35 +116,58 @@ for iL in range(repeats):
         else:
             raise ValueError('Non existing fracturation criterion')
 
-        if DoPlots > 2 or len(Floes) > nF:
+        if DoPlots > 3:
+            PlotFloes(x, t[it], Floes, Spec)
+        elif DoPlots > 2 or len(Floes) > nF:
             lab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}'
             PlotFloes(x, t[it], Floes, Spec, lab, it)
-        elif DoPlots > 3:
-            PlotFloes(x, t[it], Floes, Spec)
+
+        if Floes[-1].x0 > 0.6 * L + x0:
+            Floes[-1].L += L / 2
+            Floes[-1].xF = Floes[-1].x0 + np.arange(0, Floes[-1].L, Floes[-1].dx)
+            Floes[-1].initMatrix()
+            x = np.arange(0, x[-1] + L / 2 + 1, 1)
+            L *= 1.5
 
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
+    np.savetxt(DataPath, FL_temp)
     FL[iL] = FL_temp
+
+    if DoPlots > 2:
+        DoPlots = 2
 
 n0 = Spec.calcHs()
 
 if DoPlots > 0:
-    fig, hax = PlotLengths(np.arange(repeats), FL, x0=x0, h=h, xunits='trials')
+    if len(Spec.f) == 1:
+        xv = phi
+        xu = 'phase'
+    else:
+        xv = np.arange(repeats)
+        xu = 'trials'
 
     root = (f'FloeLengths_Spec_E_{EType}_F_{FractureCriterion}_'
-            f'{DispType}_Hs_{Spec.Hs}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
+            f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
-    plt.savefig(config.FigsDirSumry + root + '.png')
+    fig, hax = PlotLengths(xv, FL, x0=x0, h=h, Spec=Spec, xunits=xu)
+    plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)
+
+    fig, hax = PlotLengths(xv, FL, x0=x0, h=h, Spec=Spec, xunits=xu, trim=True)
+    plt.savefig(config.FigsDirSumry + root + '_trim.png', dpi=150)
 
 if DoPlots > 1:
     fn = (f'_Spec_E_{EType}_F_{FractureCriterion}_'
           f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
-    Lines = [[Spec.wlp / 2, '$\lambda_p/2$']]
+    wvl_lab = '$\lambda_p/2$' if len(Spec.f) > 1 else '$\lambda/2$'
+    Lines = [[Spec.wlp / 2, wvl_lab]]
     wvl_max = 2 * np.pi / calc_k(Spec.f[0], floe1.h, DispType=floe1.DispType)
-    Lines.append([wvl_max / 2, '$\lambda_{max}/2$'])
+    if wvl_max > Spec.wlp * 1.5:
+        Lines.append([wvl_max / 2, '$\lambda_{max}/2$'])
     wvl_min = 2 * np.pi / calc_k(Spec.f[-1], floe1.h, DispType=floe1.DispType)
-    Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
+    if wvl_min < Spec.wlp / 1.5:
+        Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
 
-    PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines)
+    PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines, Spec=Spec)

@@ -116,11 +116,11 @@ def MF1D(**kwargs):
             else:
                 raise ValueError('Non existing fracturation criterion')
 
-            if DoPlots > 2 or len(Floes) > nF:
+            if DoPlots > 3:
+                PlotFloes(x, t[it], Floes, wave)
+            elif DoPlots > 2 or len(Floes) > nF:
                 Explab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_{lab}'
                 PlotFloes(x, t[it], Floes, wave, Explab, it)
-            elif DoPlots > 3:
-                PlotFloes(x, t[it], Floes, wave)
 
         FL_temp = []
         for floe in Floes:
@@ -134,7 +134,7 @@ def MF1D(**kwargs):
             root = (f'FloeLengths_E_{EType}_F_{FractureCriterion}_{lab}_'
                     f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:02.1f}_h_{h:03.1f}_L0_{L:04}')
 
-            plt.savefig(FigsDirSumry + root + '.png')
+            plt.savefig(FigsDirSumry + root + '.png', dpi=150)
 
         if DoPlots > 1:
             fn = (f'_E_{EType}_F_{FractureCriterion}_{lab}_'

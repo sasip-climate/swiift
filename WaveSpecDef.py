@@ -92,6 +92,10 @@ class WaveSpec(object):
             self.f = np.array([f])
             df_vec = np.array([1])
             self.nf = 1
+            self.fp = f
+            self.Tp = 1 / f
+            self.kp = (2 * np.pi * f)**2 / g
+            self.wlp = 2 * np.pi / self.kp
         self.df = df_vec
 
         self.k = (2 * np.pi * self.f)**2 / g
@@ -288,7 +292,7 @@ class WaveSpec(object):
         fig.colorbar(c, ax=hax)
 
         if DoSave:
-            plt.savefig(fname)
+            plt.savefig(fname, dpi=150)
             plt.close()
         else:
             plt.show()
@@ -297,9 +301,11 @@ class WaveSpec(object):
         fig, hax = plt.subplots()
 
         if len(kwargs) == 0:
-            wv = self.waves[np.where(self.f == self.fp)[0][0]].waves(x, self.t, amp=self.Hs / 2)
+            wv = self.waves[np.where(self.f == self.fp)[0][0]].\
+                waves(x, self.t, amp=self.Hs / 2)
         else:
-            wv = self.waves[np.where(self.f == self.fp)[0][0]].waves(x, self.t, amp=self.Hs / 2, **kwargs)
+            wv = self.waves[np.where(self.f == self.fp)[0][0]].\
+                waves(x, self.t, amp=self.Hs / 2, **kwargs)
 
         hax.plot(x, wv)
         hax.set(xlabel='Distance (m)', ylabel='Surface elevation (m)')
@@ -355,7 +361,7 @@ class WaveSpec(object):
         hax.set_ylim([-self.Hs * 0.85, self.Hs * 0.85])
 
         if len(fname) > 0:
-            plt.savefig(fname)
+            plt.savefig(fname, dpi=150)
             plt.close()
         else:
             plt.show()
