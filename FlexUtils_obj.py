@@ -10,6 +10,9 @@ import numpy as np
 import config
 from pars import E, v, rho_w, g, strainCrit
 
+from treeForFrac import NodeForFloes
+fractureHistory = NodeForFloes([], 0.)
+
 
 def PlotFloes(x, t, Floes, wave, *args):
     hfac = 0
@@ -195,6 +198,11 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     Broke = True
     nFrac = 0
 
+    # Initialises fracture history
+    global fractureHistory
+    if fractureHistory.floe == []:
+        fractureHistory = NodeForFloes(Floes[0], t)
+
     while Broke:
 
         Broke = False
@@ -220,6 +228,11 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
                 xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(maxFrac, wave, t, EType=EType)
                 if Etot_floes < Eel1:
                     Broke = True
+
+                    # Add event to fracture history
+                    fractureHistory.addChilds(Floes[iF], floes, t)
+
+                    # Modify list of floes
                     nFrac += len(xFracs)
                     NewFloes[iF + Offset] = floes[0]
                     for k in range(1, len(xFracs) + 1):
@@ -253,6 +266,12 @@ def BreakFloesStrain(x, t, Floes, wave):
     # Note: in the code, the nergy is computed with calc_Eel since it also computed displacement
     Broke = True
     nFrac = 0
+
+    # Initialises fracture history
+    global fractureHistory
+    if fractureHistory.floe == []:
+        fractureHistory = NodeForFloes(Floes[0], t)
+
     while Broke:
 
         Broke = False
@@ -299,6 +318,9 @@ def BreakFloesStrain(x, t, Floes, wave):
                 createdFloes = Floes[iF].fracture(xFracs)
                 nFrac += len(iFracs)
 
+                # Add event to fracture history
+                fractureHistory.addChilds(Floes[iF], createdFloes, t)
+
                 # Set properties induced by wave and insert floes in list
                 distanceFromLeft = 0
                 nFloes = len(iFracs) + 1
@@ -325,6 +347,10 @@ def BreakFloesStrain(x, t, Floes, wave):
             Floes = NewFloes
 
     return Floes
+
+
+def getFractureHistory():
+    return fractureHistory
 
 
 def PlotLengths(t, L, **kwargs):

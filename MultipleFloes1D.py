@@ -10,7 +10,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import config
 from os import path
-from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD, PlotSum
+
+from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD, PlotSum
+from FlexUtils_obj import BreakFloes, BreakFloesStrain, getFractureHistory
 from WaveUtils import calc_k, omega
 from WaveDef import Wave
 from IceDef import Floe
@@ -55,6 +57,8 @@ floe1.kw = calc_k(1 / wave.T, h, DispType=DispType)
 
 # Initial setup
 x = np.arange(2 * x0 + L)
+Floes = [floe1]  # Necessery, otherwise root call Floes which may not exist
+#                  if all experiments already saved
 
 
 if reset:
@@ -77,6 +81,8 @@ for iL in range(n_Loops):
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}')
         FL[iL] = list(np.loadtxt(DataPath))
+        history = []
+        Evec = np.zeros([len(t), 1])
         continue
 
     wave.phi = phi[iL]
@@ -113,7 +119,7 @@ for iL in range(n_Loops):
     FL_temp = []
     for floe in Floes:
         FL_temp.append(floe.L)
-    np.savetxt(DataPath, FL_temp)
+    np.savetxt(DataPath, np.array(FL_temp))
     FL[iL] = FL_temp
 
 if DoPlots > 0 and len(FL[0]) > 1:
@@ -134,5 +140,8 @@ if DoPlots > 1:
         PlotSum(t, Evec, leg=[EType])
         root = (f'Energy_Time_Series__E_{EType}_F_{FractureCriterion}_{lab}_'
                 f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:2}_h_{Floes[0].h:3.1f}_L0_{L:04}')
+        history = getFractureHistory()
+        if history != [] and history.floe != []:
+            history.plotGeneration()
 
         plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)

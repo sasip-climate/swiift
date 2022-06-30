@@ -16,7 +16,7 @@ import scipy.sparse as sp
 
 # For multifracturing
 from itertools import combinations
-# from tqdm import tqdm
+from tqdm import tqdm
 
 from ElasticMaterials import FracToughness, Lame
 from WaveUtils import calc_k, calc_cg
@@ -266,7 +266,7 @@ class Floe(object):
             iFracs = list(iFracs)
         assert min(iFracs) > 0 and max(iFracs) < len(self.xF) - 1
 
-        Spec = True if wave.type == 'WaveSpec' else False
+        Spec = (wave.type == 'WaveSpec')
         if not Spec:
             a_vec = wave.amp_att(self.xF, self.a0, [self])
 
@@ -330,24 +330,24 @@ class Floe(object):
 
         e_lists = [self.Eel] * (multiFrac + 1)
         for numberFrac in range(1, multiFrac + 1):
-            # List of all tuple of {numberFrac} indices where a frac will me calculated
+            # List of all tuple of {numberFrac} indices where a frac will be calculated
             indicesFrac = list(combinations(admissibleIndices, numberFrac))
 
             # TODO: could be done a lot faster with parallelization or numpy operations
             # Array of all computed energies
             if verbose:
                 e_temp = [self.computeEnergyIfFrac(iFracs, wave, t, EType, verbose=True)[1]
-                          for iFracs in indicesFrac]
-                #         for iFracs in tqdm(indicesFrac, desc=f'Fraction Loop {numberFrac}')]
+                          # for iFracs in indicesFrac]
+                          for iFracs in tqdm(indicesFrac, desc=f'Fracture Loop {numberFrac}')]
                 e_lists[numberFrac] = e_temp
-                energies = [sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]]
+                energiesTot = [sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]]
             else:
-                energies = [self.computeEnergyIfFrac(iFracs, wave, t, EType)[1] + numberFrac * self.k
-                            for iFracs in indicesFrac]
+                energiesTot = [self.computeEnergyIfFrac(iFracs, wave, t, EType)[1] + numberFrac * self.k
+                               for iFracs in indicesFrac]
 
             # Find min and add it array of minimums
-            indMin = np.argmin(energies)
-            energyMins[numberFrac - 1] = energies[indMin]
+            indMin = np.argmin(energiesTot)
+            energyMins[numberFrac - 1] = energiesTot[indMin]
             indicesMin[numberFrac - 1] = indicesFrac[indMin]
 
         # Compute global minimum to get the fracture(s) which minimizes total energy
