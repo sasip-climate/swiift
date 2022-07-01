@@ -16,7 +16,7 @@ import scipy.sparse as sp
 
 # For multifracturing
 from itertools import combinations
-from tqdm import tqdm
+# from tqdm import tqdm
 
 from ElasticMaterials import FracToughness, Lame
 from WaveUtils import calc_k, calc_cg
@@ -337,8 +337,8 @@ class Floe(object):
             # Array of all computed energies
             if verbose:
                 e_temp = [self.computeEnergyIfFrac(iFracs, wave, t, EType, verbose=True)[1]
-                          # for iFracs in indicesFrac]
-                          for iFracs in tqdm(indicesFrac, desc=f'Fracture Loop {numberFrac}')]
+                          for iFracs in indicesFrac]
+                          # for iFracs in tqdm(indicesFrac, desc=f'Fracture Loop {numberFrac}')]
                 e_lists[numberFrac] = e_temp
                 energiesTot = [sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]]
             else:

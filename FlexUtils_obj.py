@@ -89,7 +89,7 @@ def PlotFloes(x, t, Floes, wave, *args):
             if type(arg) is str:
                 Explab = arg
             elif isinstance(arg, (int, np.int32, np.int64)):
-                itlab = f'it_{arg:03}'
+                itlab = f'it_{arg:04}'
         root = (f'{Explab}_{wvstring}_'
                 f'h_{Floes[0].h:03}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_{itlab}')
 
@@ -230,7 +230,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
                     Broke = True
 
                     # Add event to fracture history
-                    fractureHistory.addChilds(Floes[iF], floes, t)
+                    fractureHistory.addChildren(Floes[iF], floes, t)
 
                     # Modify list of floes
                     nFrac += len(xFracs)
@@ -319,7 +319,7 @@ def BreakFloesStrain(x, t, Floes, wave):
                 nFrac += len(iFracs)
 
                 # Add event to fracture history
-                fractureHistory.addChilds(Floes[iF], createdFloes, t)
+                fractureHistory.addChildren(Floes[iF], createdFloes, t)
 
                 # Set properties induced by wave and insert floes in list
                 distanceFromLeft = 0

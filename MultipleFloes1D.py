@@ -57,9 +57,9 @@ floe1.kw = calc_k(1 / wave.T, h, DispType=DispType)
 
 # Initial setup
 x = np.arange(2 * x0 + L)
-Floes = [floe1]  # Necessery, otherwise root call Floes which may not exist
-#                  if all experiments already saved
 
+# Necessery, as defining filename roots calls Floes which may not exist if all experiments already saved
+Floes = [floe1]
 
 if reset:
     phi = 2 * np.pi * np.linspace(0, 1, num=21)
