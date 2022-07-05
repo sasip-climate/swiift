@@ -29,7 +29,7 @@ def PlotFloes(x, t, Floes, wave, *args):
             wvtstring = f'$H_s$: {wave.Hs:4.2f}m'
         else:
             wvstring = f'n0_{wave.waves[0].n0:4.2f}_wl_{wave.waves[0].wl:2.0f}'
-            wvtstring = f'$\eta_0$: {wave.waves[0].n0:4.2ff}m'
+            wvtstring = f'$\eta_0$: {wave.waves[0].n0:4.2f}m'
     else:
         fig, hax = wave.plot(x, t, floes=Floes)
         n0 = wave.n0
@@ -446,6 +446,12 @@ def PlotFSD(L, **kwargs):
 
     Ll = np.array(Ll)
 
+    # To prevent errors in case of no fracture
+    empty = False
+    if Ll.size == 0:
+        Ll = np.zeros((1,))
+        empty = True
+
     # Process optional inputs
     DoSave = False
     fn = ''
@@ -496,6 +502,10 @@ def PlotFSD(L, **kwargs):
     for ifac in np.arange(len(fac)):
         fig, hax = PlotHist(edges, values * fac[ifac])
         hax.set(ylabel=ylab[ifac])
+        # If no fracture, put it in the title
+        if empty:
+            hax.set(title="No fracture for those parameters")
+
         if len(Lines):
             addLines(hax, Lines)
 

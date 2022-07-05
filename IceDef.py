@@ -105,7 +105,7 @@ class Floe(object):
 
         if N == 101:
             # For all floes at or under 100m, ie 101 points, use a precalculated matrix
-            self.A = E * I * Deriv101 / (dx**4) + rho_w * g * np.eye(101)
+            self.A = (E * I / dx**4) * Deriv101 + (rho_w * g) * np.eye(101)
         else:
             # Computes the five bands of the matrix -> centered differences
             A = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) \
@@ -123,7 +123,7 @@ class Floe(object):
             A *= E * I / (dx**4)
 
             # Last term of homogeneous equation
-            A += rho_w * g * np.eye(N)
+            A += (rho_w * g) * np.eye(N)
 
             self.A = A
 
@@ -148,7 +148,7 @@ class Floe(object):
         A[-2, [-4, -3, -2, -1]] = np.array([1, -4, 5, -2])
 
         A *= E * I / (dx**4)
-        A += rho_w * g * sp.eye(N, format='csr')
+        A += (rho_w * g) * sp.eye(N, format='csr')
 
         self.Asp = A
 

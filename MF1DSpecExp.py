@@ -91,7 +91,7 @@ for iL in range(repeats):
     DataPath = config.DataTempDir + LoopName
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}', flush=True)
-        FL[iL] = list(np.loadtxt(DataPath))
+        FL[iL] = list(np.loadtxt(DataPath, ndmin=1))
         history = []
         continue
 
