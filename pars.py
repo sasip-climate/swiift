@@ -11,16 +11,24 @@ import numpy as np
 # Note: water and ice parameters from a review paper by Squire et al (1995)
 # General parameters
 g = 9.8
-
 rho_w = 1025
-
 rho_i = 922.5
+
 E = 6e9  # Elastic modulus
 v = 0.3  # Poisson's ratio
 K = 1e5  # Fracture energy
 
 # Critical strain supported by ice before fracture -> Dumont2011/Roach2018
 strainCrit = 3e-5
+
+h = 1
+u = 5
+f = 0.25
+wl = g / (2 * np.pi * f**2)
+n0 = 1
+
+FractureCriterion = 'Energy'
+maxFrac = 2
 
 N = 101
 Deriv101 = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) + np.eye(N, k=2) + np.eye(N, k=-2)

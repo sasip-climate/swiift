@@ -275,23 +275,30 @@ class Floe(object):
         floes = self.fracture(xFracs)
 
         # Set properties induces by the wave and compute elastic energies
+        iFracs.append(len(self.xF)-1); iFracs = [0] + iFracs
         distanceFromX0 = 0
         Eel_list = []
         Eel = 0
         nFloes = len(floes)
         for iF in range(nFloes):
-            if Spec:
-                wvf = wave.calc_waves(floes[iF].xF)
-            else:
-                floes[iF].a0 = a_vec[0] if iF == 0 else a_vec[iFracs[iF - 1]]
-                floes[iF].phi0 = self.phi0 + self.kw * distanceFromX0
-                wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
-                                 phi=floes[iF].phi0, floes=[floes[iF]])
+            EelFloe = self.energiesMatrix[iFracs[iF], iFracs[iF+1]]
+            # Compute energie only if not already computed
+            if EelFloe < 0:
+                if Spec:
+                    wvf = wave.calc_waves(floes[iF].xF)
+                else:
+                    floes[iF].a0 = a_vec[0] if iF == 0 else a_vec[iFracs[iF - 1]]
+                    floes[iF].phi0 = self.phi0 + self.kw * distanceFromX0
+                    wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
+                                    phi=floes[iF].phi0, floes=[floes[iF]])
+
+                EelFloe = floes[iF].calc_Eel(EType=EType, wvf=wvf)
+                self.energiesMatrix[iFracs[iF], iFracs[iF+1]] = EelFloe
 
             if verbose:
-                Eel_list.append(floes[iF].calc_Eel(EType=EType, wvf=wvf))
+                Eel_list.append(EelFloe)
             else:
-                Eel += floes[iF].calc_Eel(EType=EType, wvf=wvf)
+                Eel += EelFloe
 
             distanceFromX0 += floes[iF].L
 
@@ -321,8 +328,11 @@ class Floe(object):
             elif key == 'V':
                 verbose = value
 
-        maxFrac = len(self.xF) - 1
-        admissibleIndices = np.arange(start=1, stop=maxFrac, dtype=int)
+        maxPosition = len(self.xF) - 1
+        admissibleIndices = np.arange(start=1, stop=maxPosition, dtype=int)
+
+        # Matrix of computed elastic energies is initialized with negative values
+        self.energiesMatrix = np.zeros((len(self.xF),len(self.xF))) - 1
 
         # Arrays to compare solutions given for different number of fractures
         energyMins = np.empty(multiFrac)  # Total energy

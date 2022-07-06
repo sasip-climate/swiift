@@ -19,15 +19,16 @@ from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
 from IceDef import Floe
+import pars
 
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
 DoPlots = 3
 repeats = 20
-multiFrac = 1
-FractureCriterion = 'Energy'
+multiFrac = pars.maxFrac
+FractureCriterion = pars.FractureCriterion
 
 # Ice parameters
-h = 1
+h = pars.h
 x0 = 50
 L = 100
 dx = 0.5
@@ -37,14 +38,14 @@ EType = 'Flex'
 floe1 = Floe(h, x0, L, DispType=DispType, dx=dx)
 
 # Wave Parameters
-u = 5  # Wind speed (m/s)
+u = pars.u  # Wind speed (m/s)
 # Initialize wave object
 Spec = WaveSpec(u=u)
 
 # Single frequency wave front
-# n0 = 1
+# n0 = pars.n0
 # Hs = (2 * n0) ** 0.5
-# Spec = WaveSpec(f=0.25, Hs=Hs)
+# Spec = WaveSpec(f=pars.f, Hs=Hs)
 
 # calculate wave properties in ice
 Spec.checkSpec(floe1)
