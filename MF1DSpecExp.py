@@ -90,10 +90,11 @@ print(f'Launching {repeats} experiments:')
 for iL in range(repeats):
     LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_Hs_{Spec.Hs:04.1f}m.txt'
     DataPath = config.DataTempDir + LoopName
+    FracHistPath = DataPath[:-4] + '_History.txt'
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}', flush=True)
         FL[iL] = list(np.loadtxt(DataPath, ndmin=1))
-        history = []
+        history = None
         continue
 
     # Change the phases of each wave
@@ -157,13 +158,14 @@ for iL in range(repeats):
     if DoPlots > 2:
         DoPlots = 2
 
-    if DoPlots > 0:
-        history = getFractureHistory()
-        if history != [] and history.floe != []:
-            if DoPlots > 3:
-                history.plotGeneration()
-            fGen = config.FigsDirSumry + 'Gen' + LoopName[3:-4] + '.png'
-            history.plotGeneration(filename=fGen)
+    history = getFractureHistory()
+    if DoPlots > 0 and (not history is None):
+        fGen = config.FigsDirSumry + 'Gen' + LoopName[3:-4] + '.png'
+        history.plotGeneration(filename=fGen)
+        if DoPlots > 3:
+            history.plotGeneration()
+        # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations for each floe that has existed
+        np.savetxt(FracHistPath, history.asArray())
 
     print(f'Time taken: {round(time.time() - start_time)}s', flush=True)
 

@@ -11,7 +11,7 @@ import config
 from pars import E, v, rho_w, g, strainCrit
 
 from treeForFrac import NodeForFloes
-fractureHistory = NodeForFloes([], 0.)
+fractureHistory = None
 
 
 def PlotFloes(x, t, Floes, wave, *args):
@@ -200,7 +200,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
 
     # Initialises fracture history
     global fractureHistory
-    if fractureHistory.floe == []:
+    if fractureHistory is None:
         fractureHistory = NodeForFloes(Floes[0], t)
 
     while Broke:
@@ -269,7 +269,7 @@ def BreakFloesStrain(x, t, Floes, wave):
 
     # Initialises fracture history
     global fractureHistory
-    if fractureHistory.floe == []:
+    if fractureHistory is None:
         fractureHistory = NodeForFloes(Floes[0], t)
 
     while Broke:
