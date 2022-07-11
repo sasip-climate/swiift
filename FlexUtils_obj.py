@@ -7,6 +7,7 @@ Created on Thu Jan  6 14:23:52 2022
 """
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import find_peaks
 import config
 from pars import E, v, rho_w, g, strainCrit
 
@@ -279,7 +280,7 @@ def BreakFloesStrain(x, t, Floes, wave):
         Offset = 0
         for iF in range(len(Floes)):
 
-            # Compute energy to compute displacement
+            # Compute displacement
             if Spec:
                 wvf = wave.calc_waves(Floes[iF].xF)
             else:
@@ -300,18 +301,8 @@ def BreakFloesStrain(x, t, Floes, wave):
 
                 # Since time discretization causes intervals where strain is too high
                 # we dont want to break the floe at each point of the interval
-                iFracs = []
-                lengthInterval = 0
-                startInterval = -1
-                for ix in range(len(Floes[iF].xF)):
-                    if strain[ix] > strainCrit:
-                        if lengthInterval == 0:
-                            startInterval = ix
-                        lengthInterval += 1
-                    else:
-                        if lengthInterval > 0:
-                            iFracs.append(startInterval + (lengthInterval - 1) // 2)
-                            lengthInterval = 0
+                # Thus, we only look at local maxima which are not at borders -> scipy.signal.find_peaks
+                iFracs = find_peaks(strain, height = strainCrit)[0]
 
                 # Computes positions of fracturation and resulting floes
                 xFracs = [Floes[iF].xF[i] for i in iFracs]
