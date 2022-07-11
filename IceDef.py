@@ -5,7 +5,7 @@ Created on Tue Jan  4 14:30:37 2022
 
 @author: auclaije
 """
-
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import config
@@ -71,7 +71,12 @@ class Floe(object):
         else:  # int or float
             nFrac = 1
             x_fracs = [self.x0, x_fracs, self.x0 + self.L]
-        assert (self.x0 < x_fracs[1]) and (x_fracs[-2] < self.x0 + self.L)
+        if (not self.x0 < x_fracs[1]) or (not x_fracs[-2] < self.x0 + self.L):
+            print(f'x0: {self.x0} - '
+                  f'x_fracs[1]: {x_fracs[1]} - '
+                  f'x_fracs[-2]: {x_fracs[-2]} - '
+                  f'x0+L: {self.x0 + self.L}')
+            raise ValueError("Trying to fracture outside the floe")
 
         # Compute lengths and resulting floes
         Lengths = [x_fracs[k + 1] - x_fracs[k] for k in range(nFrac + 1)]
@@ -173,7 +178,25 @@ class Floe(object):
             # Use of sparse properties to improve efficiency #points >> 1
             self.w = spsolve(self.Asp, b)
         else:
-            self.w = np.linalg.solve(self.A, b)
+            try:
+                self.w = np.linalg.solve(self.A, b)
+            except np.linalg.LinAlgError:
+                errorFile = open(os.getcwd() + '/LinAlgError.txt', 'a')
+                errorFile.write(f'h = {self.h}\n'
+                                f'x0 = {self.x0}\n'
+                                f'L = {self.L}\n'
+                                f'dx = {self.dx}\n'
+                                f'b = {b}\n')
+                errorFile.close()
+                # Solve the problem with a least squares method
+                try:
+                    solution = np.linalg.lstsq(self.A, b)
+                    self.w = solution[0]
+                    errorFile = open(os.getcwd() + '/LinAlgError.txt', 'a')
+                    errorFile.write(f'rank of A = {solution[2]}\n\n')
+                    errorFile.close()
+                except np.linalg.LinAlgError:
+                    raise ValueError("Computation of w does not converge")
 
     def calc_du(self, fname=''):
         x = self.xF
@@ -275,13 +298,14 @@ class Floe(object):
         floes = self.fracture(xFracs)
 
         # Set properties induces by the wave and compute elastic energies
-        iFracs.append(len(self.xF)-1); iFracs = [0] + iFracs
+        iFracs.append(len(self.xF) - 1)
+        iFracs.insert(0, 0)
         distanceFromX0 = 0
         Eel_list = []
         Eel = 0
         nFloes = len(floes)
         for iF in range(nFloes):
-            EelFloe = self.energiesMatrix[iFracs[iF], iFracs[iF+1]]
+            EelFloe = self.energiesMatrix[iFracs[iF], iFracs[iF + 1]]
             # Compute energie only if not already computed
             if EelFloe < 0:
                 if Spec:
@@ -290,10 +314,10 @@ class Floe(object):
                     floes[iF].a0 = a_vec[0] if iF == 0 else a_vec[iFracs[iF - 1]]
                     floes[iF].phi0 = self.phi0 + self.kw * distanceFromX0
                     wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
-                                    phi=floes[iF].phi0, floes=[floes[iF]])
+                                     phi=floes[iF].phi0, floes=[floes[iF]])
 
                 EelFloe = floes[iF].calc_Eel(EType=EType, wvf=wvf)
-                self.energiesMatrix[iFracs[iF], iFracs[iF+1]] = EelFloe
+                self.energiesMatrix[iFracs[iF], iFracs[iF + 1]] = EelFloe
 
             if verbose:
                 Eel_list.append(EelFloe)
@@ -332,7 +356,7 @@ class Floe(object):
         admissibleIndices = np.arange(start=1, stop=maxPosition, dtype=int)
 
         # Matrix of computed elastic energies is initialized with negative values
-        self.energiesMatrix = np.zeros((len(self.xF),len(self.xF))) - 1
+        self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1)
 
         # Arrays to compare solutions given for different number of fractures
         energyMins = np.empty(multiFrac)  # Total energy

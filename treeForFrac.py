@@ -171,14 +171,14 @@ class NodeForFloes:
         # Each row contains the following informations (in columns)
         # L, x0, generation, time of creation, existing boolean, index of the parent in this array
         existing = (self.children == [])
-        listOfFloes = [[self.floe.L, self.floe.x0, 0, 0.,existing,  -1]]
+        listOfFloes = [[self.floe.L, self.floe.x0, 0, 0., existing, -1]]
 
         # Parcours en profondeur
         def deepFirstSearch(node, indexParent):
             for child in node.children:
                 existing = (child.children == [])
                 listOfFloes.append([child.floe.L, child.floe.x0, child.gen, child.time, existing, indexParent])
-                deepFirstSearch(child, len(listOfFloes)-1)
+                deepFirstSearch(child, len(listOfFloes) - 1)
 
         deepFirstSearch(self, 0)
         return np.array(listOfFloes)
