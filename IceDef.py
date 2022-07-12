@@ -270,10 +270,11 @@ class Floe(object):
 
         return(self.Eel)
 
-    def computeEnergyIfFrac(self, iFracs, wave, t, EType, verbose=False):
+    def computeEnergyIfFrac(self, iFracs, wave, t, EType, verbose=False, recompute=False):
         ''' Computes the resulting energy is a fracture occurs at indices iFrac
         Inputs:
             iFrac (int or list of int): points where an hypothetical fracture would occur
+            recompute (boolean): whether the floes need to be initialized even if their energy is known
         Outputs:
             xFracs (list of float): points of fracture
             Eel (float): resulting elastic energy
@@ -304,12 +305,14 @@ class Floe(object):
         nFloes = len(floes)
         for iF in range(nFloes):
             EelFloe = self.energiesMatrix[iFracs[iF], iFracs[iF + 1]]
-            # Compute energie only if not already computed
-            if EelFloe < 0:
+
+            # Compute energie only if not already computed 
+            # or if the floes need to be initialized again at the end of the search
+            if EelFloe < 0 or recompute:
                 if Spec:
                     wvf = wave.calc_waves(floes[iF].xF)
                 else:
-                    floes[iF].a0 = a_vec[0] if iF == 0 else a_vec[iFracs[iF - 1]]
+                    floes[iF].a0 = a_vec[iFracs[iF]]
                     floes[iF].phi0 = self.phi0 + self.kw * distanceFromX0
                     wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
                                      phi=floes[iF].phi0, floes=[floes[iF]])
@@ -387,7 +390,7 @@ class Floe(object):
         Et_min = energyMins[globalMin]
         # TODO: Make it less expensive because no need to recompute energy
         xFracs, _, floes = \
-            self.computeEnergyIfFrac(indicesMin[globalMin], wave, t, EType)
+            self.computeEnergyIfFrac(indicesMin[globalMin], wave, t, EType, recompute=True)
 
         return xFracs, floes, Et_min, e_lists
 
