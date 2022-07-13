@@ -194,7 +194,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     '''
 
     EType = args[0] if len(args) > 0 else 'Flex'
-    Spec = True if wave.type == 'WaveSpec' else False
+    Spec = (wave.type == 'WaveSpec')
 
     Broke = True
     nFrac = 0
@@ -223,10 +223,15 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
             # Check if it is worth looking for fractures
             maxFrac = Floes[iF].Eel / Floes[iF].k
             if maxFrac > 1:
-
-                # Don't search for two fractures if k < Eel <2*k for instance
+                # Don't search for two fractures if k < Eel < 2*k for instance
                 maxFrac = min(int(maxFrac), multiFrac)
-                xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(maxFrac, wave, t, EType=EType)
+                
+                # FindE_min is faster for one fracture, otherwise FindE_MinAmongAll is always better
+                if maxFrac < 2: # i.e. maxFrac = 1
+                    xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(maxFrac, wave, t, EType=EType)
+                else:
+                    xFracs, floes, Etot_floes = Floes[iF].FindE_MinAmongAll(wave, t, EType=EType)
+
                 if Etot_floes < Eel1:
                     Broke = True
 
@@ -301,8 +306,8 @@ def BreakFloesStrain(x, t, Floes, wave):
 
                 # Since time discretization causes intervals where strain is too high
                 # we dont want to break the floe at each point of the interval
-                # Thus, we only look at local maxima which are not at borders -> scipy.signal.find_peaks
-                iFracs = find_peaks(strain, height = strainCrit)[0]
+                # Thus, we only look at local maxima -> scipy.signal.find_peaks
+                iFracs = find_peaks(strain, height=strainCrit)[0]
 
                 # Computes positions of fracturation and resulting floes
                 xFracs = [Floes[iF].xF[i] for i in iFracs]

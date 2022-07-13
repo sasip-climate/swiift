@@ -5,10 +5,13 @@ Created on Tue Jan  4 14:30:37 2022
 
 @author: auclaije
 """
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 import config
+from copy import deepcopy
 
 # Allows faster computation of displacement
 from scipy.sparse.linalg import spsolve
@@ -274,12 +277,12 @@ class Floe(object):
         ''' Computes the resulting energy is a fracture occurs at indices iFrac
         Inputs:
             iFrac (int or list of int): points where an hypothetical fracture would occur
+            verbose (bolean): True for a list of energy, false for just a sum
             recompute (boolean): whether the floes need to be initialized even if their energy is known
         Outputs:
             xFracs (list of float): points of fracture
             Eel (float): resulting elastic energy
             floes (list of Floes): list of resulting floes
-            verbose (logical): True for a list of energy, false for just a sum
         '''
 
         if isinstance(iFracs, (int, np.int32, np.int64)):
@@ -288,10 +291,6 @@ class Floe(object):
             iFracs = list(iFracs)
         assert min(iFracs) > 0 and max(iFracs) < len(self.xF) - 1
 
-        Spec = (wave.type == 'WaveSpec')
-        if not Spec:
-            a_vec = wave.amp_att(self.xF, self.a0, [self])
-
         # Computes the fracture points and the resulting floes
         xFracs = [self.xF[i] for i in iFracs]
         floes = self.fracture(xFracs)
@@ -299,7 +298,6 @@ class Floe(object):
         # Set properties induces by the wave and compute elastic energies
         iFracs.append(len(self.xF) - 1)
         iFracs.insert(0, 0)
-        distanceFromX0 = 0
         Eel_list = []
         Eel = 0
         nFloes = len(floes)
@@ -309,11 +307,12 @@ class Floe(object):
             # Compute energie only if not already computed 
             # or if the floes need to be initialized again at the end of the search
             if EelFloe < 0 or recompute:
-                if Spec:
+                if wave.type == 'WaveSpec':
                     wvf = wave.calc_waves(floes[iF].xF)
                 else:
+                    a_vec = wave.amp_att(self.xF, self.a0, [self])
                     floes[iF].a0 = a_vec[iFracs[iF]]
-                    floes[iF].phi0 = self.phi0 + self.kw * distanceFromX0
+                    floes[iF].phi0 = self.phi0 + self.kw * (floes[iF].x0 - self.x0)
                     wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
                                      phi=floes[iF].phi0, floes=[floes[iF]])
 
@@ -324,8 +323,6 @@ class Floe(object):
                 Eel_list.append(EelFloe)
             else:
                 Eel += EelFloe
-
-            distanceFromX0 += floes[iF].L
 
         if verbose:
             return xFracs, Eel_list, floes
@@ -357,7 +354,7 @@ class Floe(object):
         admissibleIndices = np.arange(start=1, stop=maxPosition, dtype=int)
 
         # Matrix of computed elastic energies is initialized with negative values
-        self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1)
+        self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1, dtype=np.float64)
 
         # Arrays to compare solutions given for different number of fractures
         energyMins = np.empty(multiFrac)  # Total energy
@@ -393,6 +390,116 @@ class Floe(object):
             self.computeEnergyIfFrac(indicesMin[globalMin], wave, t, EType, recompute=True)
 
         return xFracs, floes, Et_min, e_lists
+
+    def computeEnergySubFloe(self, istart, iend, wave, t, EType):
+        """ Computes the elastic energy of a floe, from position self.xF[istart] to position self.xF[iend]
+        Inputs:
+            istart (int): index of the left edge in the parent floe (self)
+            iend (int): index of the right edge
+            wave, t, EType: usual
+        Outputs:
+            None -> writes the resulting energy in the attribute energiesMatrix of self
+        """
+        floeLength = self.xF[iend] - self.xF[istart]
+        floe = Floe(self.h, self.xF[istart], floeLength,
+                    DispType=self.DispType, dx=min(self.dx, floeLength / 100))
+
+        # Relay the wave attributes if present
+        if hasattr(self, 'kw'):
+            floe.kw = self.kw
+        if hasattr(self, 'cg'):
+            floe.cg = self.cg
+        if hasattr(self, 'alpha'):
+            floe.alpha = self.alpha
+
+        # Compute waves under the floe
+        if wave.type == 'WaveSpec':
+            wvf = wave.calc_waves(floe.xF)
+        else:
+            a_vec = wave.amp_att(self.xF, self.a0, [self])
+            floe.a0 = a_vec[istart]
+            floe.phi0 = self.phi0 + self.kw * (self.xF[istart] - self.xF[0])
+            wvf = wave.waves(floe.xF, t, amp=floe.a0, phi=floe.phi0, floes=[floe])
+
+        EelFloe = floe.calc_Eel(EType=EType, wvf=wvf)
+        self.energiesMatrix[istart, iend] = EelFloe
+
+    def FindE_MinAmongAll(self, wave, t, EType='Flex'):
+        """ Finds the minimizing fracture in the floe, using a Dijkstra method
+        Inputs:
+            wave, t, EType: usual
+        Outputs:
+            xFracs (list): list of absolute positions for minimizing fracture
+            floes (list of Floe): list of resulting floes (eventually [self])
+            Etot (float): total minimizing energy
+        """
+        # Initialize the matrix of subfloes energies
+        self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1, dtype=np.float64)
+        self.energiesMatrix[0, -1] = self.Eel
+
+        # Initialize the energeticCost of each vertex, the subgraph of points to visit and the ancestors
+        energeticCost = np.full(len(self.xF), np.infty, dtype=np.float64)
+        energeticCost[0] = - self.k # To cancel the cost of fracturation at the fisrt step
+        toVisit = np.full(len(self.xF), True)
+        ancestors = np.full(len(self.xF), -1)
+
+        # Subfunction to find new vertex from which to explore
+        def findNextVertex():
+            indicesToVisit = np.where(toVisit)[0]
+            return indicesToVisit[energeticCost[toVisit].argmin()]
+
+        # Awsers the question: Is it relevant to add inew in the path to iold ?
+        def updateEnergeticCost(iold, inew):
+            # Do not compute energy of next subfloe if we already know the path is sub-optimal
+            if energeticCost[inew] + self.k > self.Eel:
+                return
+
+            if self.energiesMatrix[inew, iold] < 0:
+                self.computeEnergySubFloe(inew, iold, wave, t, EType)
+            energyElas_NewFloe = self.energiesMatrix[inew, iold]
+
+            # Update current optimal path
+            if energeticCost[iold] > energeticCost[inew] + energyElas_NewFloe + self.k:
+                energeticCost[iold] = energeticCost[inew] + energyElas_NewFloe + self.k
+                ancestors[iold] = inew
+
+        # Search for best energetic costs
+        progbar = tqdm(total=len(self.xF) * (len(self.xF) - 1) // 2,
+                       desc='Search minimal path', leave=False)
+        while np.any(toVisit):
+            currentVertex = findNextVertex()
+            toVisit[currentVertex] = False
+            for aspiringVertex in range(currentVertex):
+                updateEnergeticCost(currentVertex, aspiringVertex)
+                progbar.update(1)
+        progbar.close()
+
+        # Retrieve best path and total energy
+        currentIndex = len(self.xF) - 1
+        iFracs = []
+        while currentIndex > 0:
+            previousIndex = ancestors[currentIndex]
+            currentIndex = previousIndex
+            if currentIndex > 0:
+                iFracs.append(currentIndex)
+
+        iFracs.reverse()
+        Etot = energeticCost[-1]
+        assert Etot < self.Eel + 1e-6, "Wrong optimization"
+
+        # Reconstruct the floes from fracture indices
+        if len(iFracs) > 0:
+            xFracs, Et_min, floes = \
+                self.computeEnergyIfFrac(iFracs, wave, t, EType=EType,
+                                         verbose=False, recompute=True)
+            Etot_min = Et_min + len(xFracs) * self.k
+            if np.abs(Etot_min - Etot) > 1e-6:
+                raise ValueError(f"Energies are not equals...\n"
+                                 f"Etot[Dijkstra] = {Etot:.6f}\n"
+                                 f"Etot[postComputed] = {Etot_min:.6f}")
+            return xFracs, floes, Etot
+        else:
+            return [], [self], Etot
 
     def calc_strain(self):
         dw2 = self.calc_curv()
