@@ -28,7 +28,7 @@ wl = g / (2 * np.pi * f**2)
 n0 = 1
 
 FractureCriterion = 'Energy'
-maxFrac = 2
+multiFrac = True
 
 N = 101
 Deriv101 = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) + np.eye(N, k=2) + np.eye(N, k=-2)

@@ -11,7 +11,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import config
-from copy import deepcopy
 
 # Allows faster computation of displacement
 from scipy.sparse.linalg import spsolve
@@ -304,7 +303,7 @@ class Floe(object):
         for iF in range(nFloes):
             EelFloe = self.energiesMatrix[iFracs[iF], iFracs[iF + 1]]
 
-            # Compute energie only if not already computed 
+            # Compute energie only if not already computed
             # or if the floes need to be initialized again at the end of the search
             if EelFloe < 0 or recompute:
                 if wave.type == 'WaveSpec':
@@ -329,10 +328,10 @@ class Floe(object):
         else:
             return xFracs, Eel, floes
 
-    def FindE_min(self, multiFrac, wave, t, **kwargs):
+    def FindE_min(self, maxFracs, wave, t, **kwargs):
         ''' Finds the minimum of energy for all fracturation possible
         Inputs:
-            multiFrac (int): maximum number of simultaneous fractures
+            maxFracs (int): maximum number of simultaneous fractures
             wave, t (usual)
         Outputs:
             xFracs (list of float): points inside the floe where minimal fracture occurs
@@ -357,11 +356,11 @@ class Floe(object):
         self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1, dtype=np.float64)
 
         # Arrays to compare solutions given for different number of fractures
-        energyMins = np.empty(multiFrac)  # Total energy
-        indicesMin = np.empty(multiFrac, dtype=object)
+        energyMins = np.empty(maxFracs)  # Total energy
+        indicesMin = np.empty(maxFracs, dtype=object)
 
-        e_lists = [self.Eel] * (multiFrac + 1)
-        for numberFrac in range(1, multiFrac + 1):
+        e_lists = [self.Eel] * (maxFracs + 1)
+        for numberFrac in range(1, maxFracs + 1):
             # List of all tuple of {numberFrac} indices where a frac will be calculated
             indicesFrac = list(combinations(admissibleIndices, numberFrac))
 
@@ -439,7 +438,7 @@ class Floe(object):
 
         # Initialize the energeticCost of each vertex, the subgraph of points to visit and the ancestors
         energeticCost = np.full(len(self.xF), np.infty, dtype=np.float64)
-        energeticCost[0] = - self.k # To cancel the cost of fracturation at the fisrt step
+        energeticCost[0] = - self.k  # To cancel the cost of fracturation at the first step
         toVisit = np.full(len(self.xF), True)
         ancestors = np.full(len(self.xF), -1)
 
@@ -464,15 +463,15 @@ class Floe(object):
                 ancestors[iold] = inew
 
         # Search for best energetic costs
-        progbar = tqdm(total=len(self.xF) * (len(self.xF) - 1) // 2,
-                       desc='Search minimal path', leave=False)
+        # progbar = tqdm(total=len(self.xF) * (len(self.xF) - 1) // 2,
+        #                desc='Search minimal path', leave=False)
         while np.any(toVisit):
             currentVertex = findNextVertex()
             toVisit[currentVertex] = False
             for aspiringVertex in range(currentVertex):
                 updateEnergeticCost(currentVertex, aspiringVertex)
-                progbar.update(1)
-        progbar.close()
+                # progbar.update(1)
+        # progbar.close()
 
         # Retrieve best path and total energy
         currentIndex = len(self.xF) - 1

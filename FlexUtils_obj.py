@@ -142,7 +142,7 @@ def PlotFracE(floe, Eel_floes):
 def PlotSum(t, y, **kwargs):
     DoSave = False
     DoLeg = False
-    multiFrac = 1
+    multiFrac = True
     for key, value in kwargs.items():
         if key == 'pstr':
             pstr = value
@@ -176,7 +176,7 @@ def PlotSum(t, y, **kwargs):
     return(fig, hax)
 
 
-def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
+def BreakFloes(x, t, Floes, wave, multiFrac=True, *args):
     '''
         Searches if a fracture can occur and where would it be
     ----------
@@ -184,7 +184,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
     t : float -> time of simulation
     Floes : list(Floe) -> current floes list (order from left to right)
     wave : Wave class -> wave
-    multiFrac: int -> maximum number of simultaneous fractures to look for
+    multiFrac: boolean -> determines if more than one fracture should be considered
     *args :
         Etype: string -> energy type among 'Flex' and 'Disp'
 
@@ -223,14 +223,11 @@ def BreakFloes(x, t, Floes, wave, multiFrac=1, *args):
             # Check if it is worth looking for fractures
             maxFrac = Floes[iF].Eel / Floes[iF].k
             if maxFrac > 1:
-                # Don't search for two fractures if k < Eel < 2*k for instance
-                maxFrac = min(int(maxFrac), multiFrac)
-                
-                # FindE_min is faster for one fracture, otherwise FindE_MinAmongAll is always better
-                if maxFrac < 2: # i.e. maxFrac = 1
-                    xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(maxFrac, wave, t, EType=EType)
-                else:
+                # FindE_MinAmongAll is faster for 2+ fractures, only use FindE_min for one fracture
+                if maxFrac > 2 and multiFrac:  # We want to look for 2+ fractures
                     xFracs, floes, Etot_floes = Floes[iF].FindE_MinAmongAll(wave, t, EType=EType)
+                else:
+                    xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(1, wave, t, EType=EType)
 
                 if Etot_floes < Eel1:
                     Broke = True

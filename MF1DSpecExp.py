@@ -24,7 +24,7 @@ import pars
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
 DoPlots = 3
 repeats = 20
-multiFrac = pars.maxFrac
+multiFrac = pars.multiFrac
 FractureCriterion = pars.FractureCriterion
 
 # Ice parameters
@@ -146,6 +146,7 @@ for iL in range(repeats):
             # And update domain
             x = np.arange(0, x[-1] + L / 2 + 1, 1)
             L *= 1.5
+            print('+', end='')
 
         prog_rep(it, len(t) - 1, flush=True)
 

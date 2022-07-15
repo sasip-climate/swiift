@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 import config
 from os import path
 from tqdm import tqdm
-from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD
+from FlexUtils_obj import BreakFloes, BreakFloesStrain, getFractureHistory
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
@@ -20,7 +21,7 @@ from IceDef import Floe
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
 DoPlots = 3
 repeats = 10
-multiFrac = 2
+multiFrac = True
 FractureCriterion = 'Energy'
 
 # Ice parameters
@@ -123,11 +124,16 @@ for iL in range(repeats):
             PlotFloes(x, t[it], Floes, Spec, lab, it)
 
         if Floes[-1].x0 > 0.6 * L + x0:
-            Floes[-1].L += L / 2
-            Floes[-1].xF = Floes[-1].x0 + np.arange(0, Floes[-1].L, Floes[-1].dx)
+            # Update floes in history (NOTE: It also update the actual floe's length)
+            getFractureHistory().modifyLengthDomain(L / 2)
+            # Update floe resolution and matrix
+            nx = max(int(np.ceil(Floes[-1].L)), 100)
+            Floes[-1].xF = Floes[-1].x0 + np.linspace(0, Floes[-1].L, nx)
             Floes[-1].initMatrix()
+            # And update domain
             x = np.arange(0, x[-1] + L / 2 + 1, 1)
             L *= 1.5
+            print('+', end='')
 
     FL_temp = []
     for floe in Floes:

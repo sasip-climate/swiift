@@ -20,7 +20,7 @@ def MF1D(**kwargs):
     # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
     DoPlots = 1
     FigsDirSumry = config.FigsDirSumry
-    multiFrac = 1
+    multiFrac = False
     FractureCriterion = 'Energy'
 
     growing = True

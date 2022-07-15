@@ -21,7 +21,7 @@ from IceDef import Floe
 # Variable to control plots to be made
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
 DoPlots = 3
-multiFrac = 2
+multiFrac = True
 growing = True
 reset = True
 if growing:
