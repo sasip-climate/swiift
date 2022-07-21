@@ -9,7 +9,6 @@ Created on Tue Jan  4 14:30:37 2022
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import config
 
 # Allows faster computation of displacement
@@ -328,7 +327,7 @@ class Floe(object):
         else:
             return xFracs, Eel, floes
 
-    def FindE_min(self, maxFracs, wave, t, **kwargs):
+    def FindE_minVerbose(self, maxFracs, wave, t, **kwargs):
         ''' Finds the minimum of energy for all fracturation possible
         Inputs:
             maxFracs (int): maximum number of simultaneous fractures
@@ -391,7 +390,7 @@ class Floe(object):
         return xFracs, floes, Et_min, e_lists
 
     def computeEnergySubFloe(self, istart, iend, wave, t, EType):
-        """ Computes the elastic energy of a floe, from position self.xF[istart] to position self.xF[iend]
+        """ Computes the elastic energy of a floe from position self.xF[istart] to position self.xF[iend]
         Inputs:
             istart (int): index of the left edge in the parent floe (self)
             iend (int): index of the right edge
@@ -423,82 +422,117 @@ class Floe(object):
         EelFloe = floe.calc_Eel(EType=EType, wvf=wvf)
         self.energiesMatrix[istart, iend] = EelFloe
 
-    def FindE_MinAmongAll(self, wave, t, EType='Flex'):
-        """ Finds the minimizing fracture in the floe, using a Dijkstra method
+    def FindE_min(self, wave, t, multiFrac=False, EType='Flex'):
+        """ Finds the minimizing fracture in the floe, using Dijkstra method for multifracturing
         Inputs:
+            multiFrac (bool): whether a multifrac search is wanted or not
             wave, t, EType: usual
         Outputs:
-            xFracs (list): list of absolute positions for minimizing fracture
-            floes (list of Floe): list of resulting floes (eventually [self])
-            Etot (float): total minimizing energy
+            xFracs (list):
+            floes (list of floes):
+            Etot (float):
         """
         # Initialize the matrix of subfloes energies
         self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1, dtype=np.float64)
         self.energiesMatrix[0, -1] = self.Eel
 
-        # Initialize the energeticCost of each vertex, the subgraph of points to visit and the ancestors
-        energeticCost = np.full(len(self.xF), np.infty, dtype=np.float64)
-        energeticCost[0] = - self.k  # To cancel the cost of fracturation at the first step
-        toVisit = np.full(len(self.xF), True)
-        ancestors = np.full(len(self.xF), -1)
+        rightMostIndex = len(self.xF) - 1
 
-        # Subfunction to find new vertex from which to explore
-        def findNextVertex():
-            indicesToVisit = np.where(toVisit)[0]
-            return indicesToVisit[energeticCost[toVisit].argmin()]
+        # For one fracture only
+        if not multiFrac:
 
-        # Awsers the question: Is it relevant to add inew in the path to iold ?
-        def updateEnergeticCost(iold, inew):
-            # Do not compute energy of next subfloe if we already know the path is sub-optimal
-            if energeticCost[inew] + self.k > self.Eel:
-                return
+            # Initialize admissible frac values and total energies vector
+            iFracValues = np.arange(1, rightMostIndex)
+            Etots = np.empty(1 + iFracValues.size)
+            Etots[0] = self.Eel
 
-            if self.energiesMatrix[inew, iold] < 0:
-                self.computeEnergySubFloe(inew, iold, wave, t, EType)
-            energyElas_NewFloe = self.energiesMatrix[inew, iold]
+            # Compute total energies resulting from fracture
+            for iFrac in iFracValues:
+                self.computeEnergySubFloe(0, iFrac, wave, t, EType)
+                Eel_left = self.energiesMatrix[0, iFrac]
+                if Eel_left + self.k > self.Eel:
+                    # Do not compute right floe energy if already not optimal
+                    Etots[iFrac] = 2 * self.Eel
+                else:
+                    self.computeEnergySubFloe(iFrac, rightMostIndex, wave, t, EType)
+                    Eel_right = self.energiesMatrix[iFrac, rightMostIndex]
+                    Etots[iFrac] = Eel_left + Eel_right + self.k
 
-            # Update current optimal path
-            if energeticCost[iold] > energeticCost[inew] + energyElas_NewFloe + self.k:
-                energeticCost[iold] = energeticCost[inew] + energyElas_NewFloe + self.k
-                ancestors[iold] = inew
+            # Find minimal energy and reconstruct floe
+            iFrac = np.argmin(Etots)
+            Etot_min = Etots[iFrac]
+            if iFrac > 0:
+                xFracs, _, floes = self.computeEnergyIfFrac(iFrac, wave, t, EType, recompute=True)
+                return xFracs, floes, Etot_min
+            else:
+                return [], [], Etot_min
 
-        # Search for best energetic costs
-        # progbar = tqdm(total=len(self.xF) * (len(self.xF) - 1) // 2,
-        #                desc='Search minimal path', leave=False)
-        while np.any(toVisit):
-            currentVertex = findNextVertex()
-            toVisit[currentVertex] = False
-            for aspiringVertex in range(currentVertex):
-                updateEnergeticCost(currentVertex, aspiringVertex)
-                # progbar.update(1)
-        # progbar.close()
-
-        # Retrieve best path and total energy
-        currentIndex = len(self.xF) - 1
-        iFracs = []
-        while currentIndex > 0:
-            previousIndex = ancestors[currentIndex]
-            currentIndex = previousIndex
-            if currentIndex > 0:
-                iFracs.append(currentIndex)
-
-        iFracs.reverse()
-        Etot = energeticCost[-1]
-        assert Etot < self.Eel + 1e-6, "Wrong optimization"
-
-        # Reconstruct the floes from fracture indices
-        if len(iFracs) > 0:
-            xFracs, Et_min, floes = \
-                self.computeEnergyIfFrac(iFracs, wave, t, EType=EType,
-                                         verbose=False, recompute=True)
-            Etot_min = Et_min + len(xFracs) * self.k
-            if np.abs(Etot_min - Etot) > 1e-6:
-                raise ValueError(f"Energies are not equals...\n"
-                                 f"Etot[Dijkstra] = {Etot:.6f}\n"
-                                 f"Etot[postComputed] = {Etot_min:.6f}")
-            return xFracs, floes, Etot
+        # For multifracturing, with Dijkstra
         else:
-            return [], [self], Etot
+            # Initialize the energetic cost of each vertex,
+            # the subgraph of points to visit and the ancestors
+            energeticCost = np.full(len(self.xF), np.infty, dtype=np.float64)
+            energeticCost[0] = - self.k  # To cancel the cost of fracturation at the first step
+            toVisit = np.full(len(self.xF), True)
+            ancestors = np.full(len(self.xF), -1)
+
+            # Subfunction to find new vertex from which to explore
+            def findNextVertex():
+                indicesToVisit = np.where(toVisit)[0]
+                return indicesToVisit[energeticCost[toVisit].argmin()]
+
+            # Awsers the question: Is it relevant to add inew in the path to iold ?
+            def updateEnergeticCost(iold, inew):
+                # Do not compute energy of next subfloe if we already know the path is sub-optimal
+                if energeticCost[inew] + self.k > self.Eel:
+                    return
+
+                if self.energiesMatrix[inew, iold] < 0:
+                    self.computeEnergySubFloe(inew, iold, wave, t, EType)
+                energyElas_NewFloe = self.energiesMatrix[inew, iold]
+
+                # Update current optimal path
+                if energeticCost[iold] > energeticCost[inew] + energyElas_NewFloe + self.k:
+                    energeticCost[iold] = energeticCost[inew] + energyElas_NewFloe + self.k
+                    ancestors[iold] = inew
+
+            # Search for best energetic costs
+            # progbar = tqdm(total=len(self.xF) * (len(self.xF) - 1) // 2,
+            #                desc='Search minimal path', leave=False)
+            while np.any(toVisit):
+                currentVertex = findNextVertex()
+                toVisit[currentVertex] = False
+                for aspiringVertex in range(currentVertex):
+                    updateEnergeticCost(currentVertex, aspiringVertex)
+            #         progbar.update(1)
+            # progbar.close()
+
+            # Retrieve best path and total energy
+            currentIndex = len(self.xF) - 1
+            iFracs = []
+            while currentIndex > 0:
+                previousIndex = ancestors[currentIndex]
+                currentIndex = previousIndex
+                if currentIndex > 0:
+                    iFracs.append(currentIndex)
+
+            iFracs.reverse()
+            Etot_min = energeticCost[-1]
+            assert Etot_min < self.Eel + 1e-6, "Wrong optimization"
+
+            # Reconstruct the floes from fracture indices
+            if len(iFracs) > 0:
+                xFracs, Et_min, floes = \
+                    self.computeEnergyIfFrac(iFracs, wave, t, EType=EType,
+                                             verbose=False, recompute=True)
+                Etot_min_PostComputed = Et_min + len(xFracs) * self.k
+                if np.abs(Etot_min - Etot_min_PostComputed) > 1e-6:
+                    raise ValueError(f"Energies are not equals...\n"
+                                     f"Etot[Dijkstra] = {Etot_min:.6f}\n"
+                                     f"Etot[postComputed] = {Etot_min_PostComputed:.6f}")
+                return xFracs, floes, Etot_min
+            else:
+                return [], [], Etot_min
 
     def calc_strain(self):
         dw2 = self.calc_curv()

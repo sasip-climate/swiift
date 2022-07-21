@@ -216,11 +216,9 @@ def BreakFloes(x, t, Floes, wave, multiFrac=True, *args):
             # Check if it is worth looking for fractures
             maxFrac = Floes[iF].Eel / Floes[iF].k
             if maxFrac > 1:
-                # FindE_MinAmongAll is faster for 2+ fractures, only use FindE_min for one fracture
-                if maxFrac > 2 and multiFrac:  # We want to look for 2+ fractures
-                    xFracs, floes, Etot_floes = Floes[iF].FindE_MinAmongAll(wave, t, EType=EType)
-                else:
-                    xFracs, floes, Etot_floes, _ = Floes[iF].FindE_min(1, wave, t, EType=EType)
+
+                xFracs, floes, Etot_floes = \
+                    Floes[iF].FindE_min(wave, t, EType=EType, multiFrac=(multiFrac and maxFrac > 2))
 
                 if Etot_floes < Eel1:
                     Broke = True
