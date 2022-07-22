@@ -12,10 +12,11 @@ import config
 from os import path
 
 from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD, PlotSum
-from FlexUtils_obj import BreakFloes, BreakFloesStrain, getFractureHistory
+from FlexUtils_obj import BreakFloes, BreakFloesStrain
 from WaveUtils import calc_k, omega
 from WaveDef import Wave
 from IceDef import Floe
+from treeForFrac import getFractureHistory, InitHistory
 
 
 # Variable to control plots to be made
@@ -36,7 +37,8 @@ wvlength = 20
 # Ice parameters
 h = 1
 x0 = 10
-L = 150
+L0 = 150
+L = L0
 dx = 0.5
 DispType = 'Open'
 EType = 'Flex'
@@ -78,16 +80,17 @@ print(f'Launching {n_Loops} experiments:')
 for iL in range(n_Loops):
     LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_n0_{wave.n0:04.1f}m.txt'
     DataPath = config.DataTempDir + LoopName
+    FracHistPath = DataPath[:-4] + '_History.txt'
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}')
         FL[iL] = list(np.loadtxt(DataPath))
-        history = []
         Evec = np.zeros([len(t), 1])
         continue
 
     wave.phi = phi[iL]
     Evec = np.zeros([len(t), 1])
     Floes = [floe1]
+    InitHistory(floe1, t[0])
 
     _ = wave.waves(x, t[0], floes=Floes)  # assign waves over the whole domain
 

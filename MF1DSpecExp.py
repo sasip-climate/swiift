@@ -14,11 +14,12 @@ from os import path
 import time
 from prog_rep import prog_rep
 from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD
-from FlexUtils_obj import BreakFloes, BreakFloesStrain, getFractureHistory
+from FlexUtils_obj import BreakFloes, BreakFloesStrain
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
 from IceDef import Floe
+from treeForFrac import getFractureHistory, InitHistory
 import pars
 
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
@@ -30,7 +31,8 @@ FractureCriterion = pars.FractureCriterion
 # Ice parameters
 h = pars.h
 x0 = 50
-L = 100
+L0 = 100
+L = L0
 dx = 0.5
 DispType = 'ML'
 EType = 'Flex'
@@ -94,7 +96,6 @@ for iL in range(repeats):
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}', flush=True)
         FL[iL] = list(np.loadtxt(DataPath, ndmin=1))
-        history = None
         continue
 
     # Change the phases of each wave
@@ -102,11 +103,13 @@ for iL in range(repeats):
         Spec.phi = np.array([phi[iL]])
     Spec.setWaves()
 
-    Spec.calcExt(x, t[0], [floe1])
-    # Spec.plotEx()
-    Spec.set_phases(x, t[0], [floe1])
-
+    # Reset the initial floe, history and domain
+    if floe1.L > L0:
+        L = L0
+        floe1 = floe1.fracture(x0 + L0)[0]
+        x = np.arange(x0 + L0 + 2)
     Floes = [floe1]
+    InitHistory(floe1, t[0])
 
     tqdmlab = f'Time Loop {iL:02}' if repeats > 1 else 'Time Loop'
     start_time = time.time()
@@ -159,14 +162,14 @@ for iL in range(repeats):
     if DoPlots > 2:
         DoPlots = 2
 
-    history = getFractureHistory()
-    if DoPlots > 0 and (not history is None):
+    FractureHistory = getFractureHistory()
+    if DoPlots > 0:
         fGen = config.FigsDirSumry + 'Gen' + LoopName[3:-4] + '.png'
-        history.plotGeneration(filename=fGen)
+        FractureHistory.plotGeneration(filename=fGen)
         if DoPlots > 3:
-            history.plotGeneration()
+            FractureHistory.plotGeneration()
         # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations for each floe that has existed
-        np.savetxt(FracHistPath, history.asArray())
+        np.savetxt(FracHistPath, FractureHistory.asArray())
 
     print(f'Time taken: {round(time.time() - start_time)}s', flush=True)
 

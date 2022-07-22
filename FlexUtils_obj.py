@@ -9,10 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 import config
+from treeForFrac import getFractureHistory
 from pars import E, v, rho_w, g, strainCrit
-
-from treeForFrac import NodeForFloes
-fractureHistory = None
 
 
 def PlotFloes(x, t, Floes, wave, *args):
@@ -199,11 +197,6 @@ def BreakFloes(x, t, Floes, wave, multiFrac=True, *args):
     Broke = True
     nFrac = 0
 
-    # Initialises fracture history
-    global fractureHistory
-    if fractureHistory is None:
-        fractureHistory = NodeForFloes(Floes[0], t)
-
     while Broke:
 
         Broke = False
@@ -233,7 +226,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=True, *args):
                     Broke = True
 
                     # Add event to fracture history
-                    fractureHistory.addChildren(Floes[iF], floes, t)
+                    getFractureHistory().addChildren(Floes[iF], floes, t)
 
                     # Modify list of floes
                     nFrac += len(xFracs)
@@ -269,11 +262,6 @@ def BreakFloesStrain(x, t, Floes, wave):
     # Note: in the code, the nergy is computed with calc_Eel since it also computed displacement
     Broke = True
     nFrac = 0
-
-    # Initialises fracture history
-    global fractureHistory
-    if fractureHistory is None:
-        fractureHistory = NodeForFloes(Floes[0], t)
 
     while Broke:
 
@@ -312,7 +300,7 @@ def BreakFloesStrain(x, t, Floes, wave):
                 nFrac += len(iFracs)
 
                 # Add event to fracture history
-                fractureHistory.addChildren(Floes[iF], createdFloes, t)
+                getFractureHistory().addChildren(Floes[iF], createdFloes, t)
 
                 # Set properties induced by wave and insert floes in list
                 distanceFromLeft = 0
@@ -340,10 +328,6 @@ def BreakFloesStrain(x, t, Floes, wave):
             Floes = NewFloes
 
     return Floes
-
-
-def getFractureHistory():
-    return fractureHistory
 
 
 def PlotLengths(t, L, **kwargs):

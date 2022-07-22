@@ -12,11 +12,12 @@ import config
 from os import path
 from tqdm import tqdm
 from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD
-from FlexUtils_obj import BreakFloes, BreakFloesStrain, getFractureHistory
+from FlexUtils_obj import BreakFloes, BreakFloesStrain
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
 from IceDef import Floe
+from treeForFrac import getFractureHistory, InitHistory
 
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
 DoPlots = 3
@@ -27,7 +28,8 @@ FractureCriterion = 'Energy'
 # Ice parameters
 h = 1
 x0 = 50
-L = 100
+L0 = 100
+L = L0
 dx = 0.5
 DispType = 'ML'
 EType = 'Flex'
@@ -85,6 +87,7 @@ print(f'Launching {repeats} experiments:')
 for iL in range(repeats):
     LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_Hs_{Spec.Hs:04.1f}m.txt'
     DataPath = config.DataTempDir + LoopName
+    FracHistPath = DataPath[:-4] + '_History.txt'
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}')
         FL[iL] = list(np.loadtxt(DataPath))
@@ -94,12 +97,13 @@ for iL in range(repeats):
     if len(Spec.f) == 1:
         Spec.phi = np.array([phi[iL]])
     Spec.setWaves()
-
-    Spec.calcExt(x, t[0], [floe1])
-    # Spec.plotEx()
-    Spec.set_phases(x, t[0], [floe1])
-
+    # Reset the initial floe, history and domain
+    if floe1.L > L0:
+        L = L0
+        floe1 = floe1.fracture(x0 + L0)[0]
+        x = np.arange(x0 + L0 + 2)
     Floes = [floe1]
+    InitHistory(floe1, t[0])
 
     tqdmlab = f'Time Loop {iL:02}' if repeats > 1 else 'Time Loop'
     for it in tqdm(range(len(t)), desc=tqdmlab):
@@ -143,6 +147,14 @@ for iL in range(repeats):
 
     if DoPlots > 2:
         DoPlots = 2
+    FractureHistory = getFractureHistory()
+    if DoPlots > 0:
+        fGen = config.FigsDirSumry + 'Gen' + LoopName[3:-4] + '.png'
+        FractureHistory.plotGeneration(filename=fGen)
+        if DoPlots > 3:
+            FractureHistory.plotGeneration()
+        # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations for each floe that has existed
+        np.savetxt(FracHistPath, FractureHistory.asArray())
 
 n0 = Spec.calcHs()
 

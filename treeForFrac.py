@@ -2,6 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def InitHistory(floe, t):
+    global FractureHistory
+    FractureHistory = NodeForFloes(floe, t, gen=0)
+
+
+def getFractureHistory():
+    return FractureHistory
+
+
 class NodeForFloes:
     """ class for the fracture history
     Attributes:
