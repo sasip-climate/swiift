@@ -46,7 +46,7 @@ Spec = WaveSpec(u=u)
 
 # Single frequency wave front
 # n0 = pars.n0
-# Hs = (2 * n0) ** 0.5
+# Hs = (2 ** 1.5) * n0
 # Spec = WaveSpec(f=pars.f, Hs=Hs)
 
 # calculate wave properties in ice

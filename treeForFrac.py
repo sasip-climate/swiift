@@ -40,7 +40,7 @@ class NodeForFloes:
         nChildren = len(children)
 
         for k in range(nChildren):
-            if children[k].floe.x0 <= x0 and x0 + L <= children[k].floe.x0 + children[k].floe.L:
+            if children[k].floe.x0 - x0 < 1e-6 and x0 + L - (children[k].floe.x0 + children[k].floe.L) < 1e-6:
                 return k
         raise ValueError("Direction not found")
 

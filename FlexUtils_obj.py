@@ -243,7 +243,7 @@ def BreakFloes(x, t, Floes, wave, multiFrac=True, *args):
         else:
             for floe in Floes:
                 if floe.Eel > 10 * floe.k:
-                    xf, _, _, E_lists = floe.FindE_min(1, wave, t, EType=EType, V=True)
+                    xf, _, _, E_lists = floe.FindE_minVerbose(1, wave, t, EType=EType, V=True)
                     PlotFracE(floe, E_lists)
             break
 
