@@ -11,6 +11,17 @@ from scipy.signal import find_peaks
 import config
 from treeForFrac import getFractureHistory
 from pars import E, v, rho_w, g, strainCrit
+from IceDef import Floe
+
+
+def calc_xstar(In):
+    if type(In) == Floe:
+        h = In.h
+    elif isinstance(In, (int, float)):
+        h = In
+
+    xs = (np.pi / 4) * (E * h**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4)
+    return xs
 
 
 def PlotFloes(x, t, Floes, wave, *args):
@@ -90,7 +101,7 @@ def PlotFloes(x, t, Floes, wave, *args):
             elif isinstance(arg, (int, np.int32, np.int64)):
                 itlab = f'it_{arg:04}'
         root = (f'{Explab}_{wvstring}_'
-                f'h_{Floes[0].h:03}_L_{round(Floes[-1].xF[-1]-Floes[0].x0):02}_{itlab}')
+                f'h_{Floes[0].h:03}_{itlab}')
 
         plt.savefig(config.FigsDirFloes + root + '.png', dpi=150)
         plt.close(fig)
@@ -222,6 +233,10 @@ def BreakFloes(x, t, Floes, wave, multiFrac=True, *args):
 
                 if Etot_floes < Eel1:
                     Broke = True
+
+                    # # Show energy and strain if it would break
+                    # xf, _, _, E_lists = Floes[iF].FindE_minVerbose(1, wave, t, EType=EType, V=True)
+                    # PlotFracE(Floes[iF], E_lists)
 
                     # Add event to fracture history
                     getFractureHistory().addChildren(Floes[iF], floes, t)
@@ -437,7 +452,14 @@ def PlotFSD(L, **kwargs):
 
     L_min = np.floor(min(Ll)) - 1
     L_max = np.ceil(max(Ll)) + 1
-    dL = 1 if L_min < 10 else 2
+    # dL = 1 if L_min < 10 else 2
+    dL = (L_max - L_min) / len(Ll)**0.5
+    if dL < 1:
+        dL = round(dL * 10) / 10
+    else:
+        dL = round(dL)
+    Lmin = L_min
+    Lmax = L_max
 
     # Process optional inputs
     for key, value in kwargs.items():
@@ -453,6 +475,12 @@ def PlotFSD(L, **kwargs):
         elif key == 'n0':
             n0 = value
             ne = True
+        elif key == 'Lmin':
+            Lmin = value
+            print(Lmin)
+        elif key == 'Lmax':
+            Lmax = value
+            print(Lmax)
         elif key == 'dL':
             dL = value
         elif key == 'Lines':
@@ -484,6 +512,7 @@ def PlotFSD(L, **kwargs):
         if len(Lines):
             addLines(hax, Lines)
 
+        plt.xlim(Lmin, Lmax)
         if DoSave:
             root = f'FSD_{ylab[ifac]}{fn}'
 

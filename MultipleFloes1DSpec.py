@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import config
 from os import path
 from tqdm import tqdm
-from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD, calc_xstar
 from FlexUtils_obj import BreakFloes, BreakFloesStrain
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
@@ -28,7 +28,7 @@ FractureCriterion = 'Energy'
 # Ice parameters
 h = 1
 x0 = 50
-L0 = 100
+L0 = 300
 L = L0
 dx = 0.5
 DispType = 'ML'
@@ -72,25 +72,30 @@ if DoPlots > 0:
     for t in np.arange(Spec.Tp, 2 * tSpecM + 1 / Spec.f[0], tSpecM / 10):
         Spec.calcExt(x, t, Floes)
         if t < tSpecM * 1.1:
-            Spec.plotEx(fname=(config.FigsDirSpec + f'Spec_{DispType}_L0_{L:04}_{t:04.0f}.png'), t=t)
+            Spec.plotEx(fname=(config.FigsDirSpec + f'Spec_{DispType}_L0_{L0:04}_{t:04.0f}.png'), t=t)
         # Spec.set_phases(x, t, Floes)
         # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
 
 FL = [0] * repeats
 
 dt = dx / (Spec.fp * Spec.wlp)
-t = np.arange(0, 1.2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)  # min(Spec.Tp / 20, dt))
+t = np.arange(0, 2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)  # min(Spec.Tp / 20, dt))
 
 phi = 2 * np.pi * np.linspace(0, 1, num=repeats, endpoint=False)
 
 print(f'Launching {repeats} experiments:')
+print(f'Note: x* = {calc_xstar(floe1)}, wlm = {2*np.pi/Spec.k[-1]/2}, '
+      f'wlp = {2*np.pi/Spec.kp/2}, wlM = {2*np.pi/Spec.k[0]/2}')
 for iL in range(repeats):
-    LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_Hs_{Spec.Hs:04.1f}m.txt'
+    lab = f'Exp_{iL:02}_E_{EType}_{Spec.SpecType}_F_{FractureCriterion}_L0_{L0}'
+    LoopName = f'{lab}_h_{h:3.1f}m_Hs_{Spec.Hs:04.1f}m.txt'
     DataPath = config.DataTempDir + LoopName
     FracHistPath = DataPath[:-4] + '_History.txt'
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}')
         FL[iL] = list(np.loadtxt(DataPath))
+        if DoPlots > 2:
+            DoPlots = 2
         continue
 
     # Change the phases of each wave
@@ -124,7 +129,6 @@ for iL in range(repeats):
         if DoPlots > 3:
             PlotFloes(x, t[it], Floes, Spec)
         elif DoPlots > 2 or len(Floes) > nF:
-            lab = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}'
             PlotFloes(x, t[it], Floes, Spec, lab, it)
 
         if Floes[-1].x0 > 0.6 * L + x0:
@@ -166,7 +170,7 @@ if DoPlots > 0:
         xv = np.arange(repeats)
         xu = 'trials'
 
-    root = (f'FloeLengths_Spec_E_{EType}_F_{FractureCriterion}_'
+    root = (f'FloeLengths_Spec_E_{EType}_{Spec.SpecType}_F_{FractureCriterion}_'
             f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
     fig, hax = PlotLengths(xv, FL, x0=x0, h=h, Spec=Spec, xunits=xu)
@@ -176,7 +180,7 @@ if DoPlots > 0:
     plt.savefig(config.FigsDirSumry + root + '_trim.png', dpi=150)
 
 if DoPlots > 1:
-    fn = (f'_Spec_E_{EType}_F_{FractureCriterion}_'
+    fn = (f'_Spec_E_{EType}_{Spec.SpecType}_F_{FractureCriterion}_'
           f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
     wvl_lab = '$\lambda_p/2$' if len(Spec.f) > 1 else '$\lambda/2$'

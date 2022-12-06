@@ -9,9 +9,9 @@ Created on Fri Jan 21 12:01:18 2022
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
-from WaveUtils import PM, Jonswap, SpecVars, calc_k
+from WaveUtils import PM, Jonswap, PowerLaw, SpecVars, calc_k
 from WaveDef import Wave
-from pars import g
+from pars import g, SpecType, tail_fac
 
 
 class WaveSpec(object):
@@ -27,13 +27,15 @@ class WaveSpec(object):
         # Default spectral values know to encompass a wave spectrum well
         u = 10  # wind speed (m/s)
         Hs, Tp, fp, kp, wlp = SpecVars(u)  # Parameters for a typical spectrum
-        spec = 'JONSWAP'
+        spec = SpecType
+        tfac = tail_fac
 
         beta = 0
         phi = np.nan
         df = 1.1
         x = -5
-        y = 15
+        y = 16
+        n = 2
 
         f = fp * df ** np.arange(x, y)
 
@@ -68,18 +70,26 @@ class WaveSpec(object):
                 fac = np.log(1.1) / np.log(df)
                 x = -np.ceil(5 * fac)
                 y = np.ceil(15 * fac) + 1
-            elif key == 'spec':
+            elif key == 'spec' or key == 'SpecType':
                 spec = value
             elif key == 'f':
                 f = value
+            elif key == 'n':
+                n = value
+            elif key == 'tail_fac':
+                tfac = value
+            else:
+                print(f'Unknow input: {key}')
 
         self.type = 'WaveSpec'
+        self.SpecType = spec
         self.Hs = Hs
         self.Tp = Tp
         self.fp = fp
         self.kp = kp
         self.wlp = wlp
         self.beta = beta
+        self.tail_fac = tfac
 
         if type(f) == np.ndarray:
             self.f = f
@@ -112,8 +122,24 @@ class WaveSpec(object):
             self.Ei = Jonswap(Hs, fp, f)
         elif spec == 'PM':
             self.Ei = PM(u, f)
+        elif spec == 'PowerLaw':
+            if n > 0:
+                self.f = fp * df ** (np.arange(-self.nf, 0) + 1)
+            else:
+                self.f = fp * df ** (np.arange(0, self.nf) + 1)
+            df_vec = np.empty_like(f)
+            df_vec[0] = f[1] - f[0]
+            df_vec[1:-1] = (f[2:] - f[:-2]) / 2
+            df_vec[-1] = f[-1] - f[-2]
+            self.df = df_vec
+            self.Tp = 1 / fp
+            self.kp = (2 * np.pi * fp)**2 / g
+            self.wlp = 2 * np.pi / self.kp
+            self.k = (2 * np.pi * self.f)**2 / g
+            self.cgw = 0.5 * (g / self.k)**0.5
+            self.Ei = PowerLaw(Hs, fp, self.f, df_vec, n)
         else:
-            print('Unknown spectrum type')
+            print(f'Unknown spectrum type: {spec}')
             return
 
         self.setWaves()
@@ -241,14 +267,14 @@ class WaveSpec(object):
 
             amp = (2 * Ex[iF, :] * self.df[iF]) ** 0.5
             # Where amplitude is 0, add an exponentially decreasing tail
-            # to smooth the transition at a characteristic scale of \lambda/4
+            # to smooth the transition at a characteristic scale of tail_fac
             iax = amp > 0
             if iax.sum() < len(iax) and iax.sum() > 0:
                 indL = np.where(iax)[0][-1]
                 ampL = amp[indL]
                 xL = x[indL]
                 ia0 = np.invert(iax)
-                amp[ia0] = ampL * np.exp( -2 * self.k[iF] * (x[ia0] - xL))
+                amp[ia0] = ampL * np.exp( -(1 / self.tail_fac) * self.k[iF] * (x[ia0] - xL))
 
             self.af[iF] = interpolate.interp1d(x, amp, kind='quadratic')
 

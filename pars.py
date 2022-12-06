@@ -21,11 +21,14 @@ K = 1e5  # Fracture energy
 # Critical strain supported by ice before fracture -> Dumont2011/Roach2018
 strainCrit = 3e-5
 
-h = 1
-u = 5
-f = 0.25
+h = 1  # ice thickness (m)
+u = 5  # wind speed (m/s)
+f = 0.25  # frequency (Hz)
 wl = g / (2 * np.pi * f**2)
-n0 = 1
+SpecType = 'JONSWAP'
+tail_fac = 2  # wavelength factor for exponential decay past the last energetic point
+n = 2  # power law exponent
+n0 = 1  # wave amplitude (m)
 
 FractureCriterion = 'Energy'
 multiFrac = True

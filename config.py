@@ -9,8 +9,11 @@ Created on Tue June  7 2022
 import sys
 import os
 
+FlexFrac1D = '/home/auclaije/work/PostDoc/Flexion/Objs1D/'
 LibPath = 'Libraries/'
-sys.path.append(os.getcwd() + '/' + LibPath)
+sys.path.append(FlexFrac1D)
+sys.path.append(FlexFrac1D + LibPath)
+sys.path.append(os.getcwd())
 
 FigsDirFloes = 'Figs/Floes/'
 FigsDirSumry = 'Figs/Summary/'

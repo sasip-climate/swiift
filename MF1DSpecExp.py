@@ -23,15 +23,21 @@ from treeForFrac import getFractureHistory, InitHistory
 import pars
 
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
+# 5: Length, FSD, Floes and Energy+Strain when breaking
 DoPlots = 3
 repeats = 20
-multiFrac = pars.multiFrac
+try:
+    multiFrac = pars.multiFrac
+except:
+    multiFrac = ( pars.maxFrac > 1 )
+    print(f'Set multiFrac to {multiFrac} since maxFrac = {pars.maxFrac}')
+
 FractureCriterion = pars.FractureCriterion
 
 # Ice parameters
 h = pars.h
 x0 = 50
-L0 = 100
+L0 = 300
 L = L0
 dx = 0.5
 DispType = 'ML'
@@ -53,6 +59,11 @@ Spec = WaveSpec(u=u)
 Spec.checkSpec(floe1)
 ki = floe1.kw
 floe1.setWPars(Spec)
+
+if len(Spec.f) == 1:
+    wlab = f'WaveFront_Hs_{Spec.Hs:04.1f}m'
+else:
+    wlab = f'WaveSpec_n0_{pars.n0:04.1f}m'
 
 xi = 1 / floe1.alpha
 if L > 5 * xi[Spec.f == Spec.fp]:
@@ -90,12 +101,14 @@ phi = 2 * np.pi * np.linspace(0, 1, num=repeats, endpoint=False)
 
 print(f'Launching {repeats} experiments:')
 for iL in range(repeats):
-    LoopName = f'Exp_{iL:02}_E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_Hs_{Spec.Hs:04.1f}m.txt'
+    LoopName = f'E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_{wlab}_Exp_{iL:02}.txt'
     DataPath = config.DataTempDir + LoopName
     FracHistPath = DataPath[:-4] + '_History.txt'
     if path.isfile(DataPath):
         print(f'Reading existing data for loop {iL:02}', flush=True)
         FL[iL] = list(np.loadtxt(DataPath, ndmin=1))
+        if DoPlots > 2:
+            DoPlots = 2
         continue
 
     # Change the phases of each wave
@@ -115,7 +128,6 @@ for iL in range(repeats):
     start_time = time.time()
     print(tqdmlab + ': ', end='', flush=True)
     for it in range(len(t)):  # tqdm(range(len(t)), desc=tqdmlab):
-
         nF = len(Floes)
 
         Spec.calcExt(x, t[it], Floes)
