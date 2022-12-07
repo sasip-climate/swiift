@@ -48,12 +48,7 @@ floe1 = Floe(h, x0, L, DispType=DispType, dx=dx)
 # Wave Parameters
 u = pars.u  # Wind speed (m/s)
 # Initialize wave object
-Spec = WaveSpec(u=u)
-
-# Single frequency wave front
-# n0 = pars.n0
-# Hs = (2 ** 1.5) * n0
-# Spec = WaveSpec(f=pars.f, Hs=Hs)
+Spec = WaveSpec(u=u, spec=pars.SpecType)
 
 # calculate wave properties in ice
 Spec.checkSpec(floe1)

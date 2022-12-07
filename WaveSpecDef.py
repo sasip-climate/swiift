@@ -46,6 +46,8 @@ class WaveSpec(object):
                 f = fp * df ** np.arange(x, y)
             elif key == 'Hs':
                 Hs = value
+            elif key == 'n0':
+                Hs = (2**1.5) * value
             elif key == 'fp':
                 fp = value
                 Tp = 1 / fp
@@ -91,56 +93,43 @@ class WaveSpec(object):
         self.beta = beta
         self.tail_fac = tfac
 
-        if type(f) == np.ndarray:
+        if len(f) == 1 or spec == 'Mono':
+            self.f = np.array([fp])
+            df_vec = np.array([1])
+            self.Ei = np.array([Hs**2 / 16])
+        elif spec == 'PowerLaw':
+            if n > 0:
+                self.f = fp * df ** (np.arange(-f.size, 0) + 1)
+            else:
+                self.f = fp * df ** (np.arange(0, f.size) + 1)
+            df_vec = np.empty_like(f)
+            df_vec[0] = f[1] - f[0]
+            df_vec[1:-1] = (f[2:] - f[:-2]) / 2
+            df_vec[-1] = f[-1] - f[-2]
+            self.Ei = PowerLaw(Hs, fp, self.f, df_vec, n)
+        else:
             self.f = f
             df_vec = np.empty_like(f)
             df_vec[0] = f[1] - f[0]
             df_vec[1:-1] = (f[2:] - f[:-2]) / 2
             df_vec[-1] = f[-1] - f[-2]
-            self.nf = len(self.f)
-        else:
-            self.f = np.array([f])
-            df_vec = np.array([1])
-            self.nf = 1
-            self.fp = f
-            self.Tp = 1 / f
-            self.kp = (2 * np.pi * f)**2 / g
-            self.wlp = 2 * np.pi / self.kp
-        self.df = df_vec
+            if spec == 'JONSWAP':
+                self.Ei = Jonswap(Hs, fp, f)
+            elif spec == 'PM':
+                self.Ei = PM(u, f)
+            else:
+                raise ValueError(f'Unknown spectrum type: {spec}')
 
+        self.nf = f.size
         self.k = (2 * np.pi * self.f)**2 / g
         self.cgw = 0.5 * (g / self.k)**0.5
+        self.nf = len(self.f)
+        self.df = df_vec
 
         if type(phi) == np.ndarray:
             self.phi = phi
         else:
             self.phi = phi * np.ones_like(self.f)
-
-        if self.nf == 1:
-            self.Ei = np.array([Hs**2 / 16])
-        elif spec == 'JONSWAP':
-            self.Ei = Jonswap(Hs, fp, f)
-        elif spec == 'PM':
-            self.Ei = PM(u, f)
-        elif spec == 'PowerLaw':
-            if n > 0:
-                self.f = fp * df ** (np.arange(-self.nf, 0) + 1)
-            else:
-                self.f = fp * df ** (np.arange(0, self.nf) + 1)
-            df_vec = np.empty_like(f)
-            df_vec[0] = f[1] - f[0]
-            df_vec[1:-1] = (f[2:] - f[:-2]) / 2
-            df_vec[-1] = f[-1] - f[-2]
-            self.df = df_vec
-            self.Tp = 1 / fp
-            self.kp = (2 * np.pi * fp)**2 / g
-            self.wlp = 2 * np.pi / self.kp
-            self.k = (2 * np.pi * self.f)**2 / g
-            self.cgw = 0.5 * (g / self.k)**0.5
-            self.Ei = PowerLaw(Hs, fp, self.f, df_vec, n)
-        else:
-            print(f'Unknown spectrum type: {spec}')
-            return
 
         self.setWaves()
         self.af = [0] * self.nf

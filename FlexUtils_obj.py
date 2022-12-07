@@ -14,13 +14,23 @@ from pars import E, v, rho_w, g, strainCrit
 from IceDef import Floe
 
 
-def calc_xstar(In):
+def calc_xstar(In, **kwargs):
     if type(In) == Floe:
         h = In.h
     elif isinstance(In, (int, float)):
         h = In
 
-    xs = (np.pi / 4) * (E * h**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4)
+    Eval = E
+    vval = v
+    for key, value in kwargs.items():
+        if key == 'E':
+            Eval = value
+        elif key == 'v':
+            vval = value
+        else:
+            print(f'Unknown input: {value}')
+
+    xs = (np.pi / 4) * (Eval * h**3 / (36 * (1 - vval**2) * rho_w * g))**(1 / 4)
     return xs
 
 

@@ -41,11 +41,6 @@ u = 5  # Wind speed (m/s)
 # Initialize wave object
 Spec = WaveSpec(u=u)
 
-# Single frequency wave front
-# n0 = 1
-# Hs = (2 * n0) ** 0.5
-# Spec = WaveSpec(f=0.25, Hs=Hs)
-
 # calculate wave properties in ice
 Spec.checkSpec(floe1)
 ki = floe1.kw
