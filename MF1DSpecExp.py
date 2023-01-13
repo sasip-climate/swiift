@@ -13,8 +13,9 @@ from os import path
 # from tqdm import tqdm
 import time
 from prog_rep import prog_rep
-from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, PlotLengths, calc_xstar
 from FlexUtils_obj import BreakFloes, BreakFloesStrain
+from FSDUtils import PlotFSD
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
@@ -25,7 +26,6 @@ import pars
 # 0: None, 1: Lengths, 2: Lengths and FSD, 3: Lengths, FSD and saved Floes, 4: Lengths, FSD and Floes
 # 5: Length, FSD, Floes and Energy+Strain when breaking
 DoPlots = 3
-repeats = 20
 try:
     multiFrac = pars.multiFrac
 except:
@@ -87,13 +87,17 @@ if DoPlots > 0:
         # Spec.set_phases(x, t, Floes)
         # Spec.plotWMean(x, floes=[floe1], fname='Spec/Waves_{t:04.0f}.png')
 
-FL = [0] * repeats
-
 dt = dx / (Spec.fp * Spec.wlp)
 t = np.arange(0, 1.2 * tSpecM + 2 / Spec.f[0], Spec.Tp / 20)  # min(Spec.Tp / 20, dt))
 
-phi = 2 * np.pi * np.linspace(0, 1, num=repeats, endpoint=False)
+try:
+    repeats = pars.repeats
+    phi = pars.phi0
+except AttributeError:
+    repeats = 20
+    phi = 2 * np.pi * np.linspace(0, 1, num=repeats, endpoint=False)
 
+FL = [0] * repeats
 print(f'Launching {repeats} experiments:')
 for iL in range(repeats):
     LoopName = f'E_{EType}_F_{FractureCriterion}_h_{h:3.1f}m_{wlab}_Exp_{iL:02}.txt'
@@ -109,6 +113,8 @@ for iL in range(repeats):
     # Change the phases of each wave
     if len(Spec.f) == 1:
         Spec.phi = np.array([phi[iL]])
+    elif type(phi) is np.ndarray:
+        Spec.phi = phi[:, iL]
     Spec.setWaves()
 
     # Reset the initial floe, history and domain
@@ -175,7 +181,8 @@ for iL in range(repeats):
         FractureHistory.plotGeneration(filename=fGen)
         if DoPlots > 3:
             FractureHistory.plotGeneration()
-        # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations for each floe that has existed
+        # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations
+        # for each floe that has existed
         np.savetxt(FracHistPath, FractureHistory.asArray())
 
     print(f'Time taken: {round(time.time() - start_time)}s', flush=True)
@@ -200,7 +207,7 @@ if DoPlots > 0:
     plt.savefig(config.FigsDirSumry + root + '_trim.png', dpi=150)
 
 if DoPlots > 1:
-    fn = (f'_Spec_E_{EType}_F_{FractureCriterion}_'
+    fn = (f'{config.FigsDirSumry}/Spec_E_{EType}_F_{FractureCriterion}_'
           f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
     wvl_lab = '$\lambda_p/2$' if len(Spec.f) > 1 else '$\lambda/2$'
@@ -212,4 +219,6 @@ if DoPlots > 1:
     if wvl_min < Spec.wlp / 1.5:
         Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
 
-    PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines, Spec=Spec)
+    Lines.append([calc_xstar(floe1), '$x^*$'])
+
+    PlotFSD(FL, FileName=fn, Lines=Lines)

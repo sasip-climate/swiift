@@ -11,8 +11,9 @@ from tqdm import tqdm
 import config
 from os import path
 
-from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD, PlotSum
+from FlexUtils_obj import PlotFloes, PlotLengths, PlotSum
 from FlexUtils_obj import BreakFloes, BreakFloesStrain
+from FSDUtils import PlotFSD
 from WaveUtils import calc_k, omega
 from WaveDef import Wave
 from IceDef import Floe
@@ -135,10 +136,10 @@ if DoPlots > 0 and len(FL[0]) > 1:
 
 if DoPlots > 1:
     if reset:
-        fn = (f'_E_{EType}_F_{FractureCriterion}_{lab}_'
+        fn = (f'{config.FigsDirSumry}/Mono_E_{EType}_F_{FractureCriterion}_{lab}_'
               f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:2}_h_{Floes[0].h:3.1f}_L0_{L:04}')
 
-        PlotFSD(FL, wl=wvlength, h=h, n0=n_0, FileName=fn)
+        PlotFSD(FL, wl=wvlength, FileName=fn)
     else:
         PlotSum(t, Evec, leg=[EType])
         root = (f'Energy_Time_Series__E_{EType}_F_{FractureCriterion}_{lab}_'

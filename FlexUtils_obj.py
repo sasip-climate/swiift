@@ -17,11 +17,13 @@ from IceDef import Floe
 def calc_xstar(In, **kwargs):
     if type(In) == Floe:
         h = In.h
+        Eval = Floe.E
+        vval = Floe.v
     elif isinstance(In, (int, float)):
         h = In
+        Eval = E
+        vval = v
 
-    Eval = E
-    vval = v
     for key, value in kwargs.items():
         if key == 'E':
             Eval = value
@@ -433,127 +435,3 @@ def PlotLengths1(L, *args):
         hax.plot([0, L[0][iF]], [iF, iF])
     hax.set(xlabel='Floe Length (m)', ylabel='Floe number')
     return(fig, hax)
-
-
-def PlotFSD(L, **kwargs):
-    # Process input
-    if isinstance(L[0], (list, np.ndarray)):
-        Ll = []
-        for l in L:
-            Ll += l[:-1]  # Do not consider the last floe in the FSD
-    else:
-        Ll = L
-
-    Ll = np.array(Ll)
-
-    # To prevent errors in case of no fracture
-    empty = False
-    if Ll.size == 0:
-        Ll = np.zeros((1,))
-        empty = True
-
-    # Process optional inputs
-    DoSave = False
-    fn = ''
-    wle = False
-    he = False
-    ne = False
-    Lines = []
-
-    L_min = np.floor(min(Ll)) - 1
-    L_max = np.ceil(max(Ll)) + 1
-    # dL = 1 if L_min < 10 else 2
-    dL = (L_max - L_min) / len(Ll)**0.5
-    if dL < 1:
-        dL = round(dL * 10) / 10
-    else:
-        dL = round(dL)
-    Lmin = L_min
-    Lmax = L_max
-
-    # Process optional inputs
-    for key, value in kwargs.items():
-        if key == 'FileName':
-            DoSave = True
-            fn = value
-        elif key == 'h':
-            hv = value
-            he = True
-        elif key == 'wl':
-            wl = value
-            wle = True
-        elif key == 'n0':
-            n0 = value
-            ne = True
-        elif key == 'Lmin':
-            Lmin = value
-            print(Lmin)
-        elif key == 'Lmax':
-            Lmax = value
-            print(Lmax)
-        elif key == 'dL':
-            dL = value
-        elif key == 'Lines':
-            Lines = value
-
-    values, edges = np.histogram(Ll, bins=np.arange(L_min, L_max, dL))
-
-    fac = [1]
-    fac.append(1 / values.sum())
-    fac.append((edges[:-1] + 0.5) / values.sum())
-
-    ylab = ['Number', 'Frequency', 'Length-fraction']
-
-    if wle:
-        Lines.append([wl / 2, '$\lambda$/2'])
-    if he:
-        Lines.append([(np.pi / 4) * (E * hv**3 / (36 * (1 - v**2) * rho_w * g))**(1 / 4), '$x^*$'])
-        # Lines.append([(hv * wl)**(1 / 2), '$\sqrt{h\lambda}$'])
-        # if ne:
-        #     Lines.append([hv * wl / (18 * n0), '$h\lambda$/18$\eta$'])
-
-    for ifac in np.arange(len(fac)):
-        fig, hax = PlotHist(edges, values * fac[ifac])
-        hax.set(ylabel=ylab[ifac])
-        # If no fracture, put it in the title
-        if empty:
-            hax.set(title="No fracture for those parameters")
-
-        if len(Lines):
-            addLines(hax, Lines)
-
-        plt.xlim(Lmin, Lmax)
-        if DoSave:
-            root = f'FSD_{ylab[ifac]}{fn}'
-
-            plt.savefig(config.FigsDirSumry + root + '.png', dpi=150)
-            plt.close()
-        else:
-            plt.show()
-
-    return(edges, values)
-
-
-def PlotHist(edges, values):
-
-    fig, hax = plt.subplots()
-    plt.bar(edges[:-1], values, align='edge', width=edges[1] - edges[0])
-
-    hax.set(xlabel='Floe length (m)')
-
-    return(fig, hax)
-
-
-def addLines(hax, Lines):
-
-    ylims = hax.get_ylim()
-    xlims = hax.get_xlim()
-    xoffset = 0.02 * (xlims[1] - xlims[0])
-
-    colors = ['green', 'blue', 'purple', 'magenta', 'red', 'orange']
-    styles = ['-', '--', '-.', ':', '-.', '--']
-    yoffset = np.arange(1, 1 / len(Lines) - 1e-12, -1 / len(Lines)) * 0.9
-
-    for iL in np.arange(len(Lines)):
-        hax.plot(Lines[iL][0] * np.ones(2), ylims, color=colors[iL], linestyle=styles[iL])
-        hax.text(Lines[iL][0] + xoffset, ylims[1] * yoffset[iL], Lines[iL][1], fontsize=20)

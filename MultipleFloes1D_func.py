@@ -9,7 +9,8 @@ Created on Wed Jan 12 11:48:40 2022
 import numpy as np
 import matplotlib.pyplot as plt
 import config
-from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths, PlotFSD
+from FlexUtils_obj import PlotFloes, BreakFloes, BreakFloesStrain, PlotLengths
+from FSDUtils import PlotFSD
 from WaveUtils import calc_k
 from WaveDef import Wave
 from IceDef import Floe
@@ -137,10 +138,10 @@ def MF1D(**kwargs):
             plt.savefig(FigsDirSumry + root + '.png', dpi=150)
 
         if DoPlots > 1:
-            fn = (f'_E_{EType}_F_{FractureCriterion}_{lab}_'
+            fn = (f'{config.FigsDirSumry}/Mono_E_{EType}_F_{FractureCriterion}_{lab}_'
                   f'{DispType}_n_{wave.n0:3}_wl_{wave.wl:02.1f}_h_{h:03.1f}_L0_{L:04}')
 
-            edges, values = PlotFSD(FL, wl=wvlength, h=h, n=n_0, FileName=fn)
+            edges, values = PlotFSD(FL, wl=wvlength, FileName=fn)
         else:
             Ll = []
             for l in FL:

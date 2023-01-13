@@ -9,10 +9,12 @@ Created on Wed Jan 12 11:48:40 2022
 import numpy as np
 import matplotlib.pyplot as plt
 import config
+import pars
 from os import path
 from tqdm import tqdm
-from FlexUtils_obj import PlotFloes, PlotLengths, PlotFSD, calc_xstar
+from FlexUtils_obj import PlotFloes, PlotLengths, calc_xstar
 from FlexUtils_obj import BreakFloes, BreakFloesStrain
+from FSDUtils import PlotFSD
 from WaveUtils import calc_k
 from WaveSpecDef import WaveSpec
 from WaveChecks import plotDisp, plot_cg
@@ -152,7 +154,8 @@ for iL in range(repeats):
         FractureHistory.plotGeneration(filename=fGen)
         if DoPlots > 3:
             FractureHistory.plotGeneration()
-        # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations for each floe that has existed
+        # Save the fracture history, giving (L, x0, gen, time, boolean existing, parent) informations
+        # for each floe that has existed
         np.savetxt(FracHistPath, FractureHistory.asArray())
 
 n0 = Spec.calcHs()
@@ -175,7 +178,7 @@ if DoPlots > 0:
     plt.savefig(config.FigsDirSumry + root + '_trim.png', dpi=150)
 
 if DoPlots > 1:
-    fn = (f'_Spec_E_{EType}_{Spec.SpecType}_F_{FractureCriterion}_'
+    fn = (f'{config.FigsDirSumry}/Spec_E_{EType}_{Spec.SpecType}_F_{FractureCriterion}_'
           f'{DispType}_Hs_{Spec.Hs:05.2f}_wlp_{Spec.wlp:06.2f}_h_{h:3.1f}_L0_{L:04}')
 
     wvl_lab = '$\lambda_p/2$' if len(Spec.f) > 1 else '$\lambda/2$'
@@ -186,5 +189,6 @@ if DoPlots > 1:
     wvl_min = 2 * np.pi / calc_k(Spec.f[-1], floe1.h, DispType=floe1.DispType)
     if wvl_min < Spec.wlp / 1.5:
         Lines.append([wvl_min / 2, '$\lambda_{min}/2$'])
+    Lines.append([calc_xstar(floe1), '$x^*$'])
 
-    PlotFSD(FL, h=h, n0=n0, FileName=fn, Lines=Lines, Spec=Spec)
+    PlotFSD(FL, FileName=fn, Lines=Lines, Spec=Spec)

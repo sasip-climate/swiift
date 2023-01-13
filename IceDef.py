@@ -41,6 +41,8 @@ class Floe(object):
         self.ha = h - self.hw
         self.I = h**3 / (12 * (1 - v**2))
         self.k = FracToughness(E, v, K)
+        self.E = E
+        self.v = v
 
         self.DispType = 'ElML'
         for key, value in kwargs.items():
