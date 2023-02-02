@@ -27,7 +27,7 @@ f = 0.25  # frequency (Hz)
 wl = g / (2 * np.pi * f**2)
 SpecType = 'JONSWAP'
 tail_fac = 2  # wavelength factor for exponential decay past the last energetic point
-n = 2  # power law exponent
+n = -2  # power law exponent
 n0 = 1  # wave amplitude (m)
 
 FractureCriterion = 'Energy'

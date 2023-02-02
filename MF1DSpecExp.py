@@ -48,7 +48,7 @@ floe1 = Floe(h, x0, L, DispType=DispType, dx=dx)
 # Wave Parameters
 u = pars.u  # Wind speed (m/s)
 # Initialize wave object
-Spec = WaveSpec(u=u, spec=pars.SpecType)
+Spec = WaveSpec(u=u, spec=pars.SpecType, n=pars.n)
 
 # calculate wave properties in ice
 Spec.checkSpec(floe1)
@@ -113,7 +113,7 @@ for iL in range(repeats):
     # Change the phases of each wave
     if len(Spec.f) == 1:
         Spec.phi = np.array([phi[iL]])
-    elif type(phi) is np.ndarray:
+    elif phi.ndim == 2:
         Spec.phi = phi[:, iL]
     Spec.setWaves()
 
