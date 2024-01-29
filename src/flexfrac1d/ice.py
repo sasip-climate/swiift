@@ -19,8 +19,8 @@ import scipy.sparse as sp
 from itertools import combinations
 # from tqdm import tqdm
 
-from ElasticMaterials import FracToughness, Lame
-from WaveUtils import calc_k, calc_cg
+from .libraries.ElasticMaterials import FracToughness, Lame
+from .libraries.WaveUtils import calc_k, calc_cg
 from pars import g, rho_i, rho_w, E, v, K, Deriv101
 
 

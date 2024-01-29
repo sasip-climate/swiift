@@ -8,7 +8,7 @@ Created on Tue Jan  4 13:23:01 2022
 import numpy as np
 import matplotlib.pyplot as plt
 from pars import rho_w, g
-from WaveUtils import calc_k
+from .libraries.WaveUtils import calc_k
 
 
 class Wave(object):
@@ -36,12 +36,14 @@ class Wave(object):
 
         for key, value in kwargs.items():
             if key == 'beta':
-                self.beta = value
+                if value is not None:
+                    self.beta = value
             elif key == 'phi':
-                if np.isnan(value):
-                    self.phi = 2 * np.pi * np.random.random()
-                else:
-                    self.phi = value
+                if value is not None:
+                    if np.isnan(value):
+                        self.phi = 2 * np.pi * np.random.random()
+                    else:
+                        self.phi = value
 
     def __repr__(self):
         n0str = f'{self.n0:.2f}' if self.n0 > 0.1 else f'{self.n0:.2E}'
