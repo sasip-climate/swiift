@@ -5,6 +5,8 @@ Created on Tue Jan  4 13:23:01 2022
 
 @author: auclaije
 """
+
+import functools
 import numpy as np
 import matplotlib.pyplot as plt
 from .pars import rho_w, g
@@ -12,69 +14,95 @@ from .libraries.WaveUtils import calc_k
 
 
 class Wave(object):
-    """ Wave field for floe breaking experiment
-    Inputs: n_0:        wave amplitude (m)
-            wvlength:   wave length (m)
-    Optional:   beta:     time scaling factor for amplitude (1/s)
-                phi:      initial wave phase (rad)
-    """
+    """Wave field for floe breaking experiment"""
 
-    def __init__(self, n_0, wvlength, **kwargs):
-        self.type = 'Wave'
-        self.n0 = n_0
-        self.E0 = (n_0**2) / 2
+    def __init__(self, amplitude: float, wavelength: float,
+                 phase: float = 0, beta: float = 0):
+        self.__amplitude = amplitude
+        self.__wavelength = wavelength
+        if np.isnan(phase):
+            phase = 2 * np.pi * np.random.random()
+        self.__phase = phase
+        self.__beta = beta
 
-        self.wl = wvlength
+    @property
+    def amplitude(self):
+        return self.__amplitude
 
-        # Wave Parameters
-        self.k = 2 * np.pi / wvlength
-        self.omega = np.sqrt(g * self.k)
-        self.T = 2 * np.pi / self.omega
+    @property
+    def wavelength(self):
+        return self.__wavelength
 
-        self.beta = 0
-        self.phi = 0
+    @property
+    def phase(self):
+        return self.__phase
 
-        for key, value in kwargs.items():
-            if key == 'beta':
-                if value is not None:
-                    self.beta = value
-            elif key == 'phi':
-                if value is not None:
-                    if np.isnan(value):
-                        self.phi = 2 * np.pi * np.random.random()
-                    else:
-                        self.phi = value
+    @property
+    def beta(self):
+        return self.__beta
+
+    @functools.cached_property
+    def wavenumber(self):
+        return 2*np.pi/self.wavelength
+
+    @functools.cached_property
+    def ang_frequency(self):
+        return np.sqrt(g * self.wavenumber)
+
+    @functools.cached_property
+    def period(self):
+        return 2*np.pi/self.ang_frequency
+
+    @functools.cached_property
+    def energy(self):
+        return self.amplitude**2 / 2
+
+    @property
+    def type(self):
+        return "Wave"
 
     def __repr__(self):
-        n0str = f'{self.n0:.2f}' if self.n0 > 0.1 else f'{self.n0:.2E}'
-        Tstr  = f'{self.T:.2f}' if self.T  > 0.1 else f'{self.T:.2E}'
-        wlstr  = f'{self.wl:.0f}' if self.wl  > 1 else f'{self.T:.2E}'
+        n0str = f'{self.amplitude:.2f}' if self.amplitude > 0.1 else f'{self.amplitude:.2E}'
+        Tstr  = f'{self.period:.2f}' if self.period  > 0.1 else f'{self.period:.2E}'
+        wlstr  = f'{self.wavelength:.0f}' if self.wavelength  > 1 else f'{self.period:.2E}'
         string = f'Wave object (n0: {n0str}m, T: {Tstr}s, wl: {wlstr}m'
         if self.beta > 0:
             string += f', {self.beta})'
         else:
             string += ')'
-        return(string)
+        return string
 
     def __str__(self):
-        n0str = f'{self.n0:.2f}' if self.n0 > 0.1 else f'{self.n0:.2E}'
-        Tstr  = f'{self.T:.2f}' if self.T  > 0.1 else f'{self.T:.2E}'
-        wlstr  = f'{self.wl:.0f}' if self.wl  > 1 else f'{self.wl:.2E}'
+        n0str = f'{self.amplitude:.2f}' if self.amplitude > 0.1 else f'{self.amplitude:.2E}'
+        Tstr  = f'{self.period:.2f}' if self.period  > 0.1 else f'{self.period:.2E}'
+        wlstr  = f'{self.wavelength:.0f}' if self.wavelength  > 1 else f'{self.wavelength:.2E}'
         string = f'Wave object of wave height {n0str}m, period {Tstr}s and wavelength {wlstr}m'
         if self.beta > 0:
             string += f' growing over a time scale of {1/self.beta}s'
-        return(string)
+        return string
 
     def amp(self, t):
+        """
+
+        Parameters
+        ----------
+        t : 
+            
+
+        Returns
+        -------
+        
+            
+        """
         if self.beta == 0:
-            output = self.n0
+            output = self.amplitude
         else:
-            output = self.n0 * (1 - np.e**(-self.beta * t))
+            output = self.amplitude * (1 - np.e**(-self.beta * t))
         return(output)
 
     def calc_phase(self, x, t, **kwargs):
         floes = []
-        phi0 = self.phi
+        phi0 = self.phase
         calc_phi0 = True
         Spec = False
 
@@ -92,7 +120,7 @@ class Wave(object):
                 Spec = True
 
         # array of phase over the domain
-        phase = self.k * x - self.omega * t + phi0
+        phase = self.wavenumber * x - self.ang_frequency * t + phi0
 
         # computes the phase along the floes from left to right
         for floe in floes:
@@ -102,7 +130,7 @@ class Wave(object):
                 else:
                     k = floe.kw
             else:
-                k = calc_k(self.omega / (2 * np.pi), floe.h, DispType=floe.DispType)
+                k = calc_k(self.ang_frequency / (2 * np.pi), floe.h, DispType=floe.DispType)
 
             # Phase under the floe
             if calc_phi0:
@@ -118,7 +146,7 @@ class Wave(object):
             phase[ind] = phi0 + k * (x[ind] - floe.x0)
             # Remaining domain (assume water, other floes will be looped over)
             ind = x > floe.x0 + floe.L
-            phase[ind] = phi0 + k * floe.L + self.k * (x[ind] - floe.x0 - floe.L)
+            phase[ind] = phi0 + k * floe.L + self.wavenumber * (x[ind] - floe.x0 - floe.L)
 
         return phase
 
@@ -149,9 +177,9 @@ class Wave(object):
         return amp * np.sin(phase)
 
     def mslf(self, x0, L, t):
-        A = self.amp(t) / (self.k * L)
-        P1 = np.cos(self.k * x0 - self.omega * t + self.phi)
-        P2 = np.cos(self.k * (x0 + L) - self.omega * t + self.phi)
+        A = self.amp(t) / (self.wavenumber * L)
+        P1 = np.cos(self.wavenumber * x0 - self.ang_frequency * t + self.phase)
+        P2 = np.cos(self.wavenumber * (x0 + L) - self.ang_frequency * t + self.phase)
         return(A * (P1 - P2))
 
     def plot(self, x, t, **kwargs):
@@ -185,7 +213,7 @@ class Wave(object):
             floes[iF].a0 = a0
             pFloe = (x >= floes[iF].x0) * (x <= floes[iF].x0 + floes[iF].L)
             xvec = np.append([floes[iF].x0], np.append(x[pFloe], floes[iF].x0 + floes[iF].L))
-            avec = a_att(xvec - floes[iF].x0, floes[iF], a0, self.k)
+            avec = a_att(xvec - floes[iF].x0, floes[iF], a0, self.wavenumber)
             ax[pFloe] = avec[1:-1]
             ax[x > floes[iF].xF[-1]] = avec[-1]
             a0 = avec[-1]
