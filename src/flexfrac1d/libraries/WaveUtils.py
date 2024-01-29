@@ -8,7 +8,7 @@ Created on Fri Jan 21 18:16:43 2022
 import warnings
 import numpy as np
 from scipy import optimize
-from pars import rho_w, rho_i, g, E, v
+from ..pars import rho_w, rho_i, g, E, v
 
 
 def PM(u, f):

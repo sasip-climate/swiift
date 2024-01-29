@@ -9,11 +9,11 @@ Created on Tue June  7 2022
 import sys
 import os
 
-FlexFrac1D = '/home/mokusn/Documents/FlexFrac1D/FlexFrac1D/'
-LibPath = 'Libraries/'
-sys.path.append(FlexFrac1D)
-sys.path.append(FlexFrac1D + LibPath)
-sys.path.append(os.getcwd())
+# FlexFrac1D = '/home/mokusn/Documents/FlexFrac1D/FlexFrac1D/'
+# LibPath = 'Libraries/'
+# sys.path.append(FlexFrac1D)
+# sys.path.append(FlexFrac1D + LibPath)
+# sys.path.append(os.getcwd())
 
 FigsDirFloes = 'Figs/Floes/'
 FigsDirSumry = 'Figs/Summary/'

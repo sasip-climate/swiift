@@ -9,7 +9,6 @@ Created on Tue Jan  4 14:30:37 2022
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import config
 
 # Allows faster computation of displacement
 from scipy.sparse.linalg import spsolve
@@ -21,7 +20,7 @@ from itertools import combinations
 
 from .libraries.ElasticMaterials import FracToughness, Lame
 from .libraries.WaveUtils import calc_k, calc_cg
-from pars import g, rho_i, rho_w, E, v, K, Deriv101
+from .pars import g, rho_i, rho_w, E, v, K, Deriv101
 
 
 class Floe(object):
@@ -228,7 +227,7 @@ class Floe(object):
             hax[1].plot(x - x[0], fit * np.ones_like(x), ':')
             hax[1].set_title(f'Deformation gradient: {fit[0]:.6f}\n')
 
-            plt.savefig(config.FigsDirFloes + '.png')
+            # plt.savefig(config.FigsDirFloes + '.png')
 
         self.slope = fit[0]
         return self.du

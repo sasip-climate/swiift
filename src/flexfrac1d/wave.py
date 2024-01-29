@@ -7,7 +7,7 @@ Created on Tue Jan  4 13:23:01 2022
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from pars import rho_w, g
+from .pars import rho_w, g
 from .libraries.WaveUtils import calc_k
 
 
