@@ -62,10 +62,16 @@ class Wave(object):
         return "Wave"
 
     def __repr__(self):
-        n0str = f'{self.amplitude:.2f}' if self.amplitude > 0.1 else f'{self.amplitude:.2E}'
-        Tstr  = f'{self.period:.2f}' if self.period  > 0.1 else f'{self.period:.2E}'
-        wlstr  = f'{self.wavelength:.0f}' if self.wavelength  > 1 else f'{self.period:.2E}'
-        string = f'Wave object (n0: {n0str}m, T: {Tstr}s, wl: {wlstr}m'
+        n0str = (f'{self.amplitude:.2f}'
+                 if self.amplitude > 0.1
+                 else f'{self.amplitude:.2E}')
+        tstr = (f'{self.period:.2f}'
+                if self.period > 0.1
+                else f'{self.period:.2E}')
+        wlstr = (f'{self.wavelength:.0f}'
+                 if self.wavelength > 1
+                 else f'{self.period:.2E}')
+        string = f'Wave object (n0: {n0str}m, T: {tstr}s, wl: {wlstr}m'
         if self.beta > 0:
             string += f', {self.beta})'
         else:
@@ -73,32 +79,27 @@ class Wave(object):
         return string
 
     def __str__(self):
-        n0str = f'{self.amplitude:.2f}' if self.amplitude > 0.1 else f'{self.amplitude:.2E}'
-        Tstr  = f'{self.period:.2f}' if self.period  > 0.1 else f'{self.period:.2E}'
-        wlstr  = f'{self.wavelength:.0f}' if self.wavelength  > 1 else f'{self.wavelength:.2E}'
-        string = f'Wave object of wave height {n0str}m, period {Tstr}s and wavelength {wlstr}m'
+        n0str = (f'{self.amplitude:.2f}'
+                 if self.amplitude > 0.1
+                 else f'{self.amplitude:.2E}')
+        tstr = (f'{self.period:.2f}'
+                if self.period > 0.1
+                else f'{self.period:.2E}')
+        wlstr = (f'{self.wavelength:.0f}'
+                 if self.wavelength > 1
+                 else f'{self.wavelength:.2E}')
+        string = (f"Wave object of wave height {n0str}m, "
+                  f"period {tstr}s and wavelength {wlstr}m")
         if self.beta > 0:
             string += f' growing over a time scale of {1/self.beta}s'
         return string
 
     def amp(self, t):
-        """
-
-        Parameters
-        ----------
-        t : 
-            
-
-        Returns
-        -------
-        
-            
-        """
         if self.beta == 0:
             output = self.amplitude
         else:
             output = self.amplitude * (1 - np.e**(-self.beta * t))
-        return(output)
+        return output
 
     def calc_phase(self, x, t, **kwargs):
         floes = []
@@ -112,7 +113,7 @@ class Wave(object):
                     phi0 = value
                     calc_phi0 = False
                 elif len(value) == len(x):
-                    return(value)
+                    return value
             elif key == 'floes':
                 floes = value
             elif key == 'iF':
@@ -130,7 +131,8 @@ class Wave(object):
                 else:
                     k = floe.kw
             else:
-                k = calc_k(self.ang_frequency / (2 * np.pi), floe.h, DispType=floe.DispType)
+                k = calc_k(self.ang_frequency / (2 * np.pi),
+                           floe.h, DispType=floe.DispType)
 
             # Phase under the floe
             if calc_phi0:
@@ -139,14 +141,19 @@ class Wave(object):
                 phip = phase[ind]
                 xp = x[ind]
                 # computes the phase at point x0, where the floe starts
-                phi0 = phip[0] + (floe.x0 - xp[0]) * (phip[1] - phip[0]) / (xp[1] - xp[0])
+                phi0 = (phip[0]
+                        + (floe.x0 - xp[0])
+                        * (phip[1] - phip[0])
+                        / (xp[1] - xp[0]))
                 floe.phi0 = phi0
 
             ind = (x >= floe.x0) * (x <= floe.x0 + floe.L)
             phase[ind] = phi0 + k * (x[ind] - floe.x0)
             # Remaining domain (assume water, other floes will be looped over)
             ind = x > floe.x0 + floe.L
-            phase[ind] = phi0 + k * floe.L + self.wavenumber * (x[ind] - floe.x0 - floe.L)
+            phase[ind] = (phi0
+                          + k * floe.L
+                          + self.wavenumber * (x[ind] - floe.x0 - floe.L))
 
         return phase
 
@@ -179,8 +186,9 @@ class Wave(object):
     def mslf(self, x0, L, t):
         A = self.amp(t) / (self.wavenumber * L)
         P1 = np.cos(self.wavenumber * x0 - self.ang_frequency * t + self.phase)
-        P2 = np.cos(self.wavenumber * (x0 + L) - self.ang_frequency * t + self.phase)
-        return(A * (P1 - P2))
+        P2 = np.cos(self.wavenumber * (x0 + L)
+                    - self.ang_frequency * t + self.phase)
+        return A * (P1 - P2)
 
     def plot(self, x, t, **kwargs):
         # Sea surface plot
@@ -190,10 +198,11 @@ class Wave(object):
         else:
             hax.plot(x, self.waves(x, t))
 
-        return(fig, hax)
+        return fig, hax
 
     def amp_att(self, x, a0, floes):
-        # Note:  for a single wave, E = (1/8) * rho_w * g * H^2 (laing1998guide)
+        # Note:  for a single wave,
+        # E = (1/8) * rho_w * g * H^2 (laing1998guide)
         # Note2: attenuation is calculated using Sutherland et al, 2019
         #        with free parameter \epsilon \Delta_0 = 0.5 from BicWin Data
 
@@ -212,10 +221,12 @@ class Wave(object):
         for iF in range(nF):
             floes[iF].a0 = a0
             pFloe = (x >= floes[iF].x0) * (x <= floes[iF].x0 + floes[iF].L)
-            xvec = np.append([floes[iF].x0], np.append(x[pFloe], floes[iF].x0 + floes[iF].L))
+            xvec = np.append([floes[iF].x0],
+                             np.append(x[pFloe],
+                                       floes[iF].x0 + floes[iF].L))
             avec = a_att(xvec - floes[iF].x0, floes[iF], a0, self.wavenumber)
             ax[pFloe] = avec[1:-1]
             ax[x > floes[iF].xF[-1]] = avec[-1]
             a0 = avec[-1]
 
-        return(ax)
+        return ax
