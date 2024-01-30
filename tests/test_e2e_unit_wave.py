@@ -61,6 +61,19 @@ constructor_arguments = {"amplitudes": (1, 1.1),
 constructor_combinations = list(itertools
                                 .product(*constructor_arguments.values()))
 
+old_to_new_map = {
+    "type": "type",
+    "n0": "amplitude",
+    "E0": "energy",
+    "wl": "wavelength",
+    "k": "wavenumber",
+    "omega": "ang_frequency",
+    "T": "period",
+    "beta": "beta",
+    "phi": "phase",
+}
+new_to_old_map = {v: k for k, v in old_to_new_map.items()}
+
 
 def test_attributes():
     attributes = ['type', 'n0', 'E0', 'wl', 'k', 'omega', 'T', 'beta', 'phi']
@@ -73,9 +86,14 @@ def test_attributes():
                 for att in attributes if att != "type"}
 
     for i, (amp, wl, beta, phi) in enumerate(constructor_combinations):
-        wave = Wave(amp, wl, beta=beta, phi=phi)
+        kwargs = {}
+        if beta is not None:
+            kwargs["beta"] = beta
+        if phi is not None:
+            kwargs["phase"] = phi
+        wave = Wave(amp, wl, **kwargs)
         for att in attributes:
-            df_dict[att][i] = getattr(wave, att)
+            df_dict[att][i] = getattr(wave, old_to_new_map[att])
     df = pl.from_dict(df_dict)
 
     df_src = pl.read_parquet(f"{SRC_TARGET}/attributes_reference.parquet")
@@ -95,7 +113,12 @@ def test_methods(method, args):
 
     for i, cstr_args in enumerate(constructor_combinations):
         amp, wl, beta, phi = cstr_args
-        wave = Wave(amp, wl, beta=beta, phi=phi)
+        kwargs = {}
+        if beta is not None:
+            kwargs["beta"] = beta
+        if phi is not None:
+            kwargs["phase"] = phi
+        wave = Wave(amp, wl, **kwargs)
 
         for j, _args in enumerate(argument_combinations):
             idx = i*n_met_args + j
@@ -111,6 +134,8 @@ def test_methods(method, args):
                     df_dict[k][idx] = v
 
             df_dict[method][idx] = getattr(wave, method)(*_args)
+    if method == "amp":
+        df_dict[method] = np.array(df_dict[method])
     df = pl.from_dict(df_dict)
     df_src = pl.read_parquet(f"{SRC_TARGET}/"
                              f"met_{method}_reference.parquet")
