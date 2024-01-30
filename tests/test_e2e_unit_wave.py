@@ -134,6 +134,8 @@ def test_methods(method, args):
                     df_dict[k][idx] = v
 
             df_dict[method][idx] = getattr(wave, method)(*_args)
+    if method == "amp":
+        df_dict[method] = np.array(df_dict[method])
     df = pl.from_dict(df_dict)
     df_src = pl.read_parquet(f"{SRC_TARGET}/"
                              f"met_{method}_reference.parquet")

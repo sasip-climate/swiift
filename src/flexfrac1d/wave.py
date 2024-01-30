@@ -9,8 +9,12 @@ Created on Tue Jan  4 13:23:01 2022
 import functools
 import numpy as np
 import matplotlib.pyplot as plt
+from typing import List
+from numpy.typing import ArrayLike
+
 from .pars import rho_w, g
 from .libraries.WaveUtils import calc_k
+from .ice import Floe
 
 
 class Wave(object):
@@ -94,39 +98,55 @@ class Wave(object):
             string += f' growing over a time scale of {1/self.beta}s'
         return string
 
-    def amp(self, t):
+    def amp(self, t: float) -> float:
+        """Time-dependent wave amplitude
+
+        Allow for wave growth when the parameter beta is non-zero.
+
+        Parameters
+        ----------
+        t : float
+            Timestep in s
+
+        Returns
+        -------
+        float
+            The computed amplitude in m
+
+        """
         if self.beta == 0:
-            output = self.amplitude
-        else:
-            output = self.amplitude * (1 - np.e**(-self.beta * t))
-        return output
+            return self.amplitude
+        return self.amplitude * (1 - np.exp(-self.beta * t))
 
-    def calc_phase(self, x, t, **kwargs):
+    def calc_phase(self,
+                   x: ArrayLike | float,
+                   t: float,
+                   phase: ArrayLike | float | None = None,
+                   floes: List[Floe] = [],
+                   iF: int | None = None) -> ArrayLike:
         floes = []
-        phi0 = self.phase
-        calc_phi0 = True
-        Spec = False
 
-        for key, value in kwargs.items():
-            if key == 'phi':
-                if np.isscalar(value):
-                    phi0 = value
-                    calc_phi0 = False
-                elif len(value) == len(x):
-                    return value
-            elif key == 'floes':
-                floes = value
-            elif key == 'iF':
-                iF = value
-                Spec = True
+        if phase is None:
+            calc_phi0 = True
+            phase = self.phase
+        else:
+            if np.isscalar(phase):
+                calc_phi0 = False
+            elif len(phase) == len(x):
+                return phase
+
+        if iF is not None:
+            spec = True
+        else:
+            spec = False
 
         # array of phase over the domain
-        phase = self.wavenumber * x - self.ang_frequency * t + phi0
+        phase = self.wavenumber*x - self.ang_frequency*t + phase
 
         # computes the phase along the floes from left to right
         for floe in floes:
             if hasattr(floe, 'kw'):
-                if Spec:
+                if spec:
                     k = floe.kw[iF]
                 else:
                     k = floe.kw
@@ -141,23 +161,23 @@ class Wave(object):
                 phip = phase[ind]
                 xp = x[ind]
                 # computes the phase at point x0, where the floe starts
-                phi0 = (phip[0]
-                        + (floe.x0 - xp[0])
-                        * (phip[1] - phip[0])
-                        / (xp[1] - xp[0]))
-                floe.phi0 = phi0
+                phase = (phip[0]
+                         + (floe.x0 - xp[0])
+                         * (phip[1] - phip[0])
+                         / (xp[1] - xp[0]))
+                floe.phi0 = phase
 
             ind = (x >= floe.x0) * (x <= floe.x0 + floe.L)
-            phase[ind] = phi0 + k * (x[ind] - floe.x0)
+            phase[ind] = phase + k * (x[ind] - floe.x0)
             # Remaining domain (assume water, other floes will be looped over)
             ind = x > floe.x0 + floe.L
-            phase[ind] = (phi0
+            phase[ind] = (phase
                           + k * floe.L
                           + self.wavenumber * (x[ind] - floe.x0 - floe.L))
 
         return phase
 
-    def waves(self, x, t, **kwargs):
+    def waves(self, x: ArrayLike, t: float, **kwargs):
         '''Computes the wave field over the domain,
            taking into account the different dispersion for water and ice'''
         amp = []
@@ -200,7 +220,10 @@ class Wave(object):
 
         return fig, hax
 
-    def amp_att(self, x, a0, floes):
+    def amp_att(self,
+                x: ArrayLike,
+                a0: float,
+                floes: List[Floe]) -> ArrayLike:
         # Note:  for a single wave,
         # E = (1/8) * rho_w * g * H^2 (laing1998guide)
         # Note2: attenuation is calculated using Sutherland et al, 2019
