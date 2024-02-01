@@ -2,6 +2,7 @@
 
 # To be used with flexfrac1D v0.1.0
 
+import hashlib
 import itertools
 import numpy as np
 import polars as pl
@@ -11,7 +12,6 @@ from flexfrac1d.ice import Floe
 
 
 DIR_TARGET = "gen_end_to_end/floe"
-BIG_NUM = 2**64
 DUM_WAVE = Wave(1, 100)
 
 
@@ -33,6 +33,17 @@ def sub_dict(dct, keys):
     return {k: dct[k] for k in keys}
 
 
+def get_digest(comb):
+    # thickness, left_edge, length, disp_rel, dx = comb
+    # if disp_rel is not None:
+    #     disp_rel = disp_rel.encode("utf-8")
+    h = hashlib.shake_256()
+    # for _t in thickness, left_edge, length, disp_rel, dx:
+    for _t in comb:
+        h.update(str(_t).encode("utf-8"))
+    return h.hexdigest(16)
+
+
 def gen_test_attributes(attributes, constructor_keys, combinations):
     n_combinations = len(combinations)
     df_dict = dict(zip(constructor_keys, zip(*combinations)))
@@ -45,7 +56,7 @@ def gen_test_attributes(attributes, constructor_keys, combinations):
     }
 
     for i, comb in enumerate(combinations):
-        _h = f"{hash(comb) % 2**64:x}"
+        _h = get_digest(comb)
         floe = get_floe(comb)
 
         for att in attributes:
@@ -231,7 +242,7 @@ def main():
     gen_test_attributes(
         attributes, constructor_arguments.keys(), constructor_combinations
     )
-    gen_test_methods(constructor_arguments, constructor_combinations, methods)
+    # gen_test_methods(constructor_arguments, constructor_combinations, methods)
 
 
 if __name__ == "__main__":
