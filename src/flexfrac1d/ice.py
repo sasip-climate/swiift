@@ -6,6 +6,7 @@ Created on Tue Jan  4 14:30:37 2022
 @author: auclaije
 """
 
+import functools
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,9 +20,9 @@ from itertools import combinations
 
 # from tqdm import tqdm
 
-from .libraries.ElasticMaterials import FracToughness, Lame
+from .libraries.ElasticMaterials import Lame
 from .libraries.WaveUtils import calc_k, calc_cg
-from .pars import g, rho_i, rho_w, E, v, K, Deriv101
+from .pars import g, rho_w, Deriv101
 
 
 class Floe(object):
@@ -31,99 +32,99 @@ class Floe(object):
             L:  floe length (m)
     """
 
-    def __init__(self, h, x0, L, **kwargs):
+    def __init__(
+        self,
+        thickness: float,
+        left_edge: float,
+        length: float,
+        density: float = 922.5,
+        youngs_modulus: float = 6e9,
+        poissons_ratio: float = 0.3,
+        frac_energy: float = 1e5,
+        dispersion: str = "ElML",
+        dx: float | None = None,
+    ):
+        self.__thickness = thickness
+        self.__left_edge = left_edge
+        self.__length = length
+        self.__density = density
+        self.__frac_energy = frac_energy
+        self.__poissons_ratio = poissons_ratio
+        self.__youngs_modulus = youngs_modulus
+        self.__dispersion = dispersion
+        self.__dx = dx if dx is not None else min(1, length / 100)
+        self.__xF = np.arange(left_edge, left_edge + length + self.dx / 2, self.dx)
 
-        self.h = h
-        self.x0 = x0
-        self.L = L
-        self.dx = min(1, L / 100)
-        self.hw = rho_i / rho_w * h
-        self.ha = h - self.hw
-        self.I = h**3 / (12 * (1 - v**2))
-        self.k = FracToughness(E, v, K)
-        self.E = E
-        self.v = v
+    @property
+    def thickness(self):
+        return self.__thickness
 
-        self.DispType = "ElML"
-        for key, value in kwargs.items():
-            if key == "DispType":
-                self.DispType = value
-            elif key == "dx":
-                self.dx = value
+    @property
+    def left_edge(self):
+        return self.__left_edge
 
-        self.xF = np.arange(x0, x0 + L + self.dx / 2, self.dx)
+    @property
+    def length(self):
+        return self.__length
 
-        self.initMatrix()
+    @property
+    def density(self):
+        return self.__density
 
-    def __repr__(self):
-        return f"Floe object ({self.h}, {self.x0:4.1f}, {self.L:4.1f})"
+    @property
+    def frac_energy(self):
+        return self.__frac_energy
 
-    def __str__(self):
-        return f"Floe object of thickness {self.h}m and length {self.L}m"
+    @property
+    def poissons_ratio(self):
+        return self.__poissons_ratio
 
-    def fracture(self, x_fracs):
-        """Returns the list of floes induced by fractures at points x_fracs
-        Input: x_fracs (list of float): list, tuple or float of fracture point(s) in (x0, x0+L)
-        Output: floes (list of floes): list of resulting floes
-        """
+    @property
+    def youngs_modulus(self):
+        return self.__youngs_modulus
 
-        # Sort the fractures to keep all breaking points (including edges)
-        if type(x_fracs) in {list, tuple}:
-            nFrac = len(x_fracs)
-            x_fracs = [self.x0] + sorted(x_fracs) + [self.x0 + self.L]
-        else:  # int or float
-            nFrac = 1
-            x_fracs = [self.x0, x_fracs, self.x0 + self.L]
-        if (not self.x0 < x_fracs[1]) or (not x_fracs[-2] < self.x0 + self.L):
-            print(
-                f"x0: {self.x0} - "
-                f"x_fracs[1]: {x_fracs[1]} - "
-                f"x_fracs[-2]: {x_fracs[-2]} - "
-                f"x0+L: {self.x0 + self.L}"
-            )
-            raise ValueError("Trying to fracture outside the floe")
+    @property
+    def dispersion(self):
+        return self.__dispersion
 
-        # Compute lengths and resulting floes
-        Lengths = [x_fracs[k + 1] - x_fracs[k] for k in range(nFrac + 1)]
-        floes = [
-            Floe(
-                self.h,
-                x_fracs[k],
-                Lengths[k],
-                DispType=self.DispType,
-                dx=min(self.dx, Lengths[k] / 100),
-            )
-            for k in range(nFrac + 1)
-        ]
+    @property
+    def dx(self):
+        return self.__dx
 
-        # Relay the wave attributes if present
-        if hasattr(self, "kw"):
-            for floe in floes:
-                floe.kw = self.kw
-        if hasattr(self, "cg"):
-            for floe in floes:
-                floe.cg = self.cg
-        if hasattr(self, "alpha"):
-            for floe in floes:
-                floe.alpha = self.alpha
+    @property
+    def xF(self):
+        return self.__xF
 
-        return floes
+    @functools.cached_property
+    def draft(self):
+        return self.density / rho_w * self.thickness
 
-    def z_calc(self, msl):
-        self.z = msl - self.hw + self.h / 2
+    @functools.cached_property
+    def freeboard(self):
+        return self.thickness - self.draft
 
-    def FlexA(self):
-        # Computes the np.array version of flex matrix
+    @functools.cached_property
+    def quad_moment(self):
+        return self.thickness**3 / (12 * (1 - self.poissons_ratio**2))
 
+    @functools.cached_property
+    def flex_rigidity(self):
+        return self.quad_moment * self.youngs_modulus
+
+    @functools.cached_property
+    def frac_toughness(self):
+        return (1 - self.poissons_ratio**2) * self.frac_energy**2 / self.youngs_modulus
+
+    @functools.cached_property
+    def disp_matrix(self):
         x = self.xF
-        I = self.I
 
         dx = x[1] - x[0]
         N = len(x)
 
         if N == 101:
             # For all floes at or under 100m, ie 101 points, use a precalculated matrix
-            self.A = (E * I / dx**4) * Deriv101 + (rho_w * g) * np.eye(101)
+            return self.flex_rigidity / dx**4 * Deriv101 + (rho_w * g) * np.eye(101)
         else:
             # Computes the five bands of the matrix -> centered differences
             A = (
@@ -143,18 +144,17 @@ class Floe(object):
             A[-2, [-4, -3, -2, -1]] = np.array([1, -4, 5, -2])
 
             # Derivation factor
-            A *= E * I / (dx**4)
+            A *= self.flex_rigidity / (dx**4)
 
             # Last term of homogeneous equation
             A += (rho_w * g) * np.eye(N)
 
-            self.A = A
+            return A
 
-    def FlexA_sparse(self):
-        # Computes the scipy.sparse version of the flex matrix
-
+    @functools.cached_property
+    def disp_matrix_sparse(self):
+        """Computes the scipy.sparse version of the flex matrix"""
         x = self.xF
-        I = self.I
         dx = x[1] - x[0]
         N = len(x)
 
@@ -172,21 +172,74 @@ class Floe(object):
         A[-1, [-3, -2, -1]] = np.array([2, -4, 2])
         A[-2, [-4, -3, -2, -1]] = np.array([1, -4, 5, -2])
 
-        A *= E * I / (dx**4)
+        A *= self.flex_rigidity / (dx**4)
         A += (rho_w * g) * sp.eye(N, format="csr")
 
-        self.Asp = A
+        return A
 
-    def initMatrix(self):
-        # Chooses matrix type (np.ndarray or scipy.sparse) to be more efficient
-        # -> cf Overleaf CodeEfficiency internship TLILI
-        N = len(self.xF)
-        if N > 250:
-            self.FlexA_sparse()
-        elif N >= 100:
-            self.FlexA()
-        else:
-            raise ValueError("Floe should have more points")
+    def __repr__(self):
+        return (
+            f"Floe object ({self.thickness}, {self.left_edge:4.1f}, {self.length:4.1f})"
+        )
+
+    def __str__(self):
+        return f"Floe object of thickness {self.thickness}m and length {self.length}m"
+
+    def fracture(self, x_fracs):
+        """Returns the list of floes induced by fractures at points x_fracs
+        Input: x_fracs (list of float): list, tuple or float of
+                fracture point(s) in (x0, x0+L)
+        Output: floes (list of floes): list of resulting floes
+        """
+
+        # Sort the fractures to keep all breaking points (including edges)
+        if type(x_fracs) in {list, tuple}:
+            nFrac = len(x_fracs)
+            x_fracs = (
+                [self.left_edge] + sorted(x_fracs) + [self.left_edge + self.length]
+            )
+        else:  # int or float
+            nFrac = 1
+            x_fracs = [self.left_edge, x_fracs, self.left_edge + self.length]
+        if (not self.left_edge < x_fracs[1]) or (
+            not x_fracs[-2] < self.left_edge + self.length
+        ):
+            print(
+                f"x0: {self.left_edge} - "
+                f"x_fracs[1]: {x_fracs[1]} - "
+                f"x_fracs[-2]: {x_fracs[-2]} - "
+                f"x0+L: {self.left_edge + self.length}"
+            )
+            raise ValueError("Trying to fracture outside the floe")
+
+        # Compute lengths and resulting floes
+        Lengths = [x_fracs[k + 1] - x_fracs[k] for k in range(nFrac + 1)]
+        floes = [
+            Floe(
+                self.thickness,
+                x_fracs[k],
+                Lengths[k],
+                dispersion=self.dispersion,
+                dx=min(self.dx, Lengths[k] / 100),
+            )
+            for k in range(nFrac + 1)
+        ]
+
+        # Relay the wave attributes if present
+        if hasattr(self, "kw"):
+            for floe in floes:
+                floe.kw = self.kw
+        if hasattr(self, "cg"):
+            for floe in floes:
+                floe.cg = self.cg
+        if hasattr(self, "alpha"):
+            for floe in floes:
+                floe.alpha = self.alpha
+
+        return floes
+
+    def z_calc(self, msl):
+        self.z = msl - self.draft + self.thickness / 2
 
     def mslf_int(self, wv):
         x = self.xF
@@ -196,23 +249,23 @@ class Floe(object):
         b = -rho_w * g * (wvf - self.mslf_int(wvf))
         if wvf.size > 250:
             # Use of sparse properties to improve efficiency #points >> 1
-            self.w = spsolve(self.Asp, b)
+            self.w = spsolve(self.disp_matrix_sparse, b)
         else:
             try:
-                self.w = np.linalg.solve(self.A, b)
+                self.w = np.linalg.solve(self.disp_matrix, b)
             except np.linalg.LinAlgError:
                 errorFile = open(os.getcwd() + "/LinAlgError.txt", "a")
                 errorFile.write(
-                    f"h = {self.h}\n"
-                    f"x0 = {self.x0}\n"
-                    f"L = {self.L}\n"
+                    f"h = {self.thickness}\n"
+                    f"x0 = {self.left_edge}\n"
+                    f"L = {self.length}\n"
                     f"dx = {self.dx}\n"
                     f"b = {b}\n"
                 )
                 errorFile.close()
                 # Solve the problem with a least squares method
                 try:
-                    solution = np.linalg.lstsq(self.A, b)
+                    solution = np.linalg.lstsq(self.disp_matrix, b)
                     self.w = solution[0]
                     errorFile = open(os.getcwd() + "/LinAlgError.txt", "a")
                     errorFile.write(f"rank of A = {solution[2]}\n\n")
@@ -280,11 +333,11 @@ class Floe(object):
 
         if EType == "Disp":
             intV = self.calc_du()
-            (l, u) = Lame(E, v)
+            (l, u) = Lame(self.youngs_modulus, self.poissons_ratio)
             prefac = u
         elif EType == "Flex":
             intV = self.calc_curv()
-            prefac = (1 / 2) * E * self.I / self.h
+            prefac = (1 / 2) * self.flex_rigidity / self.thickness
 
         int2 = (
             intV[0] ** 2 / 2 + intV[-1] ** 2 / 2 + (intV[1:-1] ** 2).sum()
@@ -299,9 +352,11 @@ class Floe(object):
     ):
         """Computes the resulting energy is a fracture occurs at indices iFrac
         Inputs:
-            iFrac (int or list of int): points where an hypothetical fracture would occur
+            iFrac (int or list of int): points where an hypothetical fracture
+            would occur
             verbose (bolean): True for a list of energy, false for just a sum
-            recompute (boolean): whether the floes need to be initialized even if their energy is known
+            recompute (boolean): whether the floes need to be initialized even
+            if their energy is known
         Outputs:
             xFracs (list of float): points of fracture
             Eel (float): resulting elastic energy
@@ -335,7 +390,9 @@ class Floe(object):
                 else:
                     a_vec = wave.amp_att(self.xF, self.a0, [self])
                     floes[iF].a0 = a_vec[iFracs[iF]]
-                    floes[iF].phi0 = self.phi0 + self.kw * (floes[iF].x0 - self.x0)
+                    floes[iF].phi0 = self.phi0 + self.kw * (
+                        floes[iF].left_edge - self.left_edge
+                    )
                     wvf = wave.waves(
                         floes[iF].xF,
                         t,
@@ -405,12 +462,13 @@ class Floe(object):
                 # for iFracs in tqdm(indicesFrac, desc=f'Fracture Loop {numberFrac}')]
                 e_lists[numberFrac] = e_temp
                 energiesTot = [
-                    sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]
+                    sum(e_list) + numberFrac * self.frac_toughness
+                    for e_list in e_lists[numberFrac]
                 ]
             else:
                 energiesTot = [
                     self.computeEnergyIfFrac(iFracs, wave, t, EType)[1]
-                    + numberFrac * self.k
+                    + numberFrac * self.frac_toughness
                     for iFracs in indicesFrac
                 ]
 
@@ -430,7 +488,9 @@ class Floe(object):
         return xFracs, floes, Et_min, e_lists
 
     def computeEnergySubFloe(self, istart, iend, wave, t, EType):
-        """Computes the elastic energy of a floe from position self.xF[istart] to position self.xF[iend]
+        """Computes the elastic energy of a floe
+
+        Energy is computed from position self.xF[istart] to position self.xF[iend]
         Inputs:
             istart (int): index of the left edge in the parent floe (self)
             iend (int): index of the right edge
@@ -440,10 +500,10 @@ class Floe(object):
         """
         floeLength = self.xF[iend] - self.xF[istart]
         floe = Floe(
-            self.h,
+            self.thickness,
             self.xF[istart],
             floeLength,
-            DispType=self.DispType,
+            DispType=self.dispersion,
             dx=min(self.dx, floeLength / 100),
         )
 
@@ -468,7 +528,9 @@ class Floe(object):
         self.energiesMatrix[istart, iend] = EelFloe
 
     def FindE_min(self, wave, t, multiFrac=False, EType="Flex"):
-        """Finds the minimizing fracture in the floe, using Dijkstra method for multifracturing
+        """Finds the minimizing fracture in the floe,
+
+        The Dijkstra method is used for multifracturing
         Inputs:
             multiFrac (bool): whether a multifrac search is wanted or not
             wave, t, EType: usual
@@ -497,13 +559,13 @@ class Floe(object):
             for iFrac in iFracValues:
                 self.computeEnergySubFloe(0, iFrac, wave, t, EType)
                 Eel_left = self.energiesMatrix[0, iFrac]
-                if Eel_left + self.k > self.Eel:
+                if Eel_left + self.frac_toughness > self.Eel:
                     # Do not compute right floe energy if already not optimal
                     Etots[iFrac] = 2 * self.Eel
                 else:
                     self.computeEnergySubFloe(iFrac, rightMostIndex, wave, t, EType)
                     Eel_right = self.energiesMatrix[iFrac, rightMostIndex]
-                    Etots[iFrac] = Eel_left + Eel_right + self.k
+                    Etots[iFrac] = Eel_left + Eel_right + self.frac_toughness
 
             # Find minimal energy and reconstruct floe
             iFrac = np.argmin(Etots)
@@ -522,7 +584,7 @@ class Floe(object):
             # the subgraph of points to visit and the ancestors
             energeticCost = np.full(len(self.xF), np.infty, dtype=np.float64)
             energeticCost[0] = (
-                -self.k
+                -self.frac_toughness
             )  # To cancel the cost of fracturation at the first step
             toVisit = np.full(len(self.xF), True)
             ancestors = np.full(len(self.xF), -1)
@@ -534,8 +596,9 @@ class Floe(object):
 
             # Awsers the question: Is it relevant to add inew in the path to iold ?
             def updateEnergeticCost(iold, inew):
-                # Do not compute energy of next subfloe if we already know the path is sub-optimal
-                if energeticCost[inew] + self.k > self.Eel:
+                # Do not compute energy of next subfloe if we already know the
+                # path is sub-optimal
+                if energeticCost[inew] + self.frac_toughness > self.Eel:
                     return
 
                 if self.energiesMatrix[inew, iold] < 0:
@@ -545,10 +608,10 @@ class Floe(object):
                 # Update current optimal path
                 if (
                     energeticCost[iold]
-                    > energeticCost[inew] + energyElas_NewFloe + self.k
+                    > energeticCost[inew] + energyElas_NewFloe + self.frac_toughness
                 ):
                     energeticCost[iold] = (
-                        energeticCost[inew] + energyElas_NewFloe + self.k
+                        energeticCost[inew] + energyElas_NewFloe + self.frac_toughness
                     )
                     ancestors[iold] = inew
 
@@ -581,7 +644,7 @@ class Floe(object):
                 xFracs, Et_min, floes = self.computeEnergyIfFrac(
                     iFracs, wave, t, EType=EType, verbose=False, recompute=True
                 )
-                Etot_min_PostComputed = Et_min + len(xFracs) * self.k
+                Etot_min_PostComputed = Et_min + len(xFracs) * self.frac_toughness
                 if np.abs(Etot_min - Etot_min_PostComputed) > 1e-6:
                     raise ValueError(
                         f"Energies are not equals...\n"
@@ -594,7 +657,7 @@ class Floe(object):
 
     def calc_strain(self):
         dw2 = self.calc_curv()
-        self.strain = self.h * dw2 / 2
+        self.strain = self.thickness * dw2 / 2
 
     def plot(self, x, t, wvf, *args):
         if len(args) == 2:
@@ -617,32 +680,32 @@ class Floe(object):
             fitw = np.polyfit(self.xF, self.w, 1)
             slope = fitw[0]
 
-        sfac = slope * self.L / 2
+        sfac = slope * self.length / 2
         z_vec = np.array([sfac, -sfac])
 
         hax.plot(xv, z_vec + msl, "b:")
         hax.plot(xv, z_vec + self.z, "r:")
-        hax.plot(xv, z_vec + msl + self.ha, "c:")
-        hax.plot(xv, z_vec + msl - self.hw, "k:")
+        hax.plot(xv, z_vec + msl + self.freeboard, "c:")
+        hax.plot(xv, z_vec + msl - self.draft, "k:")
 
         hax.plot(self.xF, -self.w + self.z, "r")
-        hax.plot(self.xF, -self.w + msl + self.ha, "c")
-        hax.plot(self.xF, -self.w + msl - self.hw, "k")
+        hax.plot(self.xF, -self.w + msl + self.freeboard, "c")
+        hax.plot(self.xF, -self.w + msl - self.draft, "k")
 
         return (fig, hax)
 
     def calc_alpha(self, kw=0):
         if kw == 0:
             kw = self.kw
-        return (1 / 4) * kw**2 * self.h
+        return (1 / 4) * kw**2 * self.thickness
 
     def setWPars(self, wave):
         if wave.type == "WaveSpec":
             self.kw = np.zeros_like(wave.f)
             self.cg = np.zeros_like(wave.f)
-            self.kw = calc_k(wave.f, self.h, DispType=self.DispType)
-            self.cg = calc_cg(self.kw, self.h, DispType=self.DispType)
+            self.kw = calc_k(wave.f, self.thickness, DispType=self.dispersion)
+            self.cg = calc_cg(self.kw, self.thickness, DispType=self.dispersion)
         else:
-            self.kw = calc_k(wave.f, self.h, DispType=self.DispType)
+            self.kw = calc_k(wave.f, self.thickness, DispType=self.dispersion)
 
         self.alpha = self.calc_alpha()
