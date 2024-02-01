@@ -25,16 +25,22 @@ h = 1  # ice thickness (m)
 u = 5  # wind speed (m/s)
 f = 0.25  # frequency (Hz)
 wl = g / (2 * np.pi * f**2)
-SpecType = 'JONSWAP'
+SpecType = "JONSWAP"
 tail_fac = 2  # wavelength factor for exponential decay past the last energetic point
 n = -2  # power law exponent
 n0 = 1  # wave amplitude (m)
 
-FractureCriterion = 'Energy'
+FractureCriterion = "Energy"
 multiFrac = True
 
 N = 101
-Deriv101 = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) + np.eye(N, k=2) + np.eye(N, k=-2)
+Deriv101 = (
+    6 * np.eye(N)
+    - 4 * np.eye(N, k=1)
+    - 4 * np.eye(N, k=-1)
+    + np.eye(N, k=2)
+    + np.eye(N, k=-2)
+)
 # First two rows can't use centered difference
 Deriv101[0, [0, 1, 2]] = np.array([2, -4, 2])
 Deriv101[1, [0, 1, 2, 3]] = np.array([-2, 5, -4, 1])

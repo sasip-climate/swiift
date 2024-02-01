@@ -128,10 +128,11 @@ class Wave(object):
         x: ArrayLike | float,
         t: float,
         phase: ArrayLike | float | None = None,
-        floes: List[Floe] = [],
+        floes: List[Floe] = None,
         iF: int | None = None,
     ) -> ArrayLike:
-        floes = []
+        if floes is None:
+            floes = []
 
         if phase is None:
             calc_phi0 = True
@@ -165,21 +166,23 @@ class Wave(object):
             # Phase under the floe
             if calc_phi0:
                 # gets two last phase values before entering the floe
-                ind = np.where(x <= floe.x0)[0][-2:]
+                ind = np.where(x <= floe.left_edge)[0][-2:]
                 phip = phase[ind]
                 xp = x[ind]
                 # computes the phase at point x0, where the floe starts
-                phase = phip[0] + (floe.x0 - xp[0]) * (phip[1] - phip[0]) / (
+                phase = phip[0] + (floe.left_edge - xp[0]) * (phip[1] - phip[0]) / (
                     xp[1] - xp[0]
                 )
                 floe.phi0 = phase
 
-            ind = (x >= floe.x0) * (x <= floe.x0 + floe.L)
-            phase[ind] = phase + k * (x[ind] - floe.x0)
+            ind = (x >= floe.left_edge) * (x <= floe.left_edge + floe.length)
+            phase[ind] = phase + k * (x[ind] - floe.left_edge)
             # Remaining domain (assume water, other floes will be looped over)
-            ind = x > floe.x0 + floe.L
+            ind = x > floe.left_edge + floe.length
             phase[ind] = (
-                phase + k * floe.L + self.wavenumber * (x[ind] - floe.x0 - floe.L)
+                phase
+                + k * floe.length
+                + self.wavenumber * (x[ind] - floe.left_edge - floe.length)
             )
 
         return phase
@@ -241,16 +244,19 @@ class Wave(object):
         # Initialize wave amplitude. No attenuation in open waters
         # Note: no attenuation at the first point of a floe
         ax = np.zeros_like(x, dtype=float)
-        ax[x <= floes[0].x0] = a0
+        ax[x <= floes[0].left_edge] = a0
 
         nF = len(floes)
         for iF in range(nF):
             floes[iF].a0 = a0
-            pFloe = (x >= floes[iF].x0) * (x <= floes[iF].x0 + floes[iF].L)
-            xvec = np.append(
-                [floes[iF].x0], np.append(x[pFloe], floes[iF].x0 + floes[iF].L)
+            pFloe = (x >= floes[iF].left_edge) * (
+                x <= floes[iF].left_edge + floes[iF].length
             )
-            avec = a_att(xvec - floes[iF].x0, floes[iF], a0, self.wavenumber)
+            xvec = np.append(
+                [floes[iF].left_edge],
+                np.append(x[pFloe], floes[iF].left_edge + floes[iF].length),
+            )
+            avec = a_att(xvec - floes[iF].left_edge, floes[iF], a0, self.wavenumber)
             ax[pFloe] = avec[1:-1]
             ax[x > floes[iF].xF[-1]] = avec[-1]
             a0 = avec[-1]

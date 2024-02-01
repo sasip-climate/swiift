@@ -23,7 +23,7 @@ def get_floe(comb, wave=None):
     thickness, left_edge, length, disp_rel, dx = comb
     kwargs = dict()
     if disp_rel is not None:
-        kwargs["DispType"] = disp_rel
+        kwargs["dispersion"] = disp_rel
     if dx is not None:
         kwargs["dx"] = dx
 
@@ -89,6 +89,21 @@ constructor_arguments = {
 }
 constructor_combinations = list(itertools.product(*constructor_arguments.values()))
 
+old_to_new_map = {
+    "h": "thickness",
+    "x0": "left_edge",
+    "L": "length",
+    "dx": "dx",
+    "hw": "draft",
+    "ha": "freeboard",
+    "I": "quad_moment",
+    "k": "frac_toughness",
+    "E": "youngs_modulus",
+    "v": "poissons_ratio",
+    "DispType": "dispersion",
+}
+new_to_old_map = {v: k for k, v in old_to_new_map.items()}
+
 
 def test_attributes():
     attributes = [
@@ -108,7 +123,7 @@ def test_attributes():
     ]
     n_combinations = len(constructor_combinations)
     df_dict = dict(zip(constructor_arguments.keys(), zip(*constructor_combinations)))
-    problematic_attributes = ("DispType", "xF", "A", "Asp")
+    problematic_attributes = ("DispType", "xF", "A")
     df_dict["DispType"] = n_combinations * [None]
     df_dict |= {
         att: np.full(n_combinations, np.nan)
@@ -122,20 +137,15 @@ def test_attributes():
 
         for att in attributes:
             if att not in problematic_attributes or att == "DispType":
-                df_dict[att][i] = getattr(floe, att)
+                df_dict[att][i] = getattr(floe, old_to_new_map[att])
             else:
                 if att == "xF":
                     truth = np.loadtxt(f"{SRC_TARGET}/att_{att}_{_h}.csv")
                     assert np.allclose(truth, floe.xF)
                 else:
-                    is_sp = False
-                    try:
-                        arr = floe.A
-                    except AttributeError:
-                        is_sp = True
-                        arr = floe.Asp
+                    is_sp = floe.xF.size > 250
                     if is_sp:
-                        # sparse.save_npz(f"{DIR_TARGET}/att_{att}_{_h}.npz", arr)
+                        arr = floe.disp_matrix_sparse
                         truth = sparse.load_npz(f"{SRC_TARGET}/att_{att}_{_h}.npz")
                         assert (
                             np.all(truth.indptr == arr.indptr)
@@ -143,9 +153,9 @@ def test_attributes():
                             and np.allclose(truth.data, arr.data)
                         )
                     else:
+                        arr = floe.disp_matrix
                         truth = np.loadtxt(f"{SRC_TARGET}/att_{att}_{_h}.csv")
                         assert np.allclose(truth, arr)
-                        # np.savetxt(f"{DIR_TARGET}/att_{att}_{_h}.csv", arr)
     df = pl.from_dict(df_dict)
 
     df_src = pl.read_parquet(f"{SRC_TARGET}/attributes_reference.parquet")
@@ -215,7 +225,8 @@ def test_methods(method, args):
                     raise e
             if method == "fracture":
                 df_dict[method][idx] = [
-                    [floe.h, floe.x0, floe.L] for floe in df_dict[method][idx]
+                    [floe.thickness, floe.left_edge, floe.length]
+                    for floe in df_dict[method][idx]
                 ]
 
     df = pl.from_dict(df_dict)

@@ -140,7 +140,9 @@ def test_methods(method, args):
                     # cast to list necessary for Polars not to scream
                     df_dict[k][idx] = list(np.atleast_1d(v))
                 elif k == "floes":
-                    df_dict[k][idx] = [(_f.h, _f.x0, _f.L) for _f in v]
+                    df_dict[k][idx] = [
+                        (_f.thickness, _f.left_edge, _f.length) for _f in v
+                    ]
                 else:
                     df_dict[k][idx] = v
 
