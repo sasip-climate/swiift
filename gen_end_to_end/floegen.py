@@ -242,7 +242,7 @@ def main():
     gen_test_attributes(
         attributes, constructor_arguments.keys(), constructor_combinations
     )
-    # gen_test_methods(constructor_arguments, constructor_combinations, methods)
+    gen_test_methods(constructor_arguments, constructor_combinations, methods)
 
 
 if __name__ == "__main__":
