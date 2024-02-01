@@ -55,6 +55,10 @@ class Wave(object):
         return np.sqrt(g * self.wavenumber)
 
     @functools.cached_property
+    def f(self):
+        return 1 / self.period  # TODO: temp, before changing ice
+
+    @functools.cached_property
     def period(self):
         return 2 * np.pi / self.ang_frequency
 
