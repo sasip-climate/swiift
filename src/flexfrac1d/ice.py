@@ -16,6 +16,7 @@ import scipy.sparse as sp
 
 # For multifracturing
 from itertools import combinations
+
 # from tqdm import tqdm
 
 from .libraries.ElasticMaterials import FracToughness, Lame
@@ -24,7 +25,7 @@ from .pars import g, rho_i, rho_w, E, v, K, Deriv101
 
 
 class Floe(object):
-    """ Floe object for floe breaking experiment
+    """Floe object for floe breaking experiment
     Inputs: h:  ice thickness (m)
             x0: first point within the floe (m)
             L:  floe length (m)
@@ -43,11 +44,11 @@ class Floe(object):
         self.E = E
         self.v = v
 
-        self.DispType = 'ElML'
+        self.DispType = "ElML"
         for key, value in kwargs.items():
-            if key == 'DispType':
+            if key == "DispType":
                 self.DispType = value
-            elif key == 'dx':
+            elif key == "dx":
                 self.dx = value
 
         self.xF = np.arange(x0, x0 + L + self.dx / 2, self.dx)
@@ -55,16 +56,16 @@ class Floe(object):
         self.initMatrix()
 
     def __repr__(self):
-        return(f'Floe object ({self.h}, {self.x0:4.1f}, {self.L:4.1f})')
+        return f"Floe object ({self.h}, {self.x0:4.1f}, {self.L:4.1f})"
 
     def __str__(self):
-        return(f'Floe object of thickness {self.h}m and length {self.L}m')
+        return f"Floe object of thickness {self.h}m and length {self.L}m"
 
     def fracture(self, x_fracs):
-        ''' Returns the list of floes induced by fractures at points x_fracs
+        """Returns the list of floes induced by fractures at points x_fracs
         Input: x_fracs (list of float): list, tuple or float of fracture point(s) in (x0, x0+L)
         Output: floes (list of floes): list of resulting floes
-        '''
+        """
 
         # Sort the fractures to keep all breaking points (including edges)
         if type(x_fracs) in {list, tuple}:
@@ -74,25 +75,35 @@ class Floe(object):
             nFrac = 1
             x_fracs = [self.x0, x_fracs, self.x0 + self.L]
         if (not self.x0 < x_fracs[1]) or (not x_fracs[-2] < self.x0 + self.L):
-            print(f'x0: {self.x0} - '
-                  f'x_fracs[1]: {x_fracs[1]} - '
-                  f'x_fracs[-2]: {x_fracs[-2]} - '
-                  f'x0+L: {self.x0 + self.L}')
+            print(
+                f"x0: {self.x0} - "
+                f"x_fracs[1]: {x_fracs[1]} - "
+                f"x_fracs[-2]: {x_fracs[-2]} - "
+                f"x0+L: {self.x0 + self.L}"
+            )
             raise ValueError("Trying to fracture outside the floe")
 
         # Compute lengths and resulting floes
         Lengths = [x_fracs[k + 1] - x_fracs[k] for k in range(nFrac + 1)]
-        floes = [Floe(self.h, x_fracs[k], Lengths[k], DispType=self.DispType,
-                      dx=min(self.dx, Lengths[k] / 100)) for k in range(nFrac + 1)]
+        floes = [
+            Floe(
+                self.h,
+                x_fracs[k],
+                Lengths[k],
+                DispType=self.DispType,
+                dx=min(self.dx, Lengths[k] / 100),
+            )
+            for k in range(nFrac + 1)
+        ]
 
         # Relay the wave attributes if present
-        if hasattr(self, 'kw'):
+        if hasattr(self, "kw"):
             for floe in floes:
                 floe.kw = self.kw
-        if hasattr(self, 'cg'):
+        if hasattr(self, "cg"):
             for floe in floes:
                 floe.cg = self.cg
-        if hasattr(self, 'alpha'):
+        if hasattr(self, "alpha"):
             for floe in floes:
                 floe.alpha = self.alpha
 
@@ -115,8 +126,13 @@ class Floe(object):
             self.A = (E * I / dx**4) * Deriv101 + (rho_w * g) * np.eye(101)
         else:
             # Computes the five bands of the matrix -> centered differences
-            A = 6 * np.eye(N) - 4 * np.eye(N, k=1) - 4 * np.eye(N, k=-1) \
-                + np.eye(N, k=2) + np.eye(N, k=-2)
+            A = (
+                6 * np.eye(N)
+                - 4 * np.eye(N, k=1)
+                - 4 * np.eye(N, k=-1)
+                + np.eye(N, k=2)
+                + np.eye(N, k=-2)
+            )
 
             # First two rows can't use centered difference
             A[0, [0, 1, 2]] = np.array([2, -4, 2])
@@ -145,7 +161,9 @@ class Floe(object):
         # Diagonal bands
         C0 = np.ones(N)
 
-        A = sp.spdiags([C0, -4 * C0, 6 * C0, -4 * C0, C0], [-2, -1, 0, 1, 2], N, N, format='csr')
+        A = sp.spdiags(
+            [C0, -4 * C0, 6 * C0, -4 * C0, C0], [-2, -1, 0, 1, 2], N, N, format="csr"
+        )
         # First two rows can't use centered difference
         A[0, [0, 1, 2]] = np.array([2, -4, 2])
         A[1, [0, 1, 2, 3]] = np.array([-2, 5, -4, 1])
@@ -155,7 +173,7 @@ class Floe(object):
         A[-2, [-4, -3, -2, -1]] = np.array([1, -4, 5, -2])
 
         A *= E * I / (dx**4)
-        A += (rho_w * g) * sp.eye(N, format='csr')
+        A += (rho_w * g) * sp.eye(N, format="csr")
 
         self.Asp = A
 
@@ -168,11 +186,11 @@ class Floe(object):
         elif N >= 100:
             self.FlexA()
         else:
-            raise ValueError('Floe should have more points')
+            raise ValueError("Floe should have more points")
 
     def mslf_int(self, wv):
         x = self.xF
-        return (wv[:-1].sum() + wv[1:].sum()) * (x[1] - x[0]) / ( 2 * (x[-1] - x[0]))
+        return (wv[:-1].sum() + wv[1:].sum()) * (x[1] - x[0]) / (2 * (x[-1] - x[0]))
 
     def calc_w(self, wvf):
         b = -rho_w * g * (wvf - self.mslf_int(wvf))
@@ -183,49 +201,51 @@ class Floe(object):
             try:
                 self.w = np.linalg.solve(self.A, b)
             except np.linalg.LinAlgError:
-                errorFile = open(os.getcwd() + '/LinAlgError.txt', 'a')
-                errorFile.write(f'h = {self.h}\n'
-                                f'x0 = {self.x0}\n'
-                                f'L = {self.L}\n'
-                                f'dx = {self.dx}\n'
-                                f'b = {b}\n')
+                errorFile = open(os.getcwd() + "/LinAlgError.txt", "a")
+                errorFile.write(
+                    f"h = {self.h}\n"
+                    f"x0 = {self.x0}\n"
+                    f"L = {self.L}\n"
+                    f"dx = {self.dx}\n"
+                    f"b = {b}\n"
+                )
                 errorFile.close()
                 # Solve the problem with a least squares method
                 try:
                     solution = np.linalg.lstsq(self.A, b)
                     self.w = solution[0]
-                    errorFile = open(os.getcwd() + '/LinAlgError.txt', 'a')
-                    errorFile.write(f'rank of A = {solution[2]}\n\n')
+                    errorFile = open(os.getcwd() + "/LinAlgError.txt", "a")
+                    errorFile.write(f"rank of A = {solution[2]}\n\n")
                     errorFile.close()
                 except np.linalg.LinAlgError:
                     raise ValueError("Computation of w does not converge")
 
-    def calc_du(self, fname=''):
+    def calc_du(self, fname=""):
         x = self.xF
         w = self.w
         dx = x[1] - x[0]
 
         dw = np.zeros(len(w))
-        dw[0]  = (-3 * w[0]  + 4 * w[1]  - w[2])
-        dw[-1] = ( 3 * w[-1] - 4 * w[-2] + w[-3])
-        dw[1:-1] = (-w[:-2] + w[2:])
+        dw[0] = -3 * w[0] + 4 * w[1] - w[2]
+        dw[-1] = 3 * w[-1] - 4 * w[-2] + w[-3]
+        dw[1:-1] = -w[:-2] + w[2:]
         dw = dw / (2 * dx)
 
         # Remove constant dwdx from the set, to account for rotation of the floe
         fit = np.polyfit(x, dw, 0)
-        self.du = dw  - fit[0]
+        self.du = dw - fit[0]
 
         if len(fname) > 0:
             fitw = np.polyfit(x, w, 1)
             fig, hax = plt.subplots(1, 2)
 
             hax[0].plot(x - x[0], w)
-            hax[0].plot(x - x[0], x * fitw[0] + fitw[1], ':')
-            hax[0].set_title(f'Deformations fit:\n {fitw[0]:0.6}x + {fitw[1]:0.6}')
+            hax[0].plot(x - x[0], x * fitw[0] + fitw[1], ":")
+            hax[0].set_title(f"Deformations fit:\n {fitw[0]:0.6}x + {fitw[1]:0.6}")
 
             hax[1].plot(x - x[0], dw)
-            hax[1].plot(x - x[0], fit * np.ones_like(x), ':')
-            hax[1].set_title(f'Deformation gradient: {fit[0]:.6f}\n')
+            hax[1].plot(x - x[0], fit * np.ones_like(x), ":")
+            hax[1].set_title(f"Deformation gradient: {fit[0]:.6f}\n")
 
             # plt.savefig(config.FigsDirFloes + '.png')
 
@@ -238,42 +258,46 @@ class Floe(object):
         dx = x[1] - x[0]
 
         d2w = np.zeros(len(w))
-        d2w[1:-1] = (w[:-2] - 2 * w[1:-1] + w[2:])
+        d2w[1:-1] = w[:-2] - 2 * w[1:-1] + w[2:]
         d2w = d2w / (dx**2)
 
         return d2w
 
     def calc_Eel(self, **kwargs):
-        EType = 'Flex'
+        EType = "Flex"
         calc_w = False
         for key, value in kwargs.items():
-            if key == 'wvf':
+            if key == "wvf":
                 wvf = value
                 calc_w = True
-            elif key == 'EType':
+            elif key == "EType":
                 EType = value
             else:
-                raise ValueError('Unknown input wave data type')
+                raise ValueError("Unknown input wave data type")
 
         if calc_w:
             self.calc_w(wvf)
 
-        if EType == 'Disp':
+        if EType == "Disp":
             intV = self.calc_du()
             (l, u) = Lame(E, v)
             prefac = u
-        elif EType == 'Flex':
+        elif EType == "Flex":
             intV = self.calc_curv()
             prefac = (1 / 2) * E * self.I / self.h
 
-        int2 = (intV[0]**2 / 2 + intV[-1]**2 / 2 + (intV[1:-1]**2).sum()) * self.dx
+        int2 = (
+            intV[0] ** 2 / 2 + intV[-1] ** 2 / 2 + (intV[1:-1] ** 2).sum()
+        ) * self.dx
 
         self.Eel = prefac * int2
 
-        return(self.Eel)
+        return self.Eel
 
-    def computeEnergyIfFrac(self, iFracs, wave, t, EType, verbose=False, recompute=False):
-        ''' Computes the resulting energy is a fracture occurs at indices iFrac
+    def computeEnergyIfFrac(
+        self, iFracs, wave, t, EType, verbose=False, recompute=False
+    ):
+        """Computes the resulting energy is a fracture occurs at indices iFrac
         Inputs:
             iFrac (int or list of int): points where an hypothetical fracture would occur
             verbose (bolean): True for a list of energy, false for just a sum
@@ -282,7 +306,7 @@ class Floe(object):
             xFracs (list of float): points of fracture
             Eel (float): resulting elastic energy
             floes (list of Floes): list of resulting floes
-        '''
+        """
 
         if isinstance(iFracs, (int, np.int32, np.int64)):
             iFracs = [iFracs]
@@ -306,14 +330,19 @@ class Floe(object):
             # Compute energie only if not already computed
             # or if the floes need to be initialized again at the end of the search
             if EelFloe < 0 or recompute:
-                if wave.type == 'WaveSpec':
+                if wave.type == "WaveSpec":
                     wvf = wave.calc_waves(floes[iF].xF)
                 else:
                     a_vec = wave.amp_att(self.xF, self.a0, [self])
                     floes[iF].a0 = a_vec[iFracs[iF]]
                     floes[iF].phi0 = self.phi0 + self.kw * (floes[iF].x0 - self.x0)
-                    wvf = wave.waves(floes[iF].xF, t, amp=floes[iF].a0,
-                                     phi=floes[iF].phi0, floes=[floes[iF]])
+                    wvf = wave.waves(
+                        floes[iF].xF,
+                        t,
+                        amp=floes[iF].a0,
+                        phi=floes[iF].phi0,
+                        floes=[floes[iF]],
+                    )
 
                 EelFloe = floes[iF].calc_Eel(EType=EType, wvf=wvf)
                 self.energiesMatrix[iFracs[iF], iFracs[iF + 1]] = EelFloe
@@ -329,7 +358,7 @@ class Floe(object):
             return xFracs, Eel, floes
 
     def FindE_minVerbose(self, maxFracs, wave, t, **kwargs):
-        ''' Finds the minimum of energy for all fracturation possible
+        """Finds the minimum of energy for all fracturation possible
         Inputs:
             maxFracs (int): maximum number of simultaneous fractures
             wave, t (usual)
@@ -338,22 +367,24 @@ class Floe(object):
             floes (list of Floe): resulting floes
             Et_min (float): minimal total energy
             Eel_floes (list): energy of each individual floe
-        '''
+        """
 
-        EType = 'Flex'
+        EType = "Flex"
         verbose = False
 
         for key, value in kwargs.items():
-            if key == 'EType':
+            if key == "EType":
                 EType = value
-            elif key == 'V':
+            elif key == "V":
                 verbose = value
 
         maxPosition = len(self.xF) - 1
         admissibleIndices = np.arange(start=1, stop=maxPosition, dtype=int)
 
         # Matrix of computed elastic energies is initialized with negative values
-        self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1, dtype=np.float64)
+        self.energiesMatrix = np.full(
+            (len(self.xF), len(self.xF)), -1, dtype=np.float64
+        )
 
         # Arrays to compare solutions given for different number of fractures
         energyMins = np.empty(maxFracs)  # Total energy
@@ -367,14 +398,21 @@ class Floe(object):
             # TODO: could be done a lot faster with parallelization or numpy operations
             # Array of all computed energies
             if verbose:
-                e_temp = [self.computeEnergyIfFrac(iFracs, wave, t, EType, verbose=True)[1]
-                          for iFracs in indicesFrac]
-                          # for iFracs in tqdm(indicesFrac, desc=f'Fracture Loop {numberFrac}')]
+                e_temp = [
+                    self.computeEnergyIfFrac(iFracs, wave, t, EType, verbose=True)[1]
+                    for iFracs in indicesFrac
+                ]
+                # for iFracs in tqdm(indicesFrac, desc=f'Fracture Loop {numberFrac}')]
                 e_lists[numberFrac] = e_temp
-                energiesTot = [sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]]
+                energiesTot = [
+                    sum(e_list) + numberFrac * self.k for e_list in e_lists[numberFrac]
+                ]
             else:
-                energiesTot = [self.computeEnergyIfFrac(iFracs, wave, t, EType)[1] + numberFrac * self.k
-                               for iFracs in indicesFrac]
+                energiesTot = [
+                    self.computeEnergyIfFrac(iFracs, wave, t, EType)[1]
+                    + numberFrac * self.k
+                    for iFracs in indicesFrac
+                ]
 
             # Find min and add it array of minimums
             indMin = np.argmin(energiesTot)
@@ -385,13 +423,14 @@ class Floe(object):
         globalMin = np.argmin(energyMins)
         Et_min = energyMins[globalMin]
         # TODO: Make it less expensive because no need to recompute energy
-        xFracs, _, floes = \
-            self.computeEnergyIfFrac(indicesMin[globalMin], wave, t, EType, recompute=True)
+        xFracs, _, floes = self.computeEnergyIfFrac(
+            indicesMin[globalMin], wave, t, EType, recompute=True
+        )
 
         return xFracs, floes, Et_min, e_lists
 
     def computeEnergySubFloe(self, istart, iend, wave, t, EType):
-        """ Computes the elastic energy of a floe from position self.xF[istart] to position self.xF[iend]
+        """Computes the elastic energy of a floe from position self.xF[istart] to position self.xF[iend]
         Inputs:
             istart (int): index of the left edge in the parent floe (self)
             iend (int): index of the right edge
@@ -400,19 +439,24 @@ class Floe(object):
             None -> writes the resulting energy in the attribute energiesMatrix of self
         """
         floeLength = self.xF[iend] - self.xF[istart]
-        floe = Floe(self.h, self.xF[istart], floeLength,
-                    DispType=self.DispType, dx=min(self.dx, floeLength / 100))
+        floe = Floe(
+            self.h,
+            self.xF[istart],
+            floeLength,
+            DispType=self.DispType,
+            dx=min(self.dx, floeLength / 100),
+        )
 
         # Relay the wave attributes if present
-        if hasattr(self, 'kw'):
+        if hasattr(self, "kw"):
             floe.kw = self.kw
-        if hasattr(self, 'cg'):
+        if hasattr(self, "cg"):
             floe.cg = self.cg
-        if hasattr(self, 'alpha'):
+        if hasattr(self, "alpha"):
             floe.alpha = self.alpha
 
         # Compute waves under the floe
-        if wave.type == 'WaveSpec':
+        if wave.type == "WaveSpec":
             wvf = wave.calc_waves(floe.xF)
         else:
             a_vec = wave.amp_att(self.xF, self.a0, [self])
@@ -423,8 +467,8 @@ class Floe(object):
         EelFloe = floe.calc_Eel(EType=EType, wvf=wvf)
         self.energiesMatrix[istart, iend] = EelFloe
 
-    def FindE_min(self, wave, t, multiFrac=False, EType='Flex'):
-        """ Finds the minimizing fracture in the floe, using Dijkstra method for multifracturing
+    def FindE_min(self, wave, t, multiFrac=False, EType="Flex"):
+        """Finds the minimizing fracture in the floe, using Dijkstra method for multifracturing
         Inputs:
             multiFrac (bool): whether a multifrac search is wanted or not
             wave, t, EType: usual
@@ -434,7 +478,9 @@ class Floe(object):
             Etot (float):
         """
         # Initialize the matrix of subfloes energies
-        self.energiesMatrix = np.full((len(self.xF), len(self.xF)), -1, dtype=np.float64)
+        self.energiesMatrix = np.full(
+            (len(self.xF), len(self.xF)), -1, dtype=np.float64
+        )
         self.energiesMatrix[0, -1] = self.Eel
 
         rightMostIndex = len(self.xF) - 1
@@ -463,7 +509,9 @@ class Floe(object):
             iFrac = np.argmin(Etots)
             Etot_min = Etots[iFrac]
             if iFrac > 0:
-                xFracs, _, floes = self.computeEnergyIfFrac(iFrac, wave, t, EType, recompute=True)
+                xFracs, _, floes = self.computeEnergyIfFrac(
+                    iFrac, wave, t, EType, recompute=True
+                )
                 return xFracs, floes, Etot_min
             else:
                 return [], [], Etot_min
@@ -473,7 +521,9 @@ class Floe(object):
             # Initialize the energetic cost of each vertex,
             # the subgraph of points to visit and the ancestors
             energeticCost = np.full(len(self.xF), np.infty, dtype=np.float64)
-            energeticCost[0] = - self.k  # To cancel the cost of fracturation at the first step
+            energeticCost[0] = (
+                -self.k
+            )  # To cancel the cost of fracturation at the first step
             toVisit = np.full(len(self.xF), True)
             ancestors = np.full(len(self.xF), -1)
 
@@ -493,8 +543,13 @@ class Floe(object):
                 energyElas_NewFloe = self.energiesMatrix[inew, iold]
 
                 # Update current optimal path
-                if energeticCost[iold] > energeticCost[inew] + energyElas_NewFloe + self.k:
-                    energeticCost[iold] = energeticCost[inew] + energyElas_NewFloe + self.k
+                if (
+                    energeticCost[iold]
+                    > energeticCost[inew] + energyElas_NewFloe + self.k
+                ):
+                    energeticCost[iold] = (
+                        energeticCost[inew] + energyElas_NewFloe + self.k
+                    )
                     ancestors[iold] = inew
 
             # Search for best energetic costs
@@ -523,14 +578,16 @@ class Floe(object):
 
             # Reconstruct the floes from fracture indices
             if len(iFracs) > 0:
-                xFracs, Et_min, floes = \
-                    self.computeEnergyIfFrac(iFracs, wave, t, EType=EType,
-                                             verbose=False, recompute=True)
+                xFracs, Et_min, floes = self.computeEnergyIfFrac(
+                    iFracs, wave, t, EType=EType, verbose=False, recompute=True
+                )
                 Etot_min_PostComputed = Et_min + len(xFracs) * self.k
                 if np.abs(Etot_min - Etot_min_PostComputed) > 1e-6:
-                    raise ValueError(f"Energies are not equals...\n"
-                                     f"Etot[Dijkstra] = {Etot_min:.6f}\n"
-                                     f"Etot[postComputed] = {Etot_min_PostComputed:.6f}")
+                    raise ValueError(
+                        f"Energies are not equals...\n"
+                        f"Etot[Dijkstra] = {Etot_min:.6f}\n"
+                        f"Etot[postComputed] = {Etot_min_PostComputed:.6f}"
+                    )
                 return xFracs, floes, Etot_min
             else:
                 return [], [], Etot_min
@@ -552,10 +609,10 @@ class Floe(object):
         msl = self.mslf_int(wvf)
         self.z_calc(msl)
 
-        if hasattr(self, 'slope'):
+        if hasattr(self, "slope"):
             slope = self.slope
         else:
-            if not hasattr(self, 'w'):
+            if not hasattr(self, "w"):
                 self.calc_w(wvf)
             fitw = np.polyfit(self.xF, self.w, 1)
             slope = fitw[0]
@@ -563,16 +620,16 @@ class Floe(object):
         sfac = slope * self.L / 2
         z_vec = np.array([sfac, -sfac])
 
-        hax.plot(xv, z_vec + msl, 'b:')
-        hax.plot(xv, z_vec + self.z, 'r:')
-        hax.plot(xv, z_vec + msl + self.ha, 'c:')
-        hax.plot(xv, z_vec + msl - self.hw, 'k:')
+        hax.plot(xv, z_vec + msl, "b:")
+        hax.plot(xv, z_vec + self.z, "r:")
+        hax.plot(xv, z_vec + msl + self.ha, "c:")
+        hax.plot(xv, z_vec + msl - self.hw, "k:")
 
-        hax.plot(self.xF, -self.w + self.z, 'r')
-        hax.plot(self.xF, -self.w + msl + self.ha, 'c')
-        hax.plot(self.xF, -self.w + msl - self.hw, 'k')
+        hax.plot(self.xF, -self.w + self.z, "r")
+        hax.plot(self.xF, -self.w + msl + self.ha, "c")
+        hax.plot(self.xF, -self.w + msl - self.hw, "k")
 
-        return(fig, hax)
+        return (fig, hax)
 
     def calc_alpha(self, kw=0):
         if kw == 0:
@@ -580,7 +637,7 @@ class Floe(object):
         return (1 / 4) * kw**2 * self.h
 
     def setWPars(self, wave):
-        if wave.type == 'WaveSpec':
+        if wave.type == "WaveSpec":
             self.kw = np.zeros_like(wave.f)
             self.cg = np.zeros_like(wave.f)
             self.kw = calc_k(wave.f, self.h, DispType=self.DispType)
