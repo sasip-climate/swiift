@@ -9,12 +9,12 @@ Created on Fri Jan 21 12:01:18 2022
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
-from WaveUtils import PM, Jonswap, PowerLaw, SpecVars, calc_k
-from WaveDef import Wave
-from pars import g, SpecType, tail_fac
+from .libraries.WaveUtils import PM, Jonswap, PowerLaw, SpecVars, calc_k
+from .wave import Wave
+from .pars import g, SpecType, tail_fac
 
 
-class WaveSpec(object):
+class Spectrum(object):
     """ Wave spectrum for floe breaking experiment
     Inputs: Hs:         wave amplitude (m)
             fp:         wave length (m)
@@ -177,7 +177,7 @@ class WaveSpec(object):
             k = (2 * np.pi * f)**2 / g
             wl = 2 * np.pi / k
             a = (2 * self.df[iF] * self.Ei[iF]) ** 0.5
-            self.waves[iF] = Wave(a, wl, beta=self.beta, phi=self.phi[iF])
+            self.waves[iF] = Wave(a, wl, beta=self.beta, phase=self.phi[iF])
 
     def calcExt(self, x, t, *args):
         # Calculate the wave energy for a given domain x and at a given time t
