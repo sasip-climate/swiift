@@ -2,7 +2,8 @@
 
 import itertools
 import pytest
-from hypothesis import assume, given, strategies as st
+from hypothesis import assume
+from hypothesis import given, strategies as st
 import hypothesis.extra.numpy as npst
 import numpy as np
 
@@ -49,12 +50,37 @@ positive_array_or_number = st.one_of(
     ),
 )
 
-# min_size = st.shared(st.integers(min_value=1), key="size")
 shape = st.shared(npst.array_shapes(max_dims=1), key="size")
 dtype = st.shared(npst.floating_dtypes(sizes=(32, 64)), key="dtype")
-# .filter(
-#     lambda s: str(s)[0] == "f" or str(s)[1] == "f"
-# )
+
+
+# def ds_different(n):
+#     st.lists(st.integers(min_value=0, max_value=2**16 - 1), min_size=n, max_size=n)
+
+
+def ds_optional(shape):
+    opt = {
+        "phases": (
+            number
+            | npst.arrays(
+                npst.floating_dtypes(), shape=shape, elements={"allow_infinity": False}
+            )
+        ),
+        "betas": (
+            non_negative_number
+            | npst.arrays(
+                npst.floating_dtypes(),
+                shape=shape,
+                elements={"min_value": 0, "allow_infinity": False},
+            )
+        ),
+    }
+    combinations = [
+        _c for n in range(len(opt) + 1) for _c in itertools.combinations(opt, n)
+    ]
+    return st.sampled_from([{k: opt[k] for k in _c} for _c in combinations]).flatmap(
+        lambda dct: st.fixed_dictionaries(dct)
+    )
 
 
 @given(
@@ -74,31 +100,11 @@ dtype = st.shared(npst.floating_dtypes(sizes=(32, 64)), key="dtype")
             elements={"min_value": 0, "allow_infinity": False},
         )
     ),
-    phases=(
-        number
-        | npst.arrays(
-            npst.floating_dtypes(), shape=shape, elements={"allow_infinity": False}
-        )
-    ),
-    betas=(
-        non_negative_number
-        | npst.arrays(
-            npst.floating_dtypes(),
-            shape=shape,
-            elements={"min_value": 0, "allow_infinity": False},
-        )
-    ),
+    kwargs=ds_optional(shape),
 )
-@pytest.mark.parametrize(
-    "fph, fb", (e for e in itertools.product((False, True), repeat=2))
-)
-def test_sanitised(amplitudes, frequencies, phases, betas, fph, fb):
-    kwargs = dict()
-    if not fph:
-        kwargs["phases"] = phases
-    if not fb:
-        kwargs["betas"] = betas
-    # assume(len(np.atleast_1d(amplitudes)) == len(np.atleast_1d(frequencies)))
+def test_sanitised(amplitudes, frequencies, kwargs):
+    print(amplitudes, frequencies, kwargs)
+    print()
     if isinstance(frequencies, np.ndarray):
         frequencies += np.finfo(frequencies.dtype).eps
     DiscreteSpectrum(amplitudes, frequencies, **kwargs)
@@ -121,6 +127,7 @@ def test_sanitised(amplitudes, frequencies, phases, betas, fph, fb):
 #             elements={"min_value": 0, "allow_infinity": False},
 #         )
 #     ),
+#     kwargs=ds_optional(shape),
 #     phases=(
 #         number
 #         | npst.arrays(
