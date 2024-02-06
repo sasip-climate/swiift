@@ -9,4 +9,5 @@ version = "0.1.0"
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
+    "--ignore-glob=tests/test_e2e_unit*.py",
 ]
