@@ -445,31 +445,37 @@ class OceanCoupled(Ocean):
         """Wavelengths in m"""
         return 2 * PI / self.wavenumbers
 
-    def compute_wavenumbers(self, ds: DiscreteSpectrum, gravity: float) -> np.ndarray:
-        """ """
-
-        def f(kk: float) -> float:
+    def _comp_wns(self, angfreqs2: np.ndarray, gravity: float) -> np.ndarray:
+        def f(kk: float, alpha: float) -> float:
             # Dispersion relation (form f(k) = 0), for a free surface,
             # admitting one positive real root.
             return kk * np.tanh(kk) - alpha
 
-        def df_dk(kk: float) -> float:
+        def df_dk(kk: float, alpha: float) -> float:
             # Derivative of dr with respect to kk.
             tt = np.tanh(kk)
             return tt + kk * (1 - tt**2)
 
-        alphas = np.array([wave.angular_frequency2 / gravity for wave in ds.waves])
+        alphas = angfreqs2 / gravity
         if np.isposinf(self.depth):
             return alphas
 
         alphas *= self.depth
-        roots = np.full(np.nan, len(ds.waves))
+        roots = np.full(len(alphas), np.nan)
         for i, alpha in enumerate(alphas):
             res = optimize.root_scalar(f, (alpha,), fprime=df_dk, x0=alpha)
             if res.converged:
                 roots[i] = res.root
+            else:
+                print("ohno!")
 
         return roots / self.depth
+
+    def compute_wavenumbers(self, ds: DiscreteSpectrum, gravity: float) -> np.ndarray:
+        """ """
+        return self._comp_wns(
+            np.array([wave.angular_frequency2 for wave in ds.waves]), gravity
+        )
 
 
 class WaveSpectrum:

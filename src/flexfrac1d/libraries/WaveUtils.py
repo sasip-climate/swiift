@@ -11,6 +11,10 @@ from scipy import optimize
 from ..pars import rho_w, rho_i, g, E, v
 
 
+def free_surface(wavenumber, depth):
+    return wavenumber * np.tanh(wavenumber * depth)
+
+
 def PM(u, f):
     alpha_s = 0.2044
     beta_s = 1.2500
