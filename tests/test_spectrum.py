@@ -35,7 +35,11 @@ non_negative_number = st.one_of(
 
 positive_number = st.one_of(
     st.floats(
-        min_value=np.finfo(np.float64).eps, allow_nan=False, allow_infinity=False
+        min_value=0,
+        exclude_min=True,
+        allow_subnormal=False,
+        allow_nan=False,
+        allow_infinity=False,
     ),
     st.integers(min_value=1),
 )
@@ -95,18 +99,23 @@ def ds_optional(shape):
     frequencies=(
         positive_number
         | npst.arrays(
-            dtype,
+            npst.floating_dtypes(),
             shape=shape,
-            elements={"min_value": 0, "allow_infinity": False},
+            elements={
+                "min_value": 0,
+                "exclude_min": True,
+                "allow_subnormal": False,
+                "allow_infinity": False,
+            },
         )
     ),
     kwargs=ds_optional(shape),
 )
 def test_sanitised(amplitudes, frequencies, kwargs):
-    print(amplitudes, frequencies, kwargs)
-    print()
-    if isinstance(frequencies, np.ndarray):
-        frequencies += np.finfo(frequencies.dtype).eps
+    # print(amplitudes, frequencies, kwargs)
+    # print()
+    # if isinstance(frequencies, np.ndarray):
+    #     frequencies += np.finfo(frequencies.dtype).eps
     DiscreteSpectrum(amplitudes, frequencies, **kwargs)
 
 
