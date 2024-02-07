@@ -2,8 +2,10 @@
 
 
 import functools
+import itertools
 import warnings
 import numpy as np
+import scipy.optimize as optimize
 
 from .libraries.WaveUtils import PM, Jonswap, PowerLaw, SpecVars, calc_k
 from .pars import g
@@ -22,7 +24,7 @@ class Wave:
         period: float = None,
         frequency: float = None,
         phase: float = 0,
-        beta: float | None = None,
+        beta: float = 0,
     ):
         """Initialise self."""
         if period is None and frequency is None:
@@ -37,8 +39,10 @@ class Wave:
                     ),
                     stacklevel=2,
                 )
+            self.__frequency = 1 / period
         else:
             self.__frequency = frequency
+            self.__period = 1 / frequency
 
         self.__amplitude = amplitude
         self.__phase = phase
@@ -108,6 +112,50 @@ class Ocean:
     def depth(self) -> float:
         """Ocean depth in m."""
         return self.__depth
+
+
+class DiscreteSpectrum:
+    def __init__(self, amplitudes, frequencies, phases=0, betas=0):
+
+        # np.ravel force precisely 1D-arrays
+        # Promote the map to list so the iterator can be used several times
+        args = list(map(np.ravel, (amplitudes, frequencies, phases, betas)))
+        (size,) = np.broadcast_shapes(*(arr.shape for arr in args))
+
+        if size != 1:
+            for i, arr in enumerate(args):
+                if arr.size == 1:
+                    args[i] = itertools.repeat(arr[0], size)
+
+        self.__waves = [
+            Wave(_a, frequency=_f, phase=_ph, beta=_b) for _a, _f, _ph, _b in zip(*args)
+        ]
+
+    @property
+    def waves(self):
+        return self.__waves
+
+    # def _sanitise(self, arr, n):
+    #     arr = np.ravel(arr)  # force to precisely a 1D-array
+    #     if n == 1:
+    #         if arr.size == 1:
+    #             return itertools.repeat
+
+    #         return arr
+    #     else:
+    #         if arr.size == 1:
+    #             return itertools.repeat(arr[0], n)
+    #         else:
+    #             if arr.size == n:
+    #                 return arr
+    #     if arr1.size == 1 or arr2.size == 1:
+    #         return itertools.repeat(arr[0], frequencies.size)
+    #     elif arr.size == frequencies.size:
+    #         return arr
+    #     else:
+    #         raise ValueError(
+    #             f"The number of frequencies does not match the number of {name}"
+    #         )
 
 
 class _GenericSpectrum:
@@ -381,121 +429,53 @@ class Spectrum:
 
 
 class OceanCoupled(Ocean):
-    """Extend `Ocean` to include wave-dependent quantities.
+    """Extend `Ocean` to include wave-dependent quantities."""
 
-    Parameters
-    ----------
-    ocean : Ocean
-        `Ocean` instance to extend.
-    inner_products : 1D array-like of float
-        Inner products of the vertical modes in m.
-    wave_numbers : 1D array-like of complex
-        Wave numbers in rad m**-1.
-
-    Attributes
-    ----------
-    inner_products : 1D array-like of complex
-    wavelength : float
-    wave_numbers : 1D array-like of complex
-
-    """
-
-    def __init__(self, ocean: Ocean, spectrum: Spectrum) -> None:
-        """Initialise self."""
+    def __init__(self, ocean: Ocean, ds: DiscreteSpectrum, gravity: float):
         super().__init__(ocean.depth, ocean.density)
-        alpha = wave._c_alpha
-        self.__wave_numbers = self.compute_wave_numbers(alpha, nk)
-        self.__inner_products = self.compute_inner_products(alpha)
+        self.__wavenumbers = self.compute_wavenumbers(ds, gravity)
 
     @property
-    def inner_products(self) -> np.ndarray:
-        """Array of inner products of the vertical modes with themselves in m.
-
-        An inner product is defined on the space spawned by the wave modes.
-        This modes are orthogonal, with respect to that product, hence there is
-        as many non-null products as there is modes.
-        """
-        return self.__inner_products
-
-    @property
-    def wave_numbers(self) -> np.ndarray:
-        """Array of wave numbers in rad m**-1.
-
-        Index 0 is real.
-        Index 1 onwards are imaginary.
-        """
-        return self.__wave_numbers
+    def wavenumbers(self) -> np.ndarray:
+        """Array of wave numbers in rad m**-1"""
+        return self.__wavenumbers
 
     @functools.cached_property
-    def wavelength(self) -> float:
-        """Wavelength in m.
+    def wavelengths(self) -> np.ndarray:
+        """Wavelengths in m"""
+        return 2 * PI / self.wavenumbers
 
-        It corresponds to the only real wave number.
-        """
-        return 2 * PI / np.real(self.wave_numbers[0])
-
-    def compute_inner_products(self, alpha: float) -> np.ndarray:
-        """Compute the inner product associated with each mode.
-
-        Parameters
-        ----------
-        alpha : float
-            Deep water positive, real wave number.
-        wave_numbers : 1D array-like of complex
-            The actual wave numbers.
-
-        Returns
-        -------
-        1D array-like of float
-            The computed inner products.
-
-        """
-        ip = (self.depth * (self.wave_numbers**2 - alpha**2) + alpha) / (
-            2 * self.wave_numbers**2
-        )
-        assert np.allclose(np.imag(ip), 0)
-        return np.real(ip)
-
-    def compute_wave_numbers(self, alpha: float, nk: int) -> np.ndarray:
-        """Determine nk+1 wave numbers.
-
-        Parameters
-        ----------
-        alpha : float
-            Deep water positive, real wave number.
-        nk : int
-            Number of evanescent modes to compute.
-
-        Returns
-        -------
-        1D array-like of complex
-            The computed wave-numbers.
-
-        """
-        alpha *= self.depth  # rescaling
-        roots = np.empty(nk + 1, complex)
-
-        def dr(kk: float) -> float:
+    def _comp_wns(self, angfreqs2: np.ndarray, gravity: float) -> np.ndarray:
+        def f(kk: float, alpha: float) -> float:
             # Dispersion relation (form f(k) = 0), for a free surface,
             # admitting one positive real root.
             return kk * np.tanh(kk) - alpha
 
-        def dr_i(kk: float) -> float:
-            # Dispersion relation (form f(k) = 0) for a free surface,
-            # admitting an infinity of positive real roots.
-            return kk * np.sin(kk) + alpha * np.cos(kk)
-
-        def dr_d(kk: float) -> float:
+        def df_dk(kk: float, alpha: float) -> float:
             # Derivative of dr with respect to kk.
             tt = np.tanh(kk)
             return tt + kk * (1 - tt**2)
 
-        roots[0] = newton(dr, fprime=dr_d, x0=alpha, tol=1e-14)
-        assert roots[0] > 0
-        roots[1:] = [
-            1j * brentq(dr_i, m * PI, (m + 1) * PI, xtol=1e-14) for m in range(nk)
-        ]
+        alphas = angfreqs2 / gravity
+        if np.isposinf(self.depth):
+            return alphas
+
+        alphas *= self.depth
+        roots = np.full(len(alphas), np.nan)
+        for i, alpha in enumerate(alphas):
+            res = optimize.root_scalar(f, (alpha,), fprime=df_dk, x0=alpha)
+            if res.converged:
+                roots[i] = res.root
+            else:
+                print("ohno!")
+
         return roots / self.depth
+
+    def compute_wavenumbers(self, ds: DiscreteSpectrum, gravity: float) -> np.ndarray:
+        """ """
+        return self._comp_wns(
+            np.array([wave.angular_frequency2 for wave in ds.waves]), gravity
+        )
 
 
 class WaveSpectrum:
@@ -505,7 +485,22 @@ class WaveSpectrum:
 class Domain:
     """"""
 
-    def __init__(self, spectrum: WaveSpectrum, ocean: Ocean) -> None:
+    def __init__(
+        self,
+        spectrum: WaveSpectrum,
+        ocean: Ocean,
+        nf,
+        phases,
+        betas,
+        fmin,
+        fmax,
+        frequencies,
+    ) -> None:
         """"""
         self.__spectrum = spectrum
         self.__ocean = OceanCoupled(ocean, spectrum)
+
+        self.__frozen_spectrum = DiscreteSpectrum(
+            spectrum.amplitude(frequencies), frequencies, phases, betas
+        )
+        # TODO: doit avoir un attribut gravité si le spectre n'en a pas
