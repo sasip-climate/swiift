@@ -1,0 +1,6 @@
+numpy~=1.26
+scipy~=1.11
+
+# testing
+hypothesis~=6.98
+primefac~=2.0

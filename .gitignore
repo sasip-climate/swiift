@@ -5,3 +5,5 @@ Figs/
 .venv_3.11/
 __pycache__/
 *png
+.hypothesis
+.coverage
