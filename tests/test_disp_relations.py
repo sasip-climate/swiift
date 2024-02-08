@@ -8,9 +8,11 @@ from flexfrac1d.libraries.WaveUtils import free_surface
 
 
 # Bounds set to be sure to avoid non-sensical overflows and underflows,
-# when multiplying and dividing various variables together
+# when multiplying and dividing various variables together:
+# we want m < (2 pi)^2 x^4 < M,
+# where m := float.tiny, M := float.max, x the sampled value
 float_kw = {
-    "min_value": 4e-78,
+    "min_value": 5e-78,
     "max_value": 4e76,
     "allow_nan": False,
     "exclude_min": True,
@@ -22,7 +24,11 @@ float_kw = {
 # polychromatic DiscreteSpectrum objects are just collections
 # of independent Wave objects
 @given(
-    ocean=st.builds(Ocean, st.floats(**float_kw), st.floats(**float_kw)),
+    ocean=st.builds(
+        Ocean,
+        depth=st.floats(**float_kw) | st.just(np.inf),
+        density=st.floats(**float_kw),
+    ),
     spec=st.builds(
         DiscreteSpectrum,
         st.just(1),

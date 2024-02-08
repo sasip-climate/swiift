@@ -283,127 +283,127 @@ class PiersonMoskowitz(_GenericSpectrum):
         )
 
 
-class Spectrum:
-    def __init__(
-        self,
-        *,
-        u=None,
-        swh=None,
-        peak_period=None,
-        peak_frequency=None,
-        peak_wavelength=None,
-        beta=0,
-        phi=np.nan,
-        df=1.1,
-        x=-5,
-        y=16,
-        n=2,
-    ):
-        # if u is None or (
-        swh, peak_period, peak_frequency, peak_wavenumber, peak_wavelength = SpecVars(
-            u
-        )  # Parameters for a typical spectrum
-        spec = SpecType
-        tfac = tail_fac
+# class Spectrum:
+#     def __init__(
+#         self,
+#         *,
+#         u=None,
+#         swh=None,
+#         peak_period=None,
+#         peak_frequency=None,
+#         peak_wavelength=None,
+#         beta=0,
+#         phi=np.nan,
+#         df=1.1,
+#         x=-5,
+#         y=16,
+#         n=2,
+#     ):
+#         # if u is None or (
+#         swh, peak_period, peak_frequency, peak_wavenumber, peak_wavelength = SpecVars(
+#             u
+#         )  # Parameters for a typical spectrum
+#         spec = SpecType
+#         tfac = tail_fac
 
-        f = peak_frequency * df ** np.arange(x, y)
+#         f = peak_frequency * df ** np.arange(x, y)
 
-        for key, value in kwargs.items():
-            if key == "u":
-                u = value
-                swh, peak_period, peak_frequency, peak_wavenumber, peak_wavelength = (
-                    SpecVars(u)
-                )
-                f = peak_frequency * df ** np.arange(x, y)
-            elif key == "Hs":
-                swh = value
-            elif key == "n0":
-                swh = (2**1.5) * value
-            elif key == "fp":
-                peak_frequency = value
-                peak_period = 1 / peak_frequency
-                peak_wavenumber = (2 * np.pi * peak_frequency) ** 2 / g
-                peak_wavelength = 2 * np.pi / peak_wavenumber
-            elif key == "Tp":
-                peak_period = value
-                peak_frequency = 1 / peak_period
-                peak_wavenumber = (2 * np.pi * peak_frequency) ** 2 / g
-                peak_wavelength = 2 * np.pi / peak_wavenumber
-            elif key == "wlp":
-                peak_wavelength = value
-                peak_wavenumber = 2 * np.pi / peak_wavelength
-                peak_frequency = (g * peak_wavenumber) ** 0.5 / (2 * np.pi)
-                peak_period = 1 / peak_frequency
-            elif key == "beta":
-                beta = value
-            elif key == "phi":
-                phi = value
-            elif key == "df":
-                df = value
-                fac = np.log(1.1) / np.log(df)
-                x = -np.ceil(5 * fac)
-                y = np.ceil(15 * fac) + 1
-            elif key == "spec" or key == "SpecType":
-                spec = value
-            elif key == "f":
-                f = value
-            elif key == "n":
-                n = value
-            elif key == "tail_fac":
-                tfac = value
-            else:
-                print(f"Unknow input: {key}")
+#         for key, value in kwargs.items():
+#             if key == "u":
+#                 u = value
+#                 swh, peak_period, peak_frequency, peak_wavenumber, peak_wavelength = (
+#                     SpecVars(u)
+#                 )
+#                 f = peak_frequency * df ** np.arange(x, y)
+#             elif key == "Hs":
+#                 swh = value
+#             elif key == "n0":
+#                 swh = (2**1.5) * value
+#             elif key == "fp":
+#                 peak_frequency = value
+#                 peak_period = 1 / peak_frequency
+#                 peak_wavenumber = (2 * np.pi * peak_frequency) ** 2 / g
+#                 peak_wavelength = 2 * np.pi / peak_wavenumber
+#             elif key == "Tp":
+#                 peak_period = value
+#                 peak_frequency = 1 / peak_period
+#                 peak_wavenumber = (2 * np.pi * peak_frequency) ** 2 / g
+#                 peak_wavelength = 2 * np.pi / peak_wavenumber
+#             elif key == "wlp":
+#                 peak_wavelength = value
+#                 peak_wavenumber = 2 * np.pi / peak_wavelength
+#                 peak_frequency = (g * peak_wavenumber) ** 0.5 / (2 * np.pi)
+#                 peak_period = 1 / peak_frequency
+#             elif key == "beta":
+#                 beta = value
+#             elif key == "phi":
+#                 phi = value
+#             elif key == "df":
+#                 df = value
+#                 fac = np.log(1.1) / np.log(df)
+#                 x = -np.ceil(5 * fac)
+#                 y = np.ceil(15 * fac) + 1
+#             elif key == "spec" or key == "SpecType":
+#                 spec = value
+#             elif key == "f":
+#                 f = value
+#             elif key == "n":
+#                 n = value
+#             elif key == "tail_fac":
+#                 tfac = value
+#             else:
+#                 print(f"Unknow input: {key}")
 
-        self.type = "WaveSpec"
-        self.SpecType = spec
-        self.Hs = swh
-        self.Tp = peak_period
-        self.fp = peak_frequency
-        self.kp = peak_wavenumber
-        self.wlp = peak_wavelength
-        self.beta = beta
-        self.tail_fac = tfac
+#         self.type = "WaveSpec"
+#         self.SpecType = spec
+#         self.Hs = swh
+#         self.Tp = peak_period
+#         self.fp = peak_frequency
+#         self.kp = peak_wavenumber
+#         self.wlp = peak_wavelength
+#         self.beta = beta
+#         self.tail_fac = tfac
 
-        if len(f) == 1 or spec == "Mono":
-            self.f = np.array([peak_frequency])
-            df_vec = np.array([1])
-            self.Ei = np.array([swh**2 / 16])
-        elif spec == "PowerLaw":
-            if n > 0:
-                self.f = peak_frequency * df ** (np.arange(-f.size, 0) + 1)
-            else:
-                self.f = peak_frequency * df ** (np.arange(0, f.size) + 1)
-            df_vec = np.empty_like(f)
-            df_vec[0] = f[1] - f[0]
-            df_vec[1:-1] = (f[2:] - f[:-2]) / 2
-            df_vec[-1] = f[-1] - f[-2]
-            self.Ei = PowerLaw(swh, peak_frequency, self.f, df_vec, n)
-        else:
-            self.f = f
-            df_vec = np.empty_like(f)
-            df_vec[0] = f[1] - f[0]
-            df_vec[1:-1] = (f[2:] - f[:-2]) / 2
-            df_vec[-1] = f[-1] - f[-2]
-            if spec == "JONSWAP":
-                self.Ei = Jonswap(swh, peak_frequency, f)
-            elif spec == "PM":
-                self.Ei = PM(u, f)
-            else:
-                raise ValueError(f"Unknown spectrum type: {spec}")
+#         if len(f) == 1 or spec == "Mono":
+#             self.f = np.array([peak_frequency])
+#             df_vec = np.array([1])
+#             self.Ei = np.array([swh**2 / 16])
+#         elif spec == "PowerLaw":
+#             if n > 0:
+#                 self.f = peak_frequency * df ** (np.arange(-f.size, 0) + 1)
+#             else:
+#                 self.f = peak_frequency * df ** (np.arange(0, f.size) + 1)
+#             df_vec = np.empty_like(f)
+#             df_vec[0] = f[1] - f[0]
+#             df_vec[1:-1] = (f[2:] - f[:-2]) / 2
+#             df_vec[-1] = f[-1] - f[-2]
+#             self.Ei = PowerLaw(swh, peak_frequency, self.f, df_vec, n)
+#         else:
+#             self.f = f
+#             df_vec = np.empty_like(f)
+#             df_vec[0] = f[1] - f[0]
+#             df_vec[1:-1] = (f[2:] - f[:-2]) / 2
+#             df_vec[-1] = f[-1] - f[-2]
+#             if spec == "JONSWAP":
+#                 self.Ei = Jonswap(swh, peak_frequency, f)
+#             elif spec == "PM":
+#                 self.Ei = PM(u, f)
+#             else:
+#                 raise ValueError(f"Unknown spectrum type: {spec}")
 
-        self.nf = f.size
-        self.k = (2 * np.pi * self.f) ** 2 / g
-        self.cgw = 0.5 * (g / self.k) ** 0.5
-        self.nf = len(self.f)
-        self.df = df_vec
+#         self.nf = f.size
+#         self.k = (2 * np.pi * self.f) ** 2 / g
+#         self.cgw = 0.5 * (g / self.k) ** 0.5
+#         self.nf = len(self.f)
+#         self.df = df_vec
 
-        if type(phi) == np.ndarray:
-            self.phi = phi
-        else:
-            self.phi = phi * np.ones_like(self.f)
+#         if type(phi) == np.ndarray:
+#             self.phi = phi
+#         else:
+#             self.phi = phi * np.ones_like(self.f)
 
-        self.setWaves()
-        self.af = [0] * self.nf
+#         self.setWaves()
+#         self.af = [0] * self.nf
 
 
 class OceanCoupled(Ocean):
@@ -445,7 +445,11 @@ class OceanCoupled(Ocean):
             if res.converged:
                 roots[i] = res.root
             else:
-                print("ohno!")
+                warnings.warn(
+                    f"Root finding did not converge: free surface, "
+                    f"f={np.sqrt(alpha/self.depth*gravity)/(2*PI):1.2g} Hz",
+                    stacklevel=2,
+                )
 
         return roots / self.depth
 
