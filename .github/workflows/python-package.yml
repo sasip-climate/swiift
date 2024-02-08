@@ -3,11 +3,12 @@
 
 name: Python package
 
+# TODO: readd master once it will have been cleand up more
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "rewrite" ]
   pull_request:
-    branches: [ "master", "rewrite" ]
+    branches: [ "rewrite" ]
 
 jobs:
   build:
