@@ -135,28 +135,6 @@ class DiscreteSpectrum:
     def waves(self):
         return self.__waves
 
-    # def _sanitise(self, arr, n):
-    #     arr = np.ravel(arr)  # force to precisely a 1D-array
-    #     if n == 1:
-    #         if arr.size == 1:
-    #             return itertools.repeat
-
-    #         return arr
-    #     else:
-    #         if arr.size == 1:
-    #             return itertools.repeat(arr[0], n)
-    #         else:
-    #             if arr.size == n:
-    #                 return arr
-    #     if arr1.size == 1 or arr2.size == 1:
-    #         return itertools.repeat(arr[0], frequencies.size)
-    #     elif arr.size == frequencies.size:
-    #         return arr
-    #     else:
-    #         raise ValueError(
-    #             f"The number of frequencies does not match the number of {name}"
-    #         )
-
 
 class _GenericSpectrum:
     def __init__(
