@@ -9,10 +9,22 @@ import warnings
 import numpy as np
 from scipy import optimize
 from ..pars import rho_w, rho_i, g, E, v
+from ..flexfrac1d import Ice, Ocean
 
 
 def free_surface(wavenumber, depth):
     return wavenumber * np.tanh(wavenumber * depth)
+
+
+def elas_mass_surface(
+    wavenumber: float, ice: Ice, ocean: Ocean, gravity: float
+) -> float:
+    l4 = ice.flex_rigidity / (ocean.density * gravity)
+    draft = ice.density / ocean.density * ice.thickness
+    dud = ocean.depth - draft
+    k_tanh_kdud = wavenumber * np.tanh(wavenumber * dud)
+
+    return (l4 * wavenumber**4 + 1) / (1 + draft * k_tanh_kdud) * k_tanh_kdud
 
 
 def PM(u, f):
