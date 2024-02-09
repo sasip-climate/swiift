@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 import functools
 import itertools
@@ -7,7 +8,7 @@ import warnings
 import numpy as np
 import scipy.optimize as optimize
 
-from .libraries.WaveUtils import PM, Jonswap, PowerLaw, SpecVars, calc_k
+# from .libraries.WaveUtils import SpecVars
 from .pars import g
 
 
@@ -114,6 +115,183 @@ class Ocean:
         return self.__depth
 
 
+class Ice:
+    def __init__(
+        self,
+        density: float = 922.5,
+        frac_energy: float = 1e5,
+        poissons_ratio: float = 0.3,
+        thickness: float = 1.0,
+        youngs_modulus: float = 6e9,
+    ):
+        self.__density = density
+        self.__frac_energy = frac_energy
+        self.__poissons_ratio = poissons_ratio
+        self.__thickness = thickness
+        self.__youngs_modulus = youngs_modulus
+
+    @property
+    def density(self):
+        return self.__density
+
+    @property
+    def frac_energy(self):
+        return self.__frac_energy
+
+    @property
+    def poissons_ratio(self):
+        return self.__poissons_ratio
+
+    @property
+    def thickness(self):
+        return self.__thickness
+
+    @property
+    def youngs_modulus(self):
+        return self.__youngs_modulus
+
+    @functools.cached_property
+    def quad_moment(self):
+        return self.thickness**3 / (12 * (1 - self.poissons_ratio**2))
+
+    @functools.cached_property
+    def flex_rigidity(self):
+        return self.quad_moment * self.youngs_modulus
+
+    @functools.cached_property
+    def frac_toughness(self):
+        return (1 - self.poissons_ratio**2) * self.frac_energy**2 / self.youngs_modulus
+
+
+class IceCoupled(Ice):
+    def __init__(
+        self,
+        ice: Ice,
+        ocean: OceanCoupled,
+        spec: DiscreteSpectrum,
+        dispersion: str,
+        gravity: float,
+    ):
+        super().__init__(
+            ice.density,
+            ice.frac_energy,
+            ice.poissons_ratio,
+            ice.thickness,
+            ice.youngs_modulus,
+        )
+        self.__draft = self.thickness * self.density / ocean.density
+        self.__dud = ocean.depth - self.draft
+        self.__wavenumbers = self.compute_wavenumbers(ocean, spec, gravity)
+
+        # ll = (self.flex_rigidity / (ocean.density * wave.angular_frequency2)) ** 0.2
+        # aa = (1 - wave._c_alpha * draft) / (wave._c_alpha * ll)
+        # rr = dud / ll
+
+    @property
+    def draft(self):
+        return self.__draft
+
+    @property
+    def dud(self):
+        return self.__dud
+
+    @property
+    def wavenumbers(self):
+        return self.__wavenumbers
+
+    @functools.cached_property
+    def freeboard(self):
+        return self.thickness - self.draft
+
+    def compute_wavenumbers(
+        self, ocean: OceanCoupled, ds: DiscreteSpectrum, gravity: float
+    ) -> np.ndarray:
+        return self._comp_wns(ocean.density, ds._ang_freq2, gravity)
+
+    def _comp_wns(
+        self, density: float, angfreqs2: np.ndarray, gravity: float
+    ) -> np.ndarray:
+        def f(kk: float, d0: float, d1: float, rr: float) -> float:
+            return (kk**5 + d1 * kk) * np.tanh(rr * kk) + d0
+
+        def df_dk(kk: float, d0: float, d1: float, rr: float) -> float:
+            return (5 * kk**4 + d1 + rr * d0) * np.tanh(rr * kk) + rr * (
+                kk**5 + d1 * kk
+            )
+
+        char_lgth_pow4 = self.flex_rigidity / (density * gravity)
+        char_lgth = char_lgth_pow4 ** (1 / 4)
+        # rec_lgth = char_lgth_pow4 ** (-1 / 4)  # reciprocate elastic lengthscale
+        scaled_ratio = self.dud / char_lgth
+
+        alphas = angfreqs2 / gravity
+        deg1 = 1 - alphas * self.draft
+        deg0 = -alphas * char_lgth
+        roots = np.full(angfreqs2.size, np.nan)
+
+        for i, (alpha, _d0, _d1) in enumerate(zip(alphas, deg0, deg1)):
+            roots_dw = np.polynomial.polynomial.polyroots([_d0, _d1, 0, 0, 0, 1])
+            # We always expect one positive real root,
+            # and if _d1 < 0, eventually two additional negative real roots.
+            root_dw = np.real(
+                roots_dw[(np.imag(roots_dw) == 0) & (np.real(roots_dw) > 0)]
+            )
+            if root_dw.size != 1:
+                raise ValueError("Quintic problem")
+            root_dw = root_dw[0]
+            if np.isposinf(self.dud):
+                roots[i] = root_dw
+                continue
+
+            res = optimize.root_scalar(
+                f,
+                args=(_d0, _d1, scaled_ratio),
+                fprime=df_dk,
+                x0=root_dw,
+            )
+            if res.converged:
+                roots[i] = res.root
+                print(root_dw / char_lgth, res.root / char_lgth)
+            else:
+                warnings.warn(
+                    f"Root finding did not converge: ice-covered surface, "
+                    f"f={np.sqrt(alpha*gravity)/(2*PI):1.2g} Hz",
+                    stacklevel=2,
+                )
+
+        return roots / char_lgth
+
+
+class Floe:
+    def __init__(
+        self,
+        left_edge: float,
+        length: float,
+        ice: Ice,
+        dispersion: str = "ElML",
+    ):
+        self.__left_edge = left_edge
+        self.__length = length
+        self.__ice = ice
+
+    @property
+    def left_edge(self):
+        return self.__left_edge
+
+    @property
+    def length(self):
+        return self.__length
+
+    @property
+    def dispersion(self):
+        return self.__dispersion
+
+
+class FloeCoupled(Floe):
+    def __init__(self):
+        super().__init__
+
+
 class DiscreteSpectrum:
     def __init__(self, amplitudes, frequencies, phases=0, betas=0):
 
@@ -121,6 +299,10 @@ class DiscreteSpectrum:
         # Promote the map to list so the iterator can be used several times
         args = list(map(np.ravel, (amplitudes, frequencies, phases, betas)))
         (size,) = np.broadcast_shapes(*(arr.shape for arr in args))
+
+        # TODO: sort waves by frequencies or something
+        # TODO: sanity checks on nan, etc. that could be returned
+        #       by the Spectrum objects
 
         if size != 1:
             for i, arr in enumerate(args):
@@ -135,6 +317,10 @@ class DiscreteSpectrum:
     def waves(self):
         return self.__waves
 
+    @functools.cached_property
+    def _ang_freq2(self):
+        return np.asarray([wave.angular_frequency2 for wave in self.waves])
+
 
 class _GenericSpectrum:
     def __init__(
@@ -146,21 +332,21 @@ class _GenericSpectrum:
         peak_frequency=None,
         peak_wavelength=None,
     ):
-        if u is not None:
-            values = SpecVars(u)
-            for k, v in zip(
-                (
-                    "swh",
-                    "peak_period",
-                    "peak_frequency",
-                    "peak_wavenumber",
-                    "peak_wavelength",
-                ),
-                values,
-            ):
-                setattr(self, f"__{k}", v)
-        else:
-            ...
+        # if u is not None:
+        #     values = SpecVars(u)
+        #     for k, v in zip(
+        #         (
+        #             "swh",
+        #             "peak_period",
+        #             "peak_frequency",
+        #             "peak_wavenumber",
+        #             "peak_wavelength",
+        #         ),
+        #         values,
+        #     ):
+        #         setattr(self, f"__{k}", v)
+        # else:
+        ...
 
     @property
     def waves(self):
