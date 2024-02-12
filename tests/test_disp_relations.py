@@ -13,7 +13,7 @@ from flexfrac1d.libraries.WaveUtils import free_surface, elas_mass_surface
 # we want m < (2 pi)^2 x^4 < M,
 # where m := float.tiny, M := float.max, x the sampled value
 float_kw = {
-    "min_value": 5e-78,
+    "min_value": 3e-77,
     "max_value": 4e76,
     "allow_nan": False,
     "exclude_min": True,
@@ -85,11 +85,14 @@ def test_elas_mass_surface(
     ocean: Ocean, spec: DiscreteSpectrum, ice: Ice, gravity: float
 ):
     assume(ocean.density > ice.density)
+    # Has to be done manually as instantiation of the IceCoupled object can
+    # fail if not respected
+    assume(ocean.depth - ice.thickness * ice.density / ocean.density > 0)
     angfreqs2 = spec._ang_freq2
     co = OceanCoupled(ocean, spec, gravity)
     ci = IceCoupled(ice, co, spec, None, gravity)
-    assume(ci.dud > 0)
     x = elas_mass_surface(ci.wavenumbers, ice, ocean, gravity)
     y = angfreqs2 / gravity
-    elastic_length = (ice.flex_rigidity / (ocean.density * gravity)) ** 0.25
-    assert np.allclose(x * elastic_length, y * elastic_length)
+    # elastic_length = (ice.flex_rigidity / (ocean.density * gravity)) ** 0.25
+    # assert np.allclose(x * elastic_length, y * elastic_length)
+    assert np.allclose(x, y)

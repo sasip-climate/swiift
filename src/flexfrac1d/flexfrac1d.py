@@ -71,7 +71,7 @@ class Wave:
     @functools.cached_property
     def angular_frequency(self) -> float:
         """Wave angular frequency in rad s**-1."""
-        return 2 * PI / self.period
+        return 2 * PI * self.frequency
 
     @functools.cached_property
     def angular_frequency2(self) -> float:
@@ -212,12 +212,40 @@ class IceCoupled(Ice):
         self, density: float, angfreqs2: np.ndarray, gravity: float
     ) -> np.ndarray:
         def f(kk: float, d0: float, d1: float, rr: float) -> float:
-            return (kk**5 + d1 * kk) * np.tanh(rr * kk) + d0
+            print(d0, d1, rr)
+            obj = (kk**5 + d1 * kk) * np.tanh(rr * kk) + d0
+            print(obj)
+            print()
+            return obj
 
         def df_dk(kk: float, d0: float, d1: float, rr: float) -> float:
             return (5 * kk**4 + d1 + rr * d0) * np.tanh(rr * kk) + rr * (
                 kk**5 + d1 * kk
             )
+
+        def extract_real_root(roots):
+            mask = (np.imag(roots) == 0) & (np.real(roots) > 0)
+            if mask.nonzero()[0].size != 1:
+                raise ValueError("An approximate initial guess could not be found")
+            return np.real(roots[mask][0])
+
+        def find_k(k0, alpha, d0, d1, rr):
+            res = optimize.root_scalar(
+                f,
+                args=(d0, d1, rr),
+                fprime=df_dk,
+                x0=k0,
+            )
+            if not res.converged:
+                warnings.warn(
+                    f"Root finding did not converge: ice-covered surface, "
+                    f"f={np.sqrt(alpha*gravity)/(2*PI):1.2g} Hz",
+                    stacklevel=2,
+                )
+                print(k0)
+                print(alpha, d0, d1, rr)
+                print(res)
+            return res.root
 
         char_lgth_pow4 = self.flex_rigidity / (density * gravity)
         char_lgth = char_lgth_pow4 ** (1 / 4)
@@ -230,34 +258,33 @@ class IceCoupled(Ice):
         roots = np.full(angfreqs2.size, np.nan)
 
         for i, (alpha, _d0, _d1) in enumerate(zip(alphas, deg0, deg1)):
-            roots_dw = np.polynomial.polynomial.polyroots([_d0, _d1, 0, 0, 0, 1])
+            find_k_i = functools.partial(
+                find_k,
+                alpha=alpha,
+                d0=_d0,
+                d1=_d1,
+                rr=scaled_ratio,
+            )
+
             # We always expect one positive real root,
             # and if _d1 < 0, eventually two additional negative real roots.
-            root_dw = np.real(
-                roots_dw[(np.imag(roots_dw) == 0) & (np.real(roots_dw) > 0)]
-            )
-            if root_dw.size != 1:
-                raise ValueError("Quintic problem")
-            root_dw = root_dw[0]
+            roots_dw = np.polynomial.polynomial.polyroots([_d0, _d1, 0, 0, 0, 1])
+            k0_dw = extract_real_root(roots_dw)
             if np.isposinf(self.dud):
-                roots[i] = root_dw
+                roots[i] = k0_dw
                 continue
-
-            res = optimize.root_scalar(
-                f,
-                args=(_d0, _d1, scaled_ratio),
-                fprime=df_dk,
-                x0=root_dw,
-            )
-            if res.converged:
-                roots[i] = res.root
-                print(root_dw / char_lgth, res.root / char_lgth)
+            if scaled_ratio * k0_dw > 1.47:  # tanh(1.47) approx 0.9
+                roots[i] = find_k_i(k0_dw)
             else:
-                warnings.warn(
-                    f"Root finding did not converge: ice-covered surface, "
-                    f"f={np.sqrt(alpha*gravity)/(2*PI):1.2g} Hz",
-                    stacklevel=2,
+                roots_sw = np.polynomial.polynomial.polyroots(
+                    [_d0 / scaled_ratio, 0, _d1, 0, 0, 0, 1]
                 )
+                k0_sw = extract_real_root(roots_sw)
+
+                if scaled_ratio * k0_sw < 0.11:
+                    roots[i] = find_k_i(k0_sw)
+                else:
+                    roots[i] = find_k_i((k0_dw + k0_sw) / 2)
 
         return roots / char_lgth
 
@@ -624,18 +651,20 @@ class OceanCoupled(Ocean):
         if np.isposinf(self.depth):
             return alphas
 
-        alphas *= self.depth
-        roots = np.full(len(alphas), np.nan)
-        for i, alpha in enumerate(alphas):
-            res = optimize.root_scalar(f, (alpha,), fprime=df_dk, x0=alpha)
-            if res.converged:
-                roots[i] = res.root
-            else:
+        coefs_d0 = alphas * self.depth
+        roots = np.full(len(coefs_d0), np.nan)
+        for i, _d0 in enumerate(coefs_d0):
+            if _d0 >= np.arctanh(np.nextafter(1, 0)):
+                roots[i] = _d0
+                continue
+            res = optimize.root_scalar(f, (_d0,), fprime=df_dk, x0=_d0)
+            if not res.converged:
                 warnings.warn(
                     f"Root finding did not converge: free surface, "
-                    f"f={np.sqrt(alpha/self.depth*gravity)/(2*PI):1.2g} Hz",
+                    f"f={np.sqrt(_d0/self.depth*gravity)/(2*PI):1.2g} Hz",
                     stacklevel=2,
                 )
+            roots[i] = res.root
 
         return roots / self.depth
 
