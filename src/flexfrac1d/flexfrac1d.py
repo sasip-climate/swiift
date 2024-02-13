@@ -393,6 +393,7 @@ class FloeCoupled(Floe):
             * np.exp(-adim_floe)
             * np.sin(adim_floe)
             / red_el_num**2
+            / reduc_denom
         )
         m3 = (
             (
@@ -439,21 +440,21 @@ class FloeCoupled(Floe):
             / reduc_denom
             / (2 * red_el_num**2)
         )
-        m7 = -(
-            (
-                1
-                + 2j * np.exp(-2 * adim_floe) * (np.cos(2 * adim_floe) - 1 + 1j)
-                + np.exp(-4 * adim_floe)
+        m7 = (
+            -(
+                np.expm1(-2 * adim_floe) ** 2
+                + 2j * np.exp(-2 * adim_floe) * (np.cos(2 * adim_floe) - 1)
             )
             / reduc_denom
-            - 1j
-        ) / (4 * red_el_num**3)
+            / (4 * red_el_num**3)
+        )
         m8 = (
             (1 - 1j)
             * np.expm1(-2 * adim_floe)
             * np.exp(-adim_floe)
             * np.sin(adim_floe)
             / (2 * red_el_num**3)
+            / reduc_denom
         )
 
         mat = np.full((4, 4), np.nan, dtype=complex)
@@ -473,7 +474,7 @@ class FloeCoupled(Floe):
         r1 = np.imag(r1).sum()
         r3 = np.imag(r3).sum()
 
-        return np.array((r1, r2, r3, r4))
+        return -np.array((r1, r2, r3, r4))
 
     def make_homo_coefs(self, spectrum):
         """Coefficients of the four orthogonal homogeneous solutions"""
