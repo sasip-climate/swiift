@@ -185,10 +185,6 @@ class IceCoupled(Ice):
         self.__elastic_length = self._elastic_length_pow4 ** (1 / 4)
         self.__wavenumbers = self.compute_wavenumbers(ocean, spec, gravity)
 
-        # ll = (self.flex_rigidity / (ocean.density * wave.angular_frequency2)) ** 0.2
-        # aa = (1 - wave._c_alpha * draft) / (wave._c_alpha * ll)
-        # rr = dud / ll
-
     @property
     def draft(self):
         return self.__draft
@@ -260,10 +256,6 @@ class IceCoupled(Ice):
                 print(alpha, d0, d1, rr)
                 print(res)
             return res.root
-
-        # char_lgth_pow4 = self.flex_rigidity / (density * gravity)
-        # char_lgth = char_lgth_pow4 ** (1 / 4)
-        # rec_lgth = char_lgth_pow4 ** (-1 / 4)  # reciprocate elastic lengthscale
 
         scaled_ratio = self.dud / self.elastic_length
 
