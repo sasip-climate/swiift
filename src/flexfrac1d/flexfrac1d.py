@@ -222,10 +222,7 @@ class IceCoupled(Ice):
         self, density: float, angfreqs2: np.ndarray, gravity: float
     ) -> np.ndarray:
         def f(kk: float, d0: float, d1: float, rr: float) -> float:
-            print(d0, d1, rr)
             obj = (kk**5 + d1 * kk) * np.tanh(rr * kk) + d0
-            print(obj)
-            print()
             return obj
 
         def df_dk(kk: float, d0: float, d1: float, rr: float) -> float:
@@ -252,9 +249,6 @@ class IceCoupled(Ice):
                     f"f={np.sqrt(alpha*gravity)/(2*PI):1.2g} Hz",
                     stacklevel=2,
                 )
-                print(k0)
-                print(alpha, d0, d1, rr)
-                print(res)
             return res.root
 
         scaled_ratio = self.dud / self.elastic_length
