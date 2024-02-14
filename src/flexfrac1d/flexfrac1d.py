@@ -311,39 +311,44 @@ class Floe:
         return self.__length
 
     @property
+    def ice(self):
+        return self.__ice
+
+    @property
     def dispersion(self):
         return self.__dispersion
 
 
 class FloeCoupled(Floe):
-    def __init__(self, floe, phases, dispersion):
-        # TODO: should be IceCoupled
-        super().__init__(floe.left_edge, floe.length, floe.ice)
-        self.__phases = phases
+    def __init__(
+        self,
+        floe: Floe,
+        ice: IceCoupled,
+        spectrum: DiscreteSpectrum,
+        phases: np.ndarray | list[float] | float,
+        dispersion=None,
+    ):
+        super().__init__(floe.left_edge, floe.length, ice, dispersion)
+        self.__phases = np.asarray(phases)
 
     @property
     def phases(self) -> np.ndarray:
         return self.__phases
 
-    @property
-    def ice(self) -> IceCoupled:
-        return self.__ice
+    # TODO
+    # @Floe.ice.getter
+    # def ice(self) -> IceCoupled:
+    #     return self.__ice
 
     @functools.cached_property
     def _adim(self):
-        return self._adim
+        return self.length * self.ice._red_elastic_number
 
-    # def phases(self):
-    #     # TODO: besoin de l'abcisse du floe le plus à gauche
-    #     # En faire une property définie dans __init__
-    #     # Aussi besoin des ices de tous les floes précédents... formulation trop naïve
-    #     (x0 - 0) * ocean.wavenumbers + (self.left_edge - x0) * self.ice.wavenumbers
-
-    def get_part_amplitudes(self, spectrum):
+    def _dis_par_amps(self, amplitudes: np.ndarray):
         """Complex amplitudes of individual particular solutions"""
         return -(
             np.exp(1j * self.phases)
-            * spectrum._amps
+            * amplitudes
             / (
                 1
                 + (
@@ -353,7 +358,7 @@ class FloeCoupled(Floe):
             )
         )
 
-    def make_matrix(self):
+    def _dis_hom_mat(self):
         """Linear application to determine, from the BCs, the coefficients of
         the four independent solutions to the homo ODE"""
         red_el_num = self.ice._red_elastic_number
@@ -449,11 +454,11 @@ class FloeCoupled(Floe):
         mat[1::2] = np.conj(mat[0::2])
         return mat
 
-    def make_rhs(self, spectrum):
+    def _dis_hom_rhs(self, amplitudes):
         """Vector onto which apply the matrix, to extract the coefficients"""
         exp_mod = -self.ice.attenuations + 1j * self.ice.wavenumbers
 
-        r1 = self.get_part_amplitudes(spectrum) * exp_mod**2
+        r1 = self._dis_par_amps(amplitudes) * exp_mod**2
         r2 = np.imag(r1 @ np.exp(exp_mod * self.length))
         r3 = r1 * exp_mod
         r4 = np.imag(r3 @ np.exp(exp_mod * self.length))
@@ -462,30 +467,35 @@ class FloeCoupled(Floe):
 
         return -np.array((r1, r2, r3, r4))
 
-    def make_homo_coefs(self, spectrum):
+    def _dis_hom_coefs(self, amplitudes: np.ndarray) -> np.ndarray:
         """Coefficients of the four orthogonal homogeneous solutions"""
-        return self.make_matrix() @ self.make_rhs(spectrum)
+        return self._dis_hom_mat() @ self._dis_hom_rhs(amplitudes)
 
-    def eta_f(self, x, complex_amps):
+    def surface(self, x, spectrum):
+        return (
+            self._wavefield(x, spectrum._amps * np.exp(1j * self.phases))
+            - self.ice.draft
+        )
+
+    def _wavefield(self, x, complex_amps):
         """Vertical coordinate of the floe--wave interface
 
         `complex_amps` is left free, so it can be used with natural spectral amplitudes,
         or user-provided ones, incorporating a phase
 
         """
+        # TODO: could be better of in DiscreteSpectrum
         return np.imag(
             complex_amps
-            @ np.exp(
-                (-self.ice.attenuations() + 1j * self.ice.wavenumbers)[:, None] * x
-            )
+            @ np.exp((-self.ice.attenuations + 1j * self.ice.wavenumbers)[:, None] * x)
         )
 
-    def get_mean_surface(self, spectrum):
+    def _mean_wavefield(self, amplitudes):
         """Mean interface of the floe-attenuated wave"""
-        comp_wn = -self.ice.attenuations + 1j * self.wavenumbers
+        comp_wn = -self.ice.attenuations + 1j * self.ice.wavenumbers
         return (
             np.imag(
-                spectrum._amps
+                amplitudes
                 * np.exp(1j * self.phases)
                 / comp_wn
                 * (np.exp(comp_wn * self.length) - 1)
@@ -493,73 +503,103 @@ class FloeCoupled(Floe):
             / self.length
         )
 
-    # def get_homo(x, floe, spectrum):
-    #     """Homogeneous solution to the displacement ODE"""
-
-    #     sigma_tilde = get_reduced_elastic_number(floe)
-    #     return np.real(
-    #         make_homo_coefs(floe, spectrum)
-    #         @ (
-    #             np.cosh((1 + 1j) * sigma_tilde * x),
-    #             np.cosh((1 - 1j) * sigma_tilde * x),
-    #             np.sinh((1 + 1j) * sigma_tilde * x),
-    #             np.sinh((1 - 1j) * sigma_tilde * x),
-    #         )
-    #     )
-
-    # def get_part(x, floe, spectrum, x0):
-    #     """Sum of the particular solutions to the displacement ODE"""
-    #     return eta_f(
-    #         x, floe, spectrum, get_part_amplitudes(floe, spectrum, x0)
-    #     ) + get_mean_surface(floe, spectrum)
-
-    # def get_displacement(x, floe, spectrum):
-    #     """Complete solution of the displacement ODE
-
-    #     `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
-    #     """
-    #     return get_homo(x, floe, spectrum) + get_part(x, floe, spectrum)
-
-    def get_energy_hom_c(self, spectrum, x0):
-        """Energy contribution from the cosh eigenfunction"""
-        self.ice._red_elastic_number
-        adim2 = 2 * self.length * self.ice._red_elastic_number
-
-        _c = self.make_homo_coefs(spectrum)[0]
-        real, imag = np.real(_c), np.imag(_c)
-
-        return (
-            imag**2
-            * (
-                4 * self.length
-                + (
-                    np.sinh(adim2) * (2 + np.cos(adim2))
-                    + np.sin(adim2) * (2 + np.cosh(adim2))
-                )
-                / self.ice._red_elastic_number
-            )
-            + 2
-            * real
-            * imag
-            * (np.cosh(adim2) * np.sin(adim2) - np.sinh(adim2) * np.cos(adim2))
-            / self.ice._red_elastic_number
-            - real**2
-            * (
-                4 * self.length
-                - (
-                    np.sinh(adim2) * (2 - np.cos(adim2))
-                    + np.sin(adim2) * (2 - np.cosh(adim2))
-                )
-                / self.ice._red_elastic_number
+    def _dis_hom(self, x, amplitudes: np.ndarray):
+        """Homogeneous solution to the displacement ODE"""
+        red_el_num = self.ice._red_elastic_number
+        return np.real(
+            self._dis_hom_coefs(amplitudes)
+            @ (
+                np.cosh((1 + 1j) * red_el_num * x),
+                np.cosh((1 - 1j) * red_el_num * x),
+                np.sinh((1 + 1j) * red_el_num * x),
+                np.sinh((1 - 1j) * red_el_num * x),
             )
         )
 
-    def get_energy_hom_s(self, spectrum):
+    def _dis_par(self, x, amplitudes):
+        """Sum of the particular solutions to the displacement ODE"""
+        return self._mean_wavefield(amplitudes) + self._wavefield(
+            x, self._dis_par_amps(amplitudes)
+        )
+
+    def _displacement(self, x, amplitudes):
+        return self._dis_hom(x, amplitudes) + self._dis_par(x, amplitudes)
+
+    def displacement(self, x, spectrum):
+        """Complete solution of the displacement ODE
+
+        `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
+        """
+        return self._displacement(x, spectrum._amps)
+
+    def _cur_wavefield(self, x, spectrum, complex_amps):
+        """Second derivative of the interface"""
+        return np.imag(
+            (complex_amps * (-self.ice.attenuations + 1j * self.ice.wavenumbers) ** 2)
+            @ np.exp((-self.ice.attenuations + 1j * self.ice.wavenumbers)[:, None] * x)
+        )
+
+    def _cur_hom(self, x, spectrum):
+        """Second derivative of the homogeneous part of the displacement"""
+        red_el_num = self.ice._red_elastic_number
+        return np.real(
+            self._dis_hom_coefs(spectrum)
+            @ (
+                ((1 + 1j) * red_el_num) ** 2 * np.cosh((1 + 1j) * red_el_num * x),
+                ((1 - 1j) * red_el_num) ** 2 * np.cosh((1 - 1j) * red_el_num * x),
+                ((1 + 1j) * red_el_num) ** 2 * np.sinh((1 + 1j) * red_el_num * x),
+                ((1 - 1j) * red_el_num) ** 2 * np.sinh((1 - 1j) * red_el_num * x),
+            )
+        )
+
+    def _cur_par(self, x, spectrum):
+        """Second derivative of the particular part of the displacement"""
+        return self._cur_wavefield(x, spectrum, self._dis_par_amps(spectrum))
+
+    def curvature(self, x, spectrum):
+        """Curvature of the floe, i.e. second derivative of the vertical displacement"""
+        return self._cur_hom(x, spectrum) + self._cur_par(x, spectrum)
+
+        def _egy_hom_c(self, spectrum, x0):
+            """Energy contribution from the cosh eigenfunction"""
+            self.ice._red_elastic_number
+            adim2 = 2 * self.length * self.ice._red_elastic_number
+
+            _c = self._dis_hom_coefs(spectrum)[0]
+            real, imag = np.real(_c), np.imag(_c)
+
+            return (
+                imag**2
+                * (
+                    4 * self.length
+                    + (
+                        np.sinh(adim2) * (2 + np.cos(adim2))
+                        + np.sin(adim2) * (2 + np.cosh(adim2))
+                    )
+                    / self.ice._red_elastic_number
+                )
+                + 2
+                * real
+                * imag
+                * (np.cosh(adim2) * np.sin(adim2) - np.sinh(adim2) * np.cos(adim2))
+                / self.ice._red_elastic_number
+                - real**2
+                * (
+                    4 * self.length
+                    - (
+                        np.sinh(adim2) * (2 - np.cos(adim2))
+                        + np.sin(adim2) * (2 - np.cosh(adim2))
+                    )
+                    / self.ice._red_elastic_number
+                )
+            )
+
+    def _egy_hom_s(self, spectrum):
         """Energy contribution from the sinh eigenfunction"""
         self.ice._red_elastic_number
         adim2 = 2 * self.length * self.ice._red_elastic_number
 
-        _c = self.make_homo_coefs(spectrum)[2]
+        _c = self._dis_hom_coefs(spectrum)[2]
         real, imag = np.real(_c), np.imag(_c)
 
         return (
@@ -588,11 +628,11 @@ class FloeCoupled(Floe):
             )
         )
 
-    def get_energy_hom_m(self, spectrum):
+    def _egy_hom_m(self, spectrum):
         """Energy contribution from eigenfunctions interaction"""
         adim2 = 2 * self._adim
 
-        c1, c2 = self.make_homo_coefs(spectrum)[[0, 2]]
+        c1, c2 = self._dis_hom_coefs(spectrum)[[0, 2]]
         x1, x2 = map(np.real, (c1, c2))
         y1, y2 = map(np.imag, (c1, c2))
 
@@ -627,25 +667,25 @@ class FloeCoupled(Floe):
             )
         ) / self.ice._red_elastic_number
 
-    def get_energy_hom(self, spectrum):
+    def _egy_hom(self, spectrum):
         """Energy from the homogen term of the displacement ODE"""
         return (
-            self.get_energy_hom_c(spectrum)
-            + 2 * self.get_energy_hom_m(spectrum)
-            + self.get_energy_hom_s(spectrum)
+            self._egy_hom_c(spectrum)
+            + 2 * self._egy_hom_m(spectrum)
+            + self._egy_hom_s(spectrum)
         ) / (4 * self.ice._elastic_length_pow4)
 
-    def prep_nhom(self, spectrum):
-        comp_amps = self.get_part_amplitudes(spectrum)
+    def _egy_par_vals(self, spectrum):
+        comp_amps = self._dis_par_amps(spectrum)
         comp_wns = self.wavenumbers + 1j * self.ice.attenuations
 
         comp_curvs = comp_amps * (1j * comp_wns) ** 2
 
         return comp_wns, comp_curvs
 
-    def get_energy_nhom_sq(self, spectrum):
+    def _egy_par_pow2(self, spectrum):
         """Energy contribution from individual forcings"""
-        comp_wns, comp_curvs = self.prep_nhom(spectrum)
+        comp_wns, comp_curvs = self._egy_par_vals(spectrum)
         wn_moduli, curv_moduli = map(np.abs, (comp_wns, comp_curvs))
         wn_phases, curv_phases = map(np.angle, (comp_wns, comp_curvs))
 
@@ -666,9 +706,9 @@ class FloeCoupled(Floe):
             )
         ) / 4
 
-    def get_energy_nhom_m(self, spectrum):
+    def _egy_par_m(self, spectrum):
         """Energy contribution from forcing interactions"""
-        _, comp_curvs = self.prep_nhom(spectrum)
+        _, comp_curvs = self._egy_par_vals(spectrum)
 
         # Binomial coefficients, much more efficient than itertools
         idx1, idx2 = np.triu_indices(
@@ -706,11 +746,11 @@ class FloeCoupled(Floe):
             @ (_f(comp_wns[1], curv_phases[1]) - _f(comp_wns[0], curv_phases[0]))
         )
 
-    def get_energy_nhom(self, spectrum):
+    def _egy_par(self, spectrum):
         """Energy from the forcing term of the displacement ODE"""
-        return self.get_energy_nhom_sq(spectrum) + self.get_energy_nhom_m(spectrum)
+        return self._egy_par_pow2(spectrum) + self._egy_par_m(spectrum)
 
-    def get_energy_m(self, spectrum):
+    def _egy_m(self, spectrum):
         def int_cosh_cos():
             return curv_moduli @ (
                 (
@@ -907,7 +947,7 @@ class FloeCoupled(Floe):
 
         adim = self._adim
         wns = self.wavenumbers
-        _, comp_curvs = self.prep_nhom(spectrum)
+        _, comp_curvs = self._egy_par_vals(spectrum)
 
         curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
         prop_phases = wns * self.length + curv_phases
@@ -934,7 +974,7 @@ class FloeCoupled(Floe):
         qdec_p = bigkpp**2 - (2 * stk) ** 2
         qdec_m = bigkpm**2 - (2 * stk) ** 2
 
-        coefs = self.make_homo_coefs(spectrum)
+        coefs = self._dis_hom_coefs(spectrum)
         x1, x2 = map(np.real, coefs[[0, 2]])
         y1, y2 = map(np.imag, coefs[[0, 2]])
 
@@ -951,9 +991,13 @@ class FloeCoupled(Floe):
 
     def energy(self, spectrum):
         return (
-            self.get_energy_hom(spectrum)
-            + 2 * self.get_energy_m(spectrum)
-            + self.get_energy_nhom(spectrum)
+            self.ice.flex_rigidity
+            * (
+                self._egy_hom(spectrum)
+                + 2 * self._egy_m(spectrum)
+                + self._egy_par(spectrum)
+            )
+            / (2 * self.ice.thickness)
         )
 
 
