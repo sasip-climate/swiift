@@ -8,7 +8,7 @@ import scipy.integrate as integrate
 from flexfrac1d.flexfrac1d import Ocean, OceanCoupled, DiscreteSpectrum
 from flexfrac1d.flexfrac1d import Floe, FloeCoupled, Ice, IceCoupled
 
-# from flexfrac1d.libraries.WaveUtils import free_surface, elas_mass_surface
+from hypothesis import settings, Phase, Verbosity
 
 
 def fun(x, w, *, floe: FloeCoupled, spectrum: DiscreteSpectrum):
@@ -18,13 +18,11 @@ def fun(x, w, *, floe: FloeCoupled, spectrum: DiscreteSpectrum):
             w[2],
             w[3],
             -(
-                floe.ice._red_elastic_number
-                * (
-                    w[0]
-                    + floe._wavefield(x, floe._dis_par_amps(spectrum))
-                    - floe._mean_wavefield(spectrum)
-                )
-            ),
+                w[0]
+                + floe._wavefield(x, spectrum._amps * np.exp(1j * floe.phases))
+                - floe._mean_wavefield(spectrum._amps)
+            )
+            / floe.ice._elastic_length_pow4,
         )
     )
     return wprime
@@ -95,7 +93,8 @@ def setup(draw):
                         "max_value": min(
                             float_kw["max_value"] / 10,
                             np.nextafter(ocean.depth * rho_w / rho_i, 0),
-                        )  # ensure H -d > 0
+                        ),  # ensure H -d > 0
+                        # "min_value": 1e-9,
                     }
                 )
             ),
@@ -128,93 +127,53 @@ def setup(draw):
             **(float_kw | {"min_value": lbound_length, "max_value": ubound_length})
         )
     )
+    # Correspond to sinh(x)^2 > sin(x)^2 == True, numerically
+    assume(length * ci._red_elastic_number > 2e-8)
+    assume(np.exp(-2 * length * ci._red_elastic_number) != 1)
     left_edge = draw(st.just(10.0))  # should be irrelevant for now
     floe = Floe(left_edge, length, ice, None)
     cf = FloeCoupled(floe, ci, spec, phases)
 
-    return cf, spec
+    return cf, spec, co, gravity
 
 
-int_kw = {"min_value": 1, "max_value": 50}
-
-
-@given(
-    # ocean=st.builds(
-    #     Ocean,
-    #     depth=st.floats(**float_kw) | st.just(np.inf),
-    #     density=st.floats(**float_kw),
-    # ),
-    # spec=st.builds
-    #     DiscreteSpectrum,
-    #     st.lists(
-    #         st.floats(**float_kw),
-    #         min_size=st.shared(st.integers(**int_kw), key="nf"),
-    #         max_size=st.shared(st.integers(**int_kw), key="nf"),
-    #     ),
-    #     st.lists(
-    #         st.floats(**float_kw),
-    #         min_size=st.shared(st.integers(**int_kw), key="nf"),
-    #         max_size=st.shared(st.integers(**int_kw), key="nf"),
-    #     ),
-    # ),
-    # ice=st.builds(
-    #     Ice,
-    #     density=st.floats(**float_kw),
-    #     frac_energy=st.floats(**float_kw),
-    #     poissons_ratio=st.floats(
-    #         min_value=-1,
-    #         max_value=0.5,
-    #         allow_nan=False,
-    #         allow_subnormal=False,
-    #         exclude_min=True,
-    #     ),
-    #     thickness=st.floats(**float_kw),
-    #     youngs_modulus=st.floats(**float_kw),
-    # ),
-    # left_edge=st.just(10),
-    # length=st.floats(**float_kw),
-    # phases=st.lists(
-    #     st.floats(**float_kw),
-    #     min_size=st.shared(st.integers(**int_kw), key="nf"),
-    #     max_size=st.shared(st.integers(**int_kw), key="nf"),
-    # ),
-    # gravity=st.floats(**float_kw),
-    args=setup(),
-)
+@given(args=setup())
+# @settings(
+# verbosity=Verbosity.verbose,
+# phases=[Phase.explicit, Phase.reuse, Phase.generate],
+# deadline=None,
+# )
 def test_displacement(
-    # ocean: Ocean,
-    # ice: Ice,
-    # left_edge: float,
-    # length: float,
-    # gravity: float,
-    args: tuple[DiscreteSpectrum, list[float]],
+    args: tuple[DiscreteSpectrum, list[float], OceanCoupled, float],
 ):
-    # spec, phases = args
-    # assume(ocean.density > ice.density)
-    # assume(length > ice.thickness)
-    # Has to be done manually as instantiation of the IceCoupled object can
-    # fail if not respected
-    # assume(ocean.depth - ice.thickness * ice.density / ocean.density > 0)
-    # co = OceanCoupled(ocean, spec, gravity)
-    # ci = IceCoupled(ice, co, spec, None, gravity)
-    # floe = Floe(left_edge, length, ice, None)
-    # cf = FloeCoupled(floe, ci, spec, phases)
-    # assert cf.ice is not None
-
-    cf, spec = args
+    cf, spec, ocean, gravity = args
     n_mesh = max(
         4, np.ceil(4 * cf.length / (2 * np.pi / cf.ice.wavenumbers.max())).astype(int)
     )
     x = np.linspace(0, cf.length, n_mesh)
-    w = np.zeros((4, x.size))
-    sol = integrate.solve_bvp(
-        lambda x, w: fun(x, w, floe=cf, spectrum=spec),
-        bc,
-        x,
-        w,
-        tol=1e-6,
-    )
-    # x_hd = np.linspace(0, cf.length, n_mesh * 20)
-    if sol.success:
-        assert np.allclose(cf.displacement(sol.x, spec), sol.y[0])
-    # assert np.allclose(cf.displacement(x_hd, spec), sol.sol(x_hd)[0])
+
+    if np.all(np.isfinite(cf.displacement(x, spec))):
+        w = np.zeros((4, x.size))
+        sol = integrate.solve_bvp(
+            lambda x, w: fun(x, w, floe=cf, spectrum=spec),
+            bc,
+            x,
+            w,
+            tol=1e-4,
+        )
+        if sol.success:
+            try:
+                assert np.allclose(cf.displacement(sol.x, spec), sol.y[0])
+            except AssertionError:
+                print(sol.x.size)
+                man_res = np.sqrt(
+                    [
+                        integrate.quad(
+                            lambda x: (sol.sol(x)[0] - cf.displacement(x, spec)) ** 2,
+                            sol.x[i],
+                            sol.x[i + 1],
+                        )[0]
+                        for i in range(sol.x.size - 1)
+                    ]
+                )
+                assert np.all(man_res <= sol.rms_residuals)

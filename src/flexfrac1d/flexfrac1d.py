@@ -7,6 +7,7 @@ import itertools
 import warnings
 import numpy as np
 import scipy.optimize as optimize
+import scipy.special as special
 
 # from .libraries.WaveUtils import SpecVars
 from .pars import g
@@ -364,11 +365,18 @@ class FloeCoupled(Floe):
         red_el_num = self.ice._red_elastic_number
         adim_floe = red_el_num * self.length
 
+        # TODO reduc_denom fragile quand adim est petit. Peut-être garder les
+        # expressions hyperboliques dans ce cas
+
         reduc_denom = (
             1
             + 2 * np.exp(-2 * adim_floe) * (np.cos(2 * adim_floe) - 2)
             + np.exp(-4 * adim_floe)
         )
+        if reduc_denom == 0.0:
+            reduc_denom = np.expm1(-2 * adim_floe) ** 2 + 2 * np.exp(
+                -2 * adim_floe
+            ) * special.cosm1(2 * adim_floe)
 
         m1 = (
             (
@@ -505,14 +513,14 @@ class FloeCoupled(Floe):
 
     def _dis_hom(self, x, amplitudes: np.ndarray):
         """Homogeneous solution to the displacement ODE"""
-        red_el_num = self.ice._red_elastic_number
+        arr = self.ice._red_elastic_number * x
         return np.real(
             self._dis_hom_coefs(amplitudes)
             @ (
-                np.cosh((1 + 1j) * red_el_num * x),
-                np.cosh((1 - 1j) * red_el_num * x),
-                np.sinh((1 + 1j) * red_el_num * x),
-                np.sinh((1 - 1j) * red_el_num * x),
+                np.cosh((1 + 1j) * arr),
+                np.cosh((1 - 1j) * arr),
+                np.sinh((1 + 1j) * arr),
+                np.sinh((1 - 1j) * arr),
             )
         )
 
@@ -558,7 +566,7 @@ class FloeCoupled(Floe):
 
     def curvature(self, x, spectrum):
         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
-        return self._cur_hom(x, spectrum) + self._cur_par(x, spectrum)
+        return self._cur_hom(x, spectrum._amps) + self._cur_par(x, spectrum._amps)
 
     def _egy_hom_c(self, spectrum, x0):
         """Energy contribution from the cosh eigenfunction"""
