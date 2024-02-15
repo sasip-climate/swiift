@@ -560,39 +560,39 @@ class FloeCoupled(Floe):
         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
         return self._cur_hom(x, spectrum) + self._cur_par(x, spectrum)
 
-        def _egy_hom_c(self, spectrum, x0):
-            """Energy contribution from the cosh eigenfunction"""
-            self.ice._red_elastic_number
-            adim2 = 2 * self.length * self.ice._red_elastic_number
+    def _egy_hom_c(self, spectrum, x0):
+        """Energy contribution from the cosh eigenfunction"""
+        self.ice._red_elastic_number
+        adim2 = 2 * self.length * self.ice._red_elastic_number
 
-            _c = self._dis_hom_coefs(spectrum)[0]
-            real, imag = np.real(_c), np.imag(_c)
+        _c = self._dis_hom_coefs(spectrum)[0]
+        real, imag = np.real(_c), np.imag(_c)
 
-            return (
-                imag**2
-                * (
-                    4 * self.length
-                    + (
-                        np.sinh(adim2) * (2 + np.cos(adim2))
-                        + np.sin(adim2) * (2 + np.cosh(adim2))
-                    )
-                    / self.ice._red_elastic_number
+        return (
+            imag**2
+            * (
+                4 * self.length
+                + (
+                    np.sinh(adim2) * (2 + np.cos(adim2))
+                    + np.sin(adim2) * (2 + np.cosh(adim2))
                 )
-                + 2
-                * real
-                * imag
-                * (np.cosh(adim2) * np.sin(adim2) - np.sinh(adim2) * np.cos(adim2))
                 / self.ice._red_elastic_number
-                - real**2
-                * (
-                    4 * self.length
-                    - (
-                        np.sinh(adim2) * (2 - np.cos(adim2))
-                        + np.sin(adim2) * (2 - np.cosh(adim2))
-                    )
-                    / self.ice._red_elastic_number
-                )
             )
+            + 2
+            * real
+            * imag
+            * (np.cosh(adim2) * np.sin(adim2) - np.sinh(adim2) * np.cos(adim2))
+            / self.ice._red_elastic_number
+            - real**2
+            * (
+                4 * self.length
+                - (
+                    np.sinh(adim2) * (2 - np.cos(adim2))
+                    + np.sin(adim2) * (2 - np.cosh(adim2))
+                )
+                / self.ice._red_elastic_number
+            )
+        )
 
     def _egy_hom_s(self, spectrum):
         """Energy contribution from the sinh eigenfunction"""
