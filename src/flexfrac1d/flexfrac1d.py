@@ -243,6 +243,7 @@ class IceCoupled(Ice):
                 args=(d0, d1, rr),
                 fprime=df_dk,
                 x0=k0,
+                xtol=1e-10,
             )
             if not res.converged:
                 warnings.warn(
@@ -275,7 +276,10 @@ class IceCoupled(Ice):
             if np.isposinf(self.dud):
                 roots[i] = k0_dw
                 continue
-            if scaled_ratio * k0_dw > 1.47:  # tanh(1.47) approx 0.9
+            # Use a DW initial guess if |1-1/tanh(rr*k_DW)| < 0.15
+            # Use a SW initial guess if |1-rr*k_SW/tanh(rr*k_SW)| < 0.20
+            thrsld_dw, thrsld_sw = 1.33, 0.79
+            if scaled_ratio * k0_dw > thrsld_dw:
                 roots[i] = find_k_i(k0_dw)
             else:
                 roots_sw = np.polynomial.polynomial.polyroots(
@@ -283,10 +287,12 @@ class IceCoupled(Ice):
                 )
                 k0_sw = extract_real_root(roots_sw)
 
-                if scaled_ratio * k0_sw < 0.11:
+                if scaled_ratio * k0_sw < thrsld_sw:
                     roots[i] = find_k_i(k0_sw)
+                # Use an initial guess in the middle otherwise
                 else:
-                    roots[i] = find_k_i((k0_dw + k0_sw) / 2)
+                    k0_ = (k0_sw + k0_dw) / 2
+                    roots[i] = find_k_i(k0_)
 
         return roots / self.elastic_length
 

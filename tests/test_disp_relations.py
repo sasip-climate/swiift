@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from hypothesis import given, strategies as st
+from hypothesis import example, given, settings, strategies as st
 import numpy as np
 
 from flexfrac1d.flexfrac1d import Ocean, OceanCoupled, DiscreteSpectrum
@@ -92,6 +92,7 @@ def test_free_surface(ocean, spec, gravity):
     ),
     gravity=physical_strategies["gravity"],
 )
+@settings(max_examples=500)
 def test_elas_mass_surface(
     ocean: Ocean, spec: DiscreteSpectrum, ice: Ice, gravity: float
 ):
