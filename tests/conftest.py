@@ -52,3 +52,112 @@ physical_strategies = {
 
 physical_strategies["ice"]["density"] = ice_density
 physical_strategies["ice"]["thickness"] = ice_thickness
+
+
+@st.composite
+def spec_mono(draw):
+    return DiscreteSpectrum(
+        st.just(0.5), draw(physical_strategies["wave"]["wave_frequency"])
+    )
+
+
+@st.composite
+def spec_poly(draw):
+    n = draw(st.integers(min_value=1, max_value=100))
+    amplitudes = draw(
+        st.lists(
+            physical_strategies["wave"]["wave_amplitude"],
+            min_size=n,
+            max_size=n,
+            unique=True,
+        )
+    )
+    frequencies = draw(
+        st.lists(
+            physical_strategies["wave"]["wave_frequency"],
+            min_size=n,
+            max_size=n,
+            unique=True,
+        )
+    )
+    phases = draw(
+        st.lists(
+            physical_strategies["wave"]["wave_phase"],
+            min_size=n,
+            max_size=n,
+            unique=True,
+        )
+    )
+    return DiscreteSpectrum(amplitudes, frequencies, phases)
+
+
+coupled_ocean_ice = {
+    "ocean": st.builds(
+        Ocean,
+        depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
+        density=st.shared(physical_strategies["ocean"]["density"], key="rhow"),
+    ),
+    # "spec": st.builds(
+    #     DiscreteSpectrum,
+    #     st.just(1),
+    #     physical_strategies["wave"]["wave_frequency"],
+    # ),
+    "ice": st.builds(
+        Ice,
+        density=st.shared(
+            physical_strategies["ice"]["density"](
+                st.shared(physical_strategies["ocean"]["density"], key="rhow")
+            ),
+            key="rhoi",
+        ),
+        frac_energy=physical_strategies["ice"]["frac_energy"],
+        poissons_ratio=physical_strategies["ice"]["poissons_ratio"],
+        thickness=physical_strategies["ice"]["thickness"](
+            ocean_depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
+            ocean_density=st.shared(
+                physical_strategies["ocean"]["density"], key="rhow"
+            ),
+            ice_density=st.shared(
+                physical_strategies["ice"]["density"](
+                    st.shared(physical_strategies["ocean"]["density"], key="rhow")
+                ),
+                key="rhoi",
+            ),
+        ),
+        youngs_modulus=physical_strategies["ice"]["youngs_modulus"],
+    ),
+    "gravity": physical_strategies["gravity"],
+}
+
+coupled_ocean_ice2 = {
+    "ocean": st.builds(
+        Ocean,
+        depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
+        density=st.shared(physical_strategies["ocean"]["density"], key="rhow"),
+    ),
+    "ice": st.builds(
+        Ice,
+        density=st.shared(
+            physical_strategies["ice"]["density"](
+                st.shared(physical_strategies["ocean"]["density"], key="rhow")
+            ),
+            key="rhoi",
+        ),
+        frac_energy=physical_strategies["ice"]["frac_energy"],
+        poissons_ratio=physical_strategies["ice"]["poissons_ratio"],
+        thickness=physical_strategies["ice"]["thickness"](
+            ocean_depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
+            ocean_density=st.shared(
+                physical_strategies["ocean"]["density"], key="rhow"
+            ),
+            ice_density=st.shared(
+                physical_strategies["ice"]["density"](
+                    st.shared(physical_strategies["ocean"]["density"], key="rhow")
+                ),
+                key="rhoi",
+            ),
+        ),
+        youngs_modulus=physical_strategies["ice"]["youngs_modulus"],
+    ),
+    "gravity": physical_strategies["gravity"],
+}
