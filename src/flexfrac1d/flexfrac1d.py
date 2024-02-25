@@ -180,7 +180,7 @@ class IceCoupled(Ice):
             ice.thickness,
             ice.youngs_modulus,
         )
-        self.__draft = self.thickness * self.density / ocean.density
+        self.__draft = self.density / ocean.density * self.thickness
         self.__dud = ocean.depth - self.draft
         self._elastic_length_pow4 = self.flex_rigidity / (ocean.density * gravity)
         self.__elastic_length = self._elastic_length_pow4 ** (1 / 4)

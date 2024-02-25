@@ -17,14 +17,14 @@ def free_surface(wavenumber, depth):
 
 
 def elas_mass_surface(
-    wavenumber: float, ice: Ice, ocean: Ocean, gravity: float
-) -> float:
+    wavenumbers: np.ndarray, ice: Ice, ocean: Ocean, gravity: float
+) -> np.ndarray:
     l4 = ice.flex_rigidity / (ocean.density * gravity)
     draft = ice.density / ocean.density * ice.thickness
     dud = ocean.depth - draft
-    k_tanh_kdud = wavenumber * np.tanh(wavenumber * dud)
+    k_tanh_kdud = wavenumbers * np.tanh(wavenumbers * dud)
 
-    return (l4 * wavenumber**4 + 1) / (1 + draft * k_tanh_kdud) * k_tanh_kdud
+    return (l4 * wavenumbers**4 + 1) / (1 + draft * k_tanh_kdud) * k_tanh_kdud
 
 
 def PM(u, f):
