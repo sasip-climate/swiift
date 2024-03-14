@@ -425,6 +425,84 @@ class FloeCoupled(Floe):
             np.sin(b * L) ** 2 / np.cosh(b * L) ** 2 - np.tanh(b * L) ** 2
         ) + self._dis_par(x, amps)
 
+    def courb2(self, x: np.ndarray, spectrum: DiscreteSpectrum):
+        amps = spectrum._amps
+        b = self.ice._red_elastic_number
+        L = self.length
+
+        C1 = (
+            (-np.exp(b * (-2 * L + x)) + np.exp(-b * (2 * L + x))) * np.sin(2 * L * b)
+            + (np.exp(b * (-2 * L + x)) + np.exp(-b * (2 * L + x))) * np.cos(2 * L * b)
+            - 2 * np.exp(b * (-2 * L + x))
+            + np.exp(-4 * L * b + b * x)
+            - 2 * np.exp(-b * (2 * L + x))
+            + np.exp(-b * x)
+        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)) ** 2)
+        C2 = (
+            (-np.sin(L * b) - np.cos(L * b) * np.tanh(L * b)) * np.exp(-b * (L + x))
+            + (np.sin(L * b) + np.cos(L * b) * np.tanh(L * b)) * np.exp(b * (-L + x))
+        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)))
+        C3 = (
+            (-np.exp(b * (-2 * L + x)) + np.exp(-b * (2 * L + x)))
+            * np.sin(L * b) ** 2
+            / (2 * b**3 * (1 + np.exp(-2 * L * b)) ** 2)
+        )
+        C4 = (
+            (-np.exp(b * (-L + x)) + np.exp(-b * (L + x)))
+            * np.sin(L * b)
+            * np.tanh(L * b)
+            / (4 * b**3 * (1 + np.exp(-2 * L * b)))
+        )
+
+        S1 = (
+            (np.exp(b * (-2 * L + x)) - np.exp(-b * (2 * L + x))) * np.cos(2 * L * b)
+            + (np.exp(b * (-2 * L + x)) + np.exp(-b * (2 * L + x))) * np.sin(2 * L * b)
+            - np.exp(b * (-4 * L + x))
+            + np.exp(-b * x)
+        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)) ** 2)
+        S2 = (
+            (-np.exp(b * (-L + x)) - np.exp(-b * (L + x)))
+            * np.cos(L * b)
+            * np.tanh(L * b)
+            + (
+                2 * np.exp(b * (-L + x)) * np.tanh(L * b)
+                - np.exp(b * (-L + x))
+                - 2 * np.exp(-b * (L + x)) * np.tanh(L * b)
+                - np.exp(-b * (L + x))
+            )
+            * np.sin(L * b)
+        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)))
+        S3 = (
+            (np.exp(b * (-2 * L + x)) - np.exp(-b * (2 * L + x))) * np.sin(2 * L * b)
+            - np.exp(b * (-2 * L + x))
+            + np.exp(-4 * L * b + b * x)
+            - np.exp(-b * (2 * L + x))
+            + np.exp(-b * x)
+        ) / (4 * b**3 * (1 + np.exp(-2 * L * b)) ** 2)
+        S4 = (
+            (np.exp(b * (-L + x)) - np.exp(-b * (L + x)))
+            * np.cos(L * b)
+            * np.tanh(L * b)
+            + (
+                np.exp(b * (-L + x)) * np.tanh(L * b)
+                - np.exp(b * (-L + x))
+                + np.exp(-b * (L + x)) * np.tanh(L * b)
+                + np.exp(-b * (L + x))
+            )
+            * np.sin(L * b)
+        ) / (4 * b**3 * (1 + np.exp(-2 * L * b)))
+
+        rhs = self._dis_hom_rhs(amps)
+        cc = np.vstack((C1, C2, C3, C4)) * np.cos(b * x)
+        ss = np.vstack((S1, S2, S3, S4)) * np.sin(b * x)
+        return (
+            -4
+            * b**2
+            * rhs
+            @ (cc + ss)
+            / (np.sin(b * L) ** 2 / np.cosh(b * L) ** 2 - np.tanh(b * L) ** 2)
+        ) + self._cur_par(x, amps)
+
     def _dis_par_amps(self, amplitudes: np.ndarray):
         """Complex amplitudes of individual particular solutions"""
         return -(
