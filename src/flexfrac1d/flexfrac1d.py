@@ -438,21 +438,20 @@ class FloeCoupled(Floe):
             + np.exp(-4 * L * b + b * x)
             - 2 * np.exp(-b * (2 * L + x))
             + np.exp(-b * x)
-        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)) ** 2)
-        C2 = (
-            (-np.sin(L * b) - np.cos(L * b) * np.tanh(L * b)) * np.exp(-b * (L + x))
-            + (np.sin(L * b) + np.cos(L * b) * np.tanh(L * b)) * np.exp(b * (-L + x))
-        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)))
-        C3 = (
+        ) / (1 + np.exp(-2 * L * b))
+        C2 = (-np.sin(L * b) - np.cos(L * b) * np.tanh(L * b)) * np.exp(
+            -b * (L + x)
+        ) + (np.sin(L * b) + np.cos(L * b) * np.tanh(L * b)) * np.exp(b * (-L + x))
+        C3 = 2 * (
             (-np.exp(b * (-2 * L + x)) + np.exp(-b * (2 * L + x)))
             * np.sin(L * b) ** 2
-            / (2 * b**3 * (1 + np.exp(-2 * L * b)) ** 2)
+            / (b * (1 + np.exp(-2 * L * b)))
         )
         C4 = (
             (-np.exp(b * (-L + x)) + np.exp(-b * (L + x)))
             * np.sin(L * b)
             * np.tanh(L * b)
-            / (4 * b**3 * (1 + np.exp(-2 * L * b)))
+            / b
         )
 
         S1 = (
@@ -460,26 +459,24 @@ class FloeCoupled(Floe):
             + (np.exp(b * (-2 * L + x)) + np.exp(-b * (2 * L + x))) * np.sin(2 * L * b)
             - np.exp(b * (-4 * L + x))
             + np.exp(-b * x)
-        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)) ** 2)
-        S2 = (
-            (-np.exp(b * (-L + x)) - np.exp(-b * (L + x)))
-            * np.cos(L * b)
-            * np.tanh(L * b)
-            + (
-                2 * np.exp(b * (-L + x)) * np.tanh(L * b)
-                - np.exp(b * (-L + x))
-                - 2 * np.exp(-b * (L + x)) * np.tanh(L * b)
-                - np.exp(-b * (L + x))
-            )
-            * np.sin(L * b)
-        ) / (4 * b**2 * (1 + np.exp(-2 * L * b)))
+        ) / (1 + np.exp(-2 * L * b))
+        S2 = (-np.exp(b * (-L + x)) - np.exp(-b * (L + x))) * np.cos(L * b) * np.tanh(
+            L * b
+        ) + (
+            2 * np.exp(b * (-L + x)) * np.tanh(L * b)
+            - np.exp(b * (-L + x))
+            - 2 * np.exp(-b * (L + x)) * np.tanh(L * b)
+            - np.exp(-b * (L + x))
+        ) * np.sin(
+            L * b
+        )
         S3 = (
             (np.exp(b * (-2 * L + x)) - np.exp(-b * (2 * L + x))) * np.sin(2 * L * b)
             - np.exp(b * (-2 * L + x))
             + np.exp(-4 * L * b + b * x)
             - np.exp(-b * (2 * L + x))
             + np.exp(-b * x)
-        ) / (4 * b**3 * (1 + np.exp(-2 * L * b)) ** 2)
+        ) / (b * (1 + np.exp(-2 * L * b)))
         S4 = (
             (np.exp(b * (-L + x)) - np.exp(-b * (L + x)))
             * np.cos(L * b)
@@ -491,17 +488,16 @@ class FloeCoupled(Floe):
                 + np.exp(-b * (L + x))
             )
             * np.sin(L * b)
-        ) / (4 * b**3 * (1 + np.exp(-2 * L * b)))
+        ) / b
 
         rhs = self._dis_hom_rhs(amps)
         cc = np.vstack((C1, C2, C3, C4)) * np.cos(b * x)
         ss = np.vstack((S1, S2, S3, S4)) * np.sin(b * x)
         return (
-            -4
-            * b**2
-            * rhs
+            rhs
             @ (cc + ss)
-            / (np.sin(b * L) ** 2 / np.cosh(b * L) ** 2 - np.tanh(b * L) ** 2)
+            * (1 + np.exp(-2 * b * L))
+            / (np.expm1(-2 * b * L) ** 2 - (2 * np.exp(-b * L) * np.sin(b * L)) ** 2)
         ) + self._cur_par(x, amps)
 
     def _dis_par_amps(self, amplitudes: np.ndarray):
