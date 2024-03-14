@@ -403,17 +403,17 @@ class FloeCoupled(Floe):
             - np.exp(-b * x)
         ) / (4 * b**2 * (1 + 2 * np.exp(-2 * L * b) + np.exp(-4 * L * b)))
         S2 = (
-            (np.exp(-L * b - b * x) + np.exp(-L * b + b * x))
+            (np.exp(-b * (L + x)) + np.exp(-b * (L - x)))
             * (np.sin(L * b) + np.cos(L * b) * np.tanh(L * b))
             / (4 * b**2 * (1 + np.exp(-2 * L * b)))
         )
         S3 = (
-            -(np.exp(-2 * L * b - b * x) + np.exp(-2 * L * b + b * x))
+            -(np.exp(-b * (2 * L + x)) + np.exp(-b * (2 * L - x)))
             * np.sin(L * b) ** 2
             / (2 * b**3 * (1 + 2 * np.exp(-2 * L * b) + np.exp(-4 * L * b)))
         )
         S4 = (
-            -(np.exp(-L * b - b * x) + np.exp(-L * b + b * x))
+            -(np.exp(-b * (L + x)) + np.exp(-b * (L - x)))
             * np.sin(L * b)
             * np.tanh(L * b)
             / (4 * b**3 * (1 + np.exp(-2 * L * b)))
