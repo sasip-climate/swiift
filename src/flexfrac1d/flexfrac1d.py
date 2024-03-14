@@ -418,6 +418,7 @@ class FloeCoupled(Floe):
             * np.tanh(L * b)
             / (4 * b**3 * (1 + np.exp(-2 * L * b)))
         )
+
         rhs = self._dis_hom_rhs(amps)
         cc = np.vstack((C1, C2, C3, C4)) * np.cos(b * x)
         ss = np.vstack((S1, S2, S3, S4)) * np.sin(b * x)
@@ -843,7 +844,7 @@ class FloeCoupled(Floe):
 
     def _egy_par_vals(self, amplitudes: np.ndarray):
         comp_amps = self._dis_par_amps(amplitudes)
-        comp_wns = self.wavenumbers + 1j * self.ice.attenuations
+        comp_wns = self.ice.wavenumbers + 1j * self.ice.attenuations
 
         comp_curvs = comp_amps * (1j * comp_wns) ** 2
 
@@ -864,7 +865,8 @@ class FloeCoupled(Floe):
                 + (
                     np.sin(2 * curv_phases - wn_phases)
                     - np.sin(
-                        2 * (self.wavenumbers * self.length + curv_phases) - wn_phases
+                        2 * (self.ice.wavenumbers * self.length + curv_phases)
+                        - wn_phases
                     )
                     * red
                 )
@@ -883,8 +885,8 @@ class FloeCoupled(Floe):
 
         mean_attenuations = self.ice.attenuations[idx1] + self.ice.attenuations[idx2]
         comp_wns = (
-            self.wavenumbers[idx1] - self.wavenumbers[idx2],
-            self.wavenumbers[idx1] + self.wavenumbers[idx2],
+            self.ice.wavenumbers[idx1] - self.ice.wavenumbers[idx2],
+            self.ice.wavenumbers[idx1] + self.ice.wavenumbers[idx2],
         )
         comp_wns += 1j * mean_attenuations
 
@@ -933,10 +935,16 @@ class FloeCoupled(Floe):
                     * np.cos(adim)
                     * wns
                     * (
-                        (kcm2 + 2 * self.ice.attenuations * self.ice._red_elas_number)
+                        (
+                            kcm2
+                            + 2 * self.ice.attenuations * self.ice._red_elastic_number
+                        )
                         * edp
                         / qdec_p
-                        + (kcm2 - 2 * self.ice.attenuations * self.ice._red_elas_number)
+                        + (
+                            kcm2
+                            - 2 * self.ice.attenuations * self.ice._red_elastic_number
+                        )
                         * edm
                         / qdec_m
                     )
@@ -945,7 +953,7 @@ class FloeCoupled(Floe):
                 + (
                     np.sin(prop_phases)
                     * np.sin(adim)
-                    * self.ice._red_elas_number
+                    * self.ice._red_elastic_number
                     * (bigkmp * edp / qdec_p + bigkmm * edm / qdec_m)
                     / 2
                 )
@@ -973,7 +981,7 @@ class FloeCoupled(Floe):
                     * (kcm2**2 + 2 * st_2_sq * kcm2_diff - st_2_sq2)
                     + np.sin(curv_phases)
                     * (
-                        self.ice._red_elas_number
+                        self.ice._red_elastic_number
                         * (
                             st_2_sq**3
                             + st_2_sq2 * kcm2_diff
@@ -996,7 +1004,7 @@ class FloeCoupled(Floe):
                 - np.sin(prop_phases)
                 * np.cos(adim)
                 * (
-                    self.ice._red_elas_number
+                    self.ice._red_elastic_number
                     * ((bigkmp * edp / qdec_p) + (bigkmm * edm / qdec_m))
                     / 2
                 )
@@ -1008,7 +1016,9 @@ class FloeCoupled(Floe):
                         (
                             (
                                 kcm2
-                                + 2 * self.ice.attenuations * self.ice._red_elas_number
+                                + 2
+                                * self.ice.attenuations
+                                * self.ice._red_elastic_number
                             )
                             * edp
                             / qdec_p
@@ -1016,7 +1026,9 @@ class FloeCoupled(Floe):
                         + (
                             (
                                 kcm2
-                                - 2 * self.ice.attenuations * self.ice._red_elas_number
+                                - 2
+                                * self.ice.attenuations
+                                * self.ice._red_elastic_number
                             )
                             * edm
                             / qdec_m
@@ -1035,7 +1047,7 @@ class FloeCoupled(Floe):
                     * stk
                     * (kcm2**2 - 2 * st_2_sq * (st_2_sq / 2 + kcm2_diff))
                     - np.sin(curv_phases)
-                    * self.ice._red_elas_number
+                    * self.ice._red_elastic_number
                     * (
                         st_2_sq**3
                         - st_2_sq2 * kcm2_diff
@@ -1049,17 +1061,17 @@ class FloeCoupled(Floe):
                 * np.cos(adim)
                 * wns
                 * (
-                    (kcm2 + 2 * self.ice.attenuations * self.ice._red_elas_number)
+                    (kcm2 + 2 * self.ice.attenuations * self.ice._red_elastic_number)
                     * edp
                     / qdec_p
-                    - (kcm2 - 2 * self.ice.attenuations * self.ice._red_elas_number)
+                    - (kcm2 - 2 * self.ice.attenuations * self.ice._red_elastic_number)
                     * edm
                     / qdec_m
                 )
                 / 2
                 - np.sin(prop_phases)
                 * np.sin(adim)
-                * self.ice._red_elas_number
+                * self.ice._red_elastic_number
                 * (bigkmp * edp / qdec_p - bigkmm * edm / qdec_m)
                 / 2
                 + np.sin(prop_phases)
@@ -1094,17 +1106,17 @@ class FloeCoupled(Floe):
                 / 2
                 + np.sin(prop_phases)
                 * np.cos(adim)
-                * self.ice._red_elas_number
+                * self.ice._red_elastic_number
                 * (bigkmp * edp / qdec_p - bigkmm * edm / qdec_m)
                 / 2
                 + np.cos(prop_phases)
                 * np.sin(adim)
                 * wns
                 * (
-                    (kcm2 + 2 * self.ice.attenuations * self.ice._red_elas_number)
+                    (kcm2 + 2 * self.ice.attenuations * self.ice._red_elastic_number)
                     * edp
                     / qdec_p
-                    - (kcm2 - 2 * self.ice.attenuations * self.ice._red_elas_number)
+                    - (kcm2 - 2 * self.ice.attenuations * self.ice._red_elastic_number)
                     * edm
                     / qdec_m
                 )
@@ -1112,7 +1124,7 @@ class FloeCoupled(Floe):
             )
 
         adim = self._adim
-        wns = self.wavenumbers
+        wns = self.ice.wavenumbers
         _, comp_curvs = self._egy_par_vals(amplitudes)
 
         curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
@@ -1120,18 +1132,18 @@ class FloeCoupled(Floe):
 
         kcm2 = self.ice.attenuations**2 + wns**2
         kcm2_diff = self.ice.attenuations**2 - wns**2
-        st_2_sq = 2 * self.ice._red_elas_number**2
+        st_2_sq = 2 * self.ice._red_elastic_number**2
         st_2_sq2 = st_2_sq**2
 
-        decp = self.ice.attenuations + self.ice._red_elas_number
-        decm = self.ice.attenuations - self.ice._red_elas_number
+        decp = self.ice.attenuations + self.ice._red_elastic_number
+        decm = self.ice.attenuations - self.ice._red_elastic_number
 
-        bigkpp = kcm2 + 2 * self.ice._red_elas_number * decp
-        bigkpm = kcm2 - 2 * self.ice._red_elas_number * decm
-        bigkmp = kcm2_diff + 2 * self.ice._red_elas_number * decp
-        bigkmm = kcm2_diff - 2 * self.ice._red_elas_number * decm
+        bigkpp = kcm2 + 2 * self.ice._red_elastic_number * decp
+        bigkpm = kcm2 - 2 * self.ice._red_elastic_number * decm
+        bigkmp = kcm2_diff + 2 * self.ice._red_elastic_number * decp
+        bigkmm = kcm2_diff - 2 * self.ice._red_elastic_number * decm
 
-        stk = self.ice._red_elas_number * wns
+        stk = self.ice._red_elastic_number * wns
 
         edp = np.exp(-decp * self.length)
         edm = np.exp(-decm * self.length)
