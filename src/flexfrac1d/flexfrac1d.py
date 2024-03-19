@@ -838,6 +838,191 @@ class FloeCoupled(Floe):
             + self._egy_hom_s(amplitudes)
         ) / (4 * self.ice._elastic_length_pow4)
 
+    def _egy_hom2(self, amplitudes: np.ndarray):
+        amps = amplitudes
+        b = self.ice._red_elastic_number
+        L = self.length
+        q_c = 1 + np.exp(-2 * L * b)
+
+        i_1 = (
+            (
+                -4 * L * np.cos(2 * L * b)
+                + 4 * L
+                - 6 * np.sin(2 * L * b) / b
+                + 3 * np.sin(4 * L * b) / (2 * b)
+            )
+            * np.exp(-4 * L * b)
+            + (
+                2 * L * np.cos(2 * L * b)
+                - 2 * L
+                + 3 * np.sqrt(2) * np.sin(2 * L * b + np.pi / 4) / (2 * b)
+                - 3 / b
+            )
+            * np.exp(-2 * L * b)
+            + (
+                2 * L * np.cos(2 * L * b)
+                - 2 * L
+                - 3 * np.sqrt(2) * np.cos(2 * L * b + np.pi / 4) / (2 * b)
+                + 3 / b
+            )
+            * np.exp(-6 * L * b)
+            + 3 / (4 * b)
+            - 3 * np.exp(-8 * L * b) / (4 * b)
+        )
+        i_3 = (
+            (
+                2 * L * np.cos(2 * L * b)
+                + np.sin(2 * L * b) / b
+                - np.sin(4 * L * b) / (4 * b)
+            )
+            * np.exp(-4 * L * b)
+            + (
+                -L * np.sin(2 * L * b)
+                - L
+                - np.sqrt(2) * np.sin(2 * L * b + np.pi / 4) / (4 * b)
+                + 1 / (2 * b)
+            )
+            * np.exp(-6 * L * b)
+            + (
+                L * np.sin(2 * L * b)
+                - L
+                + np.sqrt(2) * np.cos(2 * L * b + np.pi / 4) / (4 * b)
+                - 1 / (2 * b)
+            )
+            * np.exp(-2 * L * b)
+            + 1 / (8 * b)
+            - np.exp(-8 * L * b) / (8 * b)
+        ) / b**2
+
+        i_12 = (
+            (
+                2 * L * np.sin(L * b) * np.tanh(L * b)
+                + (
+                    2 * L * np.sin(L * b) * np.tanh(L * b)
+                    + 2 * np.sin(L * b) ** 3 * np.tanh(L * b) / b
+                    + 2 * np.sin(L * b) ** 3 / b
+                    - 3 * np.sin(L * b) / b
+                    - 3 * np.cos(L * b) * np.tanh(L * b) / b
+                )
+                * np.exp(-4 * L * b)
+                + (
+                    8 * L * np.sin(L * b) ** 3 * np.tanh(L * b)
+                    - 4 * L * np.sin(L * b) * np.tanh(L * b)
+                    + 8 * np.sin(L * b) ** 3 / b
+                    + 12 * np.sin(L * b) ** 2 * np.cos(L * b) * np.tanh(L * b) / b
+                    + 6 * np.sin(L * b) / b
+                    + 6 * np.cos(L * b) * np.tanh(L * b) / b
+                )
+                * np.exp(-2 * L * b)
+                - 2 * np.sin(L * b) ** 3 * np.tanh(L * b) / b
+                + 2 * np.sin(L * b) ** 3 / b
+                - 3 * np.sin(L * b) / b
+                - 3 * np.cos(L * b) * np.tanh(L * b) / b
+            )
+            * np.exp(-L * b)
+            * q_c
+        )
+        i_13 = (
+            (-4 * L * np.sin(2 * L * b) - 2 * (1 - np.cos(2 * L * b)) ** 2 / b + 3 / b)
+            * np.exp(-4 * L * b)
+            + (2 * np.sqrt(2) * L * np.sin(2 * L * b + np.pi / 4) - 2 * L - 2 / b)
+            * np.exp(-2 * L * b)
+            + (-2 * np.sqrt(2) * L * np.cos(2 * L * b + np.pi / 4) + 2 * L - 2 / b)
+            * np.exp(-6 * L * b)
+            + 1 / (2 * b)
+            + np.exp(-8 * L * b) / (2 * b)
+        ) / b
+        i_14 = (
+            (
+                -L * np.sin(L * b)
+                + L * np.cos(L * b) * np.tanh(L * b)
+                + (
+                    -L * np.sin(L * b)
+                    + L * np.cos(L * b) * np.tanh(L * b)
+                    + np.sqrt(2)
+                    * np.sin(L * b) ** 2
+                    * np.cos(L * b + np.pi / 4)
+                    * np.tanh(L * b)
+                    / b
+                    + np.sqrt(2) * np.sin(L * b) ** 2 * np.cos(L * b + np.pi / 4) / b
+                    + 2 * np.sin(L * b) * np.tanh(L * b) / b
+                )
+                * np.exp(-4 * L * b)
+                + (
+                    -4 * L * np.sin(L * b) ** 3
+                    + 4 * L * np.sin(L * b) ** 2 * np.cos(L * b) * np.tanh(L * b)
+                    + 2 * L * np.sin(L * b)
+                    - 2 * L * np.cos(L * b) * np.tanh(L * b)
+                    - 10 * np.sin(L * b) ** 3 * np.tanh(L * b) / b
+                    - 2 * np.sin(L * b) ** 2 * np.cos(L * b) / b
+                    - 4 * np.sin(L * b) * np.tanh(L * b) / b
+                )
+                * np.exp(-2 * L * b)
+                - np.sqrt(2)
+                * np.sin(L * b) ** 2
+                * np.sin(L * b + np.pi / 4)
+                * np.tanh(L * b)
+                / b
+                + np.sqrt(2) * np.sin(L * b) ** 2 * np.sin(L * b + np.pi / 4) / b
+                + 2 * np.sin(L * b) * np.tanh(L * b) / b
+            )
+            * np.exp(-L * b)
+            * q_c
+            / b
+        )
+        i_34 = (
+            (
+                -L * np.sin(L * b)
+                + np.sqrt(2) * L * np.sin(L * b + np.pi / 4) * np.tanh(L * b)
+                + (
+                    L * np.sin(L * b)
+                    - np.sqrt(2) * L * np.cos(L * b + np.pi / 4) * np.tanh(L * b)
+                    + np.sin(L * b) ** 3 * np.tanh(L * b) / b
+                    + np.sin(L * b) ** 3 / b
+                    + np.sin(L * b) / (2 * b)
+                    - np.cos(L * b) * np.tanh(L * b) / (2 * b)
+                )
+                * np.exp(-4 * L * b)
+                + (
+                    4 * L * np.sin(L * b) ** 2 * np.cos(L * b)
+                    - 6 * L * np.sin(L * b) * np.tanh(L * b)
+                    - 4 * np.sin(L * b) ** 3 / b
+                    + 2 * np.sin(L * b) ** 2 * np.cos(L * b) * np.tanh(L * b) / b
+                    - np.sin(L * b) / b
+                    + np.cos(L * b) * np.tanh(L * b) / b
+                )
+                * np.exp(-2 * L * b)
+                - np.sin(L * b) ** 3 * np.tanh(L * b) / b
+                + np.sin(L * b) ** 3 / b
+                + np.sin(L * b) / (2 * b)
+                - np.cos(L * b) * np.tanh(L * b) / (2 * b)
+            )
+            * np.exp(-L * b)
+            * q_c
+            / b**2
+        )
+
+        i_s = np.array((i_1, i_3, i_12, i_13, i_14, i_34))
+        r1, r2, r3, r4 = self._dis_hom_rhs(amps)
+        rr = np.array(
+            (
+                r1**2 + r2**2,
+                r3**2 + r4**2,
+                r1 * r2,
+                r1 * r3 - r2 * r4,
+                r1 * r4 - r2 * r3,
+                r3 * r4,
+            )
+        )
+
+        i_sum = rr @ i_s
+        denom = (
+            (np.expm1(-2 * b * L) ** 2 - (2 * np.exp(-b * L) * np.sin(b * L)) ** 2)
+        ) ** 2
+
+        i_sum /= denom
+        return i_sum
+
     def _egy_par_vals(self, amplitudes: np.ndarray):
         comp_amps = self._dis_par_amps(amplitudes)
         comp_wns = self.ice.wavenumbers + 1j * self.ice.attenuations
@@ -1167,7 +1352,7 @@ class FloeCoupled(Floe):
         return (
             self.ice.flex_rigidity
             * (
-                self._egy_hom(spectrum._amps)
+                self._egy_hom2(spectrum._amps)
                 + 2 * self._egy_m(spectrum._amps)
                 + self._egy_par(spectrum._amps)
             )
