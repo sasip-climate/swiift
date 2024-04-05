@@ -634,6 +634,78 @@ class FloeCoupled(Floe):
         """Coefficients of the four orthogonal homogeneous solutions"""
         return self._dis_hom_mat() @ self._dis_hom_rhs(amplitudes)
 
+    def _dis_hom_coefs2(self, amplitudes: np.ndarray) -> np.ndarray:
+        b = self.ice._red_elastic_number
+        L = self.length
+        denom = -(b**2) * (
+            np.expm1(-2 * b * L) ** 2 + 2 * np.exp(-2 * b * L) * (np.cos(2 * b * L) - 1)
+        )
+        coefs_rhs = self._dis_hom_rhs(amplitudes) / denom
+
+        expm_sin = coefs_rhs @ (
+            (
+                (np.sqrt(2) * np.sin(2 * L * b + PI / 4) / 2 - 1) * np.exp(-2 * L * b)
+                + 1 / 2
+            ),
+            (
+                -np.sqrt(2) * np.exp(-L * b) * np.sin(L * b + PI / 4) / 2
+                + np.sqrt(2) * np.exp(-3 * L * b) * np.cos(L * b + PI / 4) / 2
+            ),
+            (-np.cos(2 * L * b) / (2 * b) + 1 / (2 * b)) * np.exp(-2 * L * b),
+            (
+                np.exp(-L * b) * np.sin(L * b) / (2 * b)
+                - np.exp(-3 * L * b) * np.sin(L * b) / (2 * b)
+            ),
+        )
+        # for exp(b*x) scaled by exp(-b*L)
+        expp_sin = coefs_rhs @ (
+            (
+                (-np.sqrt(2) * np.cos(2 * L * b + PI / 4) / 2 + 1) * np.exp(-L * b)
+                - np.exp(-3 * L * b) / 2
+            ),
+            (
+                -np.sqrt(2) * np.sin(L * b + PI / 4) / 2
+                + np.sqrt(2) * np.exp(-2 * L * b) * np.cos(L * b + PI / 4) / 2
+            ),
+            (-np.cos(2 * L * b) / (2 * b) + 1 / (2 * b)) * np.exp(-L * b),
+            (np.sin(L * b) / (2 * b) - np.exp(-2 * L * b) * np.sin(L * b) / (2 * b)),
+        )
+        expm_cos = coefs_rhs @ (
+            (-1 / 2 + np.sqrt(2) * np.exp(-2 * L * b) * np.cos(2 * L * b + PI / 4) / 2),
+            (
+                (3 * np.sin(L * b) / 2 + np.cos(L * b) / 2) * np.exp(-L * b)
+                - np.sqrt(2) * np.exp(-3 * L * b) * np.sin(L * b + PI / 4) / 2
+            ),
+            (
+                (np.sin(2 * L * b) / (2 * b) + 1 / (2 * b)) * np.exp(-2 * L * b)
+                - 1 / (2 * b)
+            ),
+            (
+                (-np.sin(L * b) / b + np.cos(L * b) / (2 * b)) * np.exp(-L * b)
+                - np.exp(-3 * L * b) * np.cos(L * b) / (2 * b)
+            ),
+        )
+        # for exp(b*x) scaled by exp(-b*L)
+        expp_cos = coefs_rhs @ (
+            (
+                np.sqrt(2) * np.exp(-L * b) * np.sin(2 * L * b + PI / 4) / 2
+                - np.exp(-3 * L * b) / 2
+            ),
+            (
+                (-3 * np.sin(L * b) / 2 + np.cos(L * b) / 2) * np.exp(-2 * L * b)
+                - np.sqrt(2) * np.cos(L * b + PI / 4) / 2
+            ),
+            (
+                (np.sin(2 * L * b) / (2 * b) - 1 / (2 * b)) * np.exp(-L * b)
+                + np.exp(-3 * L * b) / (2 * b)
+            ),
+            (
+                (-np.sin(L * b) / b - np.cos(L * b) / (2 * b)) * np.exp(-2 * L * b)
+                + np.cos(L * b) / (2 * b)
+            ),
+        )
+        return np.array((expp_cos, expp_sin, expm_cos, expm_sin))
+
     def surface(self, x, spectrum):
         return (
             self._wavefield(x, spectrum._amps * np.exp(1j * self.phases))
@@ -647,7 +719,7 @@ class FloeCoupled(Floe):
         or user-provided ones, incorporating a phase
 
         """
-        # TODO: could be better of in DiscreteSpectrum
+        # TODO: could be better off in DiscreteSpectrum
         return np.imag(
             complex_amps
             @ np.exp((-self.ice.attenuations + 1j * self.ice.wavenumbers)[:, None] * x)
@@ -693,7 +765,7 @@ class FloeCoupled(Floe):
 
         `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
         """
-        return self._displacement(x, spectrum._amps)
+        return self.dis2(x, spectrum)
 
     def _cur_wavefield(self, x, spectrum, complex_amps):
         """Second derivative of the interface"""
