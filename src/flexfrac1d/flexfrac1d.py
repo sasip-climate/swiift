@@ -698,11 +698,24 @@ class FloeCoupled(Floe):
 
     def _egy_hom(self, amplitudes: np.ndarray):
         """Energy from the homogen term of the displacement ODE"""
-        return (
-            self._egy_hom_c(amplitudes)
-            + 2 * self._egy_hom_m(amplitudes)
-            + self._egy_hom_s(amplitudes)
-        ) / (4 * self.ice._elastic_length_pow4)
+        b = self.ice._red_elastic_number
+        L = self.length
+        adim = b * L
+        adim2 = 2 * adim
+        c_1, c_2, c_3, c_4 = self._dis_hom_coefs(amplitudes)
+
+        return b**3 * (
+            +(c_1**2) * (-SQR2 * np.sin(adim2 + PI_D4) + 2 - np.exp(-adim2)) / 2
+            + c_2**2 * (SQR2 * np.sin(adim2 + PI_D4) + 2 - 3 * np.exp(-adim2)) / 2
+            + c_3**2 * ((SQR2 * np.cos(adim2 + PI_D4) - 2) * np.exp(-adim2) + 1) / 2
+            + c_4**2 * (3 - (SQR2 * np.cos(adim2 + PI_D4) + 2) * np.exp(-adim2)) / 2
+            + c_1 * c_2 * (SQR2 * np.cos(adim2 + PI_D4) - np.exp(-adim2))
+            - 2 * b * c_1 * c_3 * (2 * L - np.sin(adim2) / b) * np.exp(-adim)
+            + 4 * c_1 * c_4 * np.exp(-adim) * np.sin(adim) ** 2
+            + 4 * c_2 * c_3 * np.exp(-adim) * np.sin(adim) ** 2
+            - 2 * b * c_2 * c_4 * (2 * L + np.sin(adim2) / b) * np.exp(-adim)
+            + c_3 * c_4 * (-1 + SQR2 * np.exp(-adim2) * np.sin(adim2 + PI_D4))
+        )
 
     def _egy_hom2(self, amplitudes: np.ndarray):
         amps = amplitudes
