@@ -637,22 +637,22 @@ class FloeCoupled(Floe):
 
     def _cur_wavefield(self, x, spectrum, complex_amps):
         """Second derivative of the interface"""
-        return np.imag(
-            (complex_amps * (-self.ice.attenuations + 1j * self.ice.wavenumbers) ** 2)
-            @ np.exp((-self.ice.attenuations + 1j * self.ice.wavenumbers)[:, None] * x)
+        return -np.imag(
+            (complex_amps * self.ice._c_wavenumbers**2)
+            @ np.exp(1j * self.ice._c_wavenumbers[:, None] * x)
         )
 
-    def _cur_hom(self, x, spectrum):
+    def _cur_hom(self, x, amplitudes):
         """Second derivative of the homogeneous part of the displacement"""
-        red_el_num = self.ice._red_elastic_number
-        return np.real(
-            self._dis_hom_coefs(spectrum)
-            @ (
-                ((1 + 1j) * red_el_num) ** 2 * np.cosh((1 + 1j) * red_el_num * x),
-                ((1 - 1j) * red_el_num) ** 2 * np.cosh((1 - 1j) * red_el_num * x),
-                ((1 + 1j) * red_el_num) ** 2 * np.sinh((1 + 1j) * red_el_num * x),
-                ((1 - 1j) * red_el_num) ** 2 * np.sinh((1 - 1j) * red_el_num * x),
-            )
+        arr = self.ice._red_elastic_number * x
+        cosx, sinx = np.cos(arr), np.sin(arr)
+        expx = np.exp(-self.ice._red_elastic_number * (self.length - x))
+        exmx = np.exp(-arr)
+        return (
+            2
+            * self.ice._red_elastic_number**2
+            * np.vstack(([-expx * sinx, expx * cosx, exmx * sinx, -exmx * cosx])).T
+            @ self._dis_hom_coefs(amplitudes)
         )
 
     def _cur_par(self, x, spectrum):
