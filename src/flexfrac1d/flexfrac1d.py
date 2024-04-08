@@ -7,13 +7,14 @@ import itertools
 import warnings
 import numpy as np
 import scipy.optimize as optimize
-import scipy.special as special
 
 # from .libraries.WaveUtils import SpecVars
 from .pars import g
 
 
 PI = np.pi
+PI_D4 = PI / 4
+SQR2 = np.sqrt(2)
 
 
 class Wave:
@@ -203,6 +204,10 @@ class IceCoupled(Ice):
         return self.__wavenumbers
 
     @functools.cached_property
+    def _c_wavenumbers(self):
+        return self.wavenumbers + 1j * self.attenuations
+
+    @functools.cached_property
     def freeboard(self):
         return self.thickness - self.draft
 
@@ -318,7 +323,7 @@ class Floe:
         return self.__length
 
     @property
-    def ice(self):
+    def ice(self) -> Ice:
         return self.__ice
 
     @property
@@ -342,10 +347,9 @@ class FloeCoupled(Floe):
     def phases(self) -> np.ndarray:
         return self.__phases
 
-    # TODO
-    # @Floe.ice.getter
-    # def ice(self) -> IceCoupled:
-    #     return self.__ice
+    @property
+    def ice(self) -> IceCoupled:
+        return self._Floe__ice
 
     @functools.cached_property
     def _adim(self):
@@ -502,133 +506,77 @@ class FloeCoupled(Floe):
 
     def _dis_par_amps(self, amplitudes: np.ndarray):
         """Complex amplitudes of individual particular solutions"""
-        return -(
-            np.exp(1j * self.phases)
-            * amplitudes
-            / (
-                1
-                + (
-                    self.ice._elastic_length_pow4
-                    * (self.ice.attenuations - 1j * self.ice.wavenumbers) ** 4
-                )
-            )
+        return (
+            amplitudes
+            * np.exp(1j * self.phases)
+            / (1 + (self.ice._elastic_length_pow4 * self.ice._c_wavenumbers**4))
         )
 
     def _dis_hom_mat(self):
         """Linear application to determine, from the BCs, the coefficients of
         the four independent solutions to the homo ODE"""
         red_el_num = self.ice._red_elastic_number
-        adim_floe = red_el_num * self.length
+        adim = self._adim
+        adim2 = 2 * adim
+        denom = (
+            -2
+            * red_el_num**2
+            * (np.expm1(-adim2) ** 2 + 2 * np.exp(-adim2) * (np.cos(adim2) - 1))
+        )
+        mat = np.array(
+            [
+                [
+                    SQR2 * np.exp(-adim) * np.sin(adim2 + PI_D4) - np.exp(-3 * adim),
+                    -SQR2 * np.cos(adim + PI_D4)
+                    - 3 * np.exp(-adim2) * np.sin(adim)
+                    + np.exp(-adim2) * np.cos(adim),
+                    np.exp(-adim) * np.sin(adim2) - np.exp(-adim) + np.exp(-3 * adim),
+                    np.cos(adim)
+                    - 2 * np.exp(-adim2) * np.sin(adim)
+                    - np.exp(-adim2) * np.cos(adim),
+                ],
+                [
+                    -SQR2 * np.exp(-adim) * np.cos(adim2 + PI_D4)
+                    + 2 * np.exp(-adim)
+                    - np.exp(-3 * adim),
+                    -SQR2 * np.sin(adim + PI_D4)
+                    + SQR2 * np.exp(-adim2) * np.cos(adim + PI_D4),
+                    -np.exp(-adim) * np.cos(adim2) + np.exp(-adim),
+                    np.sin(adim) - np.exp(-adim2) * np.sin(adim),
+                ],
+                [
+                    -1 + SQR2 * np.exp(-adim2) * np.cos(adim2 + PI_D4),
+                    (3 * np.sin(adim) + np.cos(adim)) * np.exp(-adim)
+                    - SQR2 * np.exp(-3 * adim) * np.sin(adim + PI_D4),
+                    (np.sin(adim2) + 1) * np.exp(-adim2) - 1,
+                    (-2 * np.sin(adim) + np.cos(adim)) * np.exp(-adim)
+                    - np.exp(-3 * adim) * np.cos(adim),
+                ],
+                [
+                    (SQR2 * np.sin(adim2 + PI_D4) - 2) * np.exp(-adim2) + 1,
+                    -SQR2 * np.exp(-adim) * np.sin(adim + PI_D4)
+                    + SQR2 * np.exp(-3 * adim) * np.cos(adim + PI_D4),
+                    (-np.cos(adim2) + 1) * np.exp(-adim2),
+                    np.exp(-adim) * np.sin(adim) - np.exp(-3 * adim) * np.sin(adim),
+                ],
+            ]
+        )
+        mat[:, 2:] /= red_el_num
 
-        # TODO reduc_denom fragile quand adim est petit. Peut-être garder les
-        # expressions hyperboliques dans ce cas
-
-        reduc_denom = (
-            1
-            + 2 * np.exp(-2 * adim_floe) * (np.cos(2 * adim_floe) - 2)
-            + np.exp(-4 * adim_floe)
-        )
-        if reduc_denom == 0.0:
-            reduc_denom = np.expm1(-2 * adim_floe) ** 2 + 2 * np.exp(
-                -2 * adim_floe
-            ) * special.cosm1(2 * adim_floe)
-
-        m1 = (
-            (
-                1
-                - 2 * np.exp(-2 * adim_floe) * np.cos(2 * adim_floe)
-                + np.exp(-4 * adim_floe)
-            )
-            / reduc_denom
-            - 1j
-        ) / (4 * red_el_num**2)
-        m2 = (
-            np.expm1(-2 * adim_floe)
-            * np.exp(-adim_floe)
-            * np.sin(adim_floe)
-            / red_el_num**2
-            / reduc_denom
-        )
-        m3 = (
-            (
-                1
-                - 2 * np.exp(-2 * adim_floe) * np.sin(2 * adim_floe)
-                - np.exp(-4 * adim_floe)
-            )
-            / reduc_denom
-            / (4 * red_el_num**3)
-        )
-        m4 = (
-            (
-                np.exp(-adim_floe)
-                * (
-                    np.sin(adim_floe)
-                    - np.cos(adim_floe)
-                    + np.exp(-2 * adim_floe) * (np.sin(adim_floe) + np.cos(adim_floe))
-                )
-            )
-            / reduc_denom
-            / (2 * red_el_num**3)
-        )
-
-        m5 = (
-            (-1 + 1j)
-            * (
-                1
-                + 2 * np.exp(-2 * adim_floe) * np.sin(2 * adim_floe)
-                - np.exp(-4 * adim_floe)
-            )
-            / reduc_denom
-            / (4 * red_el_num**2)
-        )
-        m6 = (
-            (1 - 1j)
-            * (
-                np.exp(-adim_floe)
-                * (
-                    np.sin(adim_floe)
-                    + np.cos(adim_floe)
-                    + np.exp(-2 * adim_floe) * (np.sin(adim_floe) - np.cos(adim_floe))
-                )
-            )
-            / reduc_denom
-            / (2 * red_el_num**2)
-        )
-        m7 = (
-            -(
-                np.expm1(-2 * adim_floe) ** 2
-                + 2j * np.exp(-2 * adim_floe) * (np.cos(2 * adim_floe) - 1)
-            )
-            / reduc_denom
-            / (4 * red_el_num**3)
-        )
-        m8 = (
-            (1 - 1j)
-            * np.expm1(-2 * adim_floe)
-            * np.exp(-adim_floe)
-            * np.sin(adim_floe)
-            / (2 * red_el_num**3)
-            / reduc_denom
-        )
-
-        mat = np.full((4, 4), np.nan, dtype=complex)
-        mat[0] = m1, m2, m3, m4
-        mat[2] = m5, m6, m7, m8
-        mat[1::2] = np.conj(mat[0::2])
-        return mat
+        return mat / denom
 
     def _dis_hom_rhs(self, amplitudes):
         """Vector onto which apply the matrix, to extract the coefficients"""
-        exp_mod = -self.ice.attenuations + 1j * self.ice.wavenumbers
+        exp_arg = 1j * self.ice._c_wavenumbers * self.length
 
-        r1 = self._dis_par_amps(amplitudes) * exp_mod**2
-        r2 = np.imag(r1 @ np.exp(exp_mod * self.length))
-        r3 = r1 * exp_mod
-        r4 = np.imag(r3 @ np.exp(exp_mod * self.length))
+        r1 = self.ice._c_wavenumbers**2 * self._dis_par_amps(amplitudes)
+        r2 = np.imag(r1 @ np.exp(exp_arg))
+        r3 = 1j * self.ice._c_wavenumbers * r1
+        r4 = np.imag(r3 @ np.exp(exp_arg))
         r1 = np.imag(r1).sum()
         r3 = np.imag(r3).sum()
 
-        return -np.array((r1, r2, r3, r4))
+        return np.array((r1, r2, r3, r4))
 
     def _dis_hom_coefs(self, amplitudes: np.ndarray) -> np.ndarray:
         """Coefficients of the four orthogonal homogeneous solutions"""
@@ -741,21 +689,18 @@ class FloeCoupled(Floe):
     def _dis_hom(self, x, amplitudes: np.ndarray):
         """Homogeneous solution to the displacement ODE"""
         arr = self.ice._red_elastic_number * x
-        return np.real(
-            self._dis_hom_coefs(amplitudes)
-            @ (
-                np.cosh((1 + 1j) * arr),
-                np.cosh((1 - 1j) * arr),
-                np.sinh((1 + 1j) * arr),
-                np.sinh((1 - 1j) * arr),
-            )
-        )
+        cosx, sinx = np.cos(arr), np.sin(arr)
+        expx = np.exp(-self.ice._red_elastic_number * (self.length - x))
+        exmx = np.exp(-arr)
+        rhs = self._dis_hom_coefs(amplitudes)
+        print(rhs.shape)
+        lhs = np.vstack(([expx * cosx, expx * sinx, exmx * cosx, exmx * sinx]))
+        print("lhs", lhs.shape)
+        return lhs.T @ rhs
 
     def _dis_par(self, x, amplitudes):
         """Sum of the particular solutions to the displacement ODE"""
-        return self._mean_wavefield(amplitudes) + self._wavefield(
-            x, self._dis_par_amps(amplitudes)
-        )
+        return self._wavefield(x, self._dis_par_amps(amplitudes))
 
     def _displacement(self, x, amplitudes):
         return self._dis_hom(x, amplitudes) + self._dis_par(x, amplitudes)
@@ -765,7 +710,7 @@ class FloeCoupled(Floe):
 
         `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
         """
-        return self.dis2(x, spectrum)
+        return self._displacement(x, spectrum._amps)
 
     def _cur_wavefield(self, x, spectrum, complex_amps):
         """Second derivative of the interface"""
