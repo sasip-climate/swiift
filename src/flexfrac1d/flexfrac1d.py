@@ -617,11 +617,9 @@ class FloeCoupled(Floe):
         cosx, sinx = np.cos(arr), np.sin(arr)
         expx = np.exp(-self.ice._red_elastic_number * (self.length - x))
         exmx = np.exp(-arr)
-        rhs = self._dis_hom_coefs(amplitudes)
-        print(rhs.shape)
-        lhs = np.vstack(([expx * cosx, expx * sinx, exmx * cosx, exmx * sinx]))
-        print("lhs", lhs.shape)
-        return lhs.T @ rhs
+        return np.vstack(
+            ([expx * cosx, expx * sinx, exmx * cosx, exmx * sinx])
+        ).T @ self._dis_hom_coefs(amplitudes)
 
     def _dis_par(self, x, amplitudes):
         """Sum of the particular solutions to the displacement ODE"""
