@@ -955,35 +955,64 @@ class FloeCoupled(Floe):
         curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
         phases = curv_phases
 
-        energ_1 = (
-            c_1
-            * (
-                K * np.exp(-adim) * np.sin(wn_phases - phases) / q_mp
-                - K * np.exp(-adim) * np.sin(wn_phases - phases) / q_mm
-                - SQR2 * b * np.exp(-adim) * np.sin(phases + PI_D4) / q_mp
-                + SQR2 * b * np.exp(-adim) * np.cos(phases + PI_D4) / q_mm
-            )
-            + c_2
-            * (
-                K * np.exp(-adim) * np.cos(wn_phases - phases) / q_mp
-                + K * np.exp(-adim) * np.cos(wn_phases - phases) / q_mm
-                + SQR2 * b * np.exp(-adim) * np.cos(phases + PI_D4) / q_mp
-                - SQR2 * b * np.exp(-adim) * np.sin(phases + PI_D4) / q_mm
-            )
-            + c_3
-            * (
-                -K * np.sin(wn_phases - phases) / q_pp
-                + K * np.sin(wn_phases - phases) / q_pm
-                - SQR2 * b * np.cos(phases + PI_D4) / q_pp
-                + SQR2 * b * np.sin(phases + PI_D4) / q_pm
-            )
-            + c_4
-            * (
-                -K * np.cos(wn_phases - phases) / q_pp
-                - K * np.cos(wn_phases - phases) / q_pm
-                - SQR2 * b * np.sin(phases + PI_D4) / q_pp
-                + SQR2 * b * np.cos(phases + PI_D4) / q_pm
-            )
+        print(curv_moduli.shape)
+        energ_1 = np.array(
+            [
+                (
+                    K * np.sin(wn_phases - phases) * (1 / q_mp - 1 / q_mm)
+                    - SQR2
+                    * b
+                    * (np.sin(phases + PI_D4) / q_mp - np.cos(phases + PI_D4) / q_mm)
+                )
+                * np.exp(-adim),
+                (
+                    K * np.cos(wn_phases - phases) * (1 / q_mp + 1 / q_mm)
+                    + SQR2
+                    * b
+                    * (np.cos(phases + PI_D4) / q_mp - np.sin(phases + PI_D4) / q_mm)
+                )
+                * np.exp(-adim),
+                (
+                    K * np.sin(wn_phases - phases) * (1 / q_pm - 1 / q_pp)
+                    - SQR2
+                    * b
+                    * (np.cos(phases + PI_D4) / q_pp - np.sin(phases + PI_D4) / q_pm)
+                ),
+                (
+                    -K * np.cos(wn_phases - phases) * (1 / q_pp + 1 / q_pm)
+                    - SQR2
+                    * b
+                    * (np.sin(phases + PI_D4) / q_pp - np.cos(phases + PI_D4) / q_pm)
+                ),
+            ]
+        )
+        # energ_1 = energ_1 @ curv_moduli @ self._dis_hom_coefs(amplitudes)
+
+        energ_exp = np.array(
+            [
+                K
+                * (
+                    np.sin((b + k) * L + phases - wn_phases) / q_mp
+                    + np.sin((b - k) * L + wn_phases - phases) / q_mm
+                )
+                + SQR2
+                * b
+                * (
+                    np.sin((b + k) * L + phases + PI_D4) / q_mp
+                    - np.sin((b - k) * L - phases + PI_D4) / q_mm
+                ),
+                -K
+                * (
+                    np.cos((b + k) * L - wn_phases + phases) / q_mp
+                    + np.cos((b - k) * L + wn_phases - phases) / q_mm
+                )
+                + SQR2
+                * b
+                * (
+                    -np.cos((b + k) * L + phases + PI_D4) / q_mp
+                    + np.cos((b - k) * L - phases + PI_D4) / q_mm
+                ),  # TODO: manquent deux composantes
+            ]
         )
         energ_exp = (
             c_1
