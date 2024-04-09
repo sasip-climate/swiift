@@ -686,7 +686,7 @@ class FloeCoupled(Floe):
         """Energy from the forcing term of the displacement ODE"""
         return self._egy_par_pow2(amplitudes) + self._egy_par_m(amplitudes)
 
-    def _egy_m(self, amplitudes: np.ndarray):
+    def _egy_m_(self, amplitudes: np.ndarray):
         def int_cosh_cos():
             return curv_moduli @ (
                 (
@@ -935,12 +935,227 @@ class FloeCoupled(Floe):
             )
         )
 
+    def _egy_m(self, amplitudes: np.ndarray):
+        b = self.ice._red_elastic_number
+        L = self.length
+        phases = self.phases
+        adim = b * L
+        # adim2 = 2 * adim
+        c_1, c_2, c_3, c_4 = self._dis_hom_coefs(amplitudes)
+        K, wn_phases = np.abs(self.ice._c_wavenumbers), np.angle(
+            self.ice._c_wavenumbers
+        )
+        k = self.ice.wavenumbers
+        q_pp = (b + self.ice.attenuations) ** 2 + (b + self.ice.wavenumbers) ** 2
+        q_mp = (b - self.ice.attenuations) ** 2 + (b + self.ice.wavenumbers) ** 2
+        q_pm = (b + self.ice.attenuations) ** 2 + (b - self.ice.wavenumbers) ** 2
+        q_mm = (b - self.ice.attenuations) ** 2 + (b - self.ice.wavenumbers) ** 2
+
+        _, comp_curvs = self._egy_par_vals(amplitudes)
+        curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
+        phases = curv_phases
+
+        energ_1 = (
+            c_1
+            * (
+                K * np.exp(-adim) * np.sin(wn_phases - phases) / q_mp
+                - K * np.exp(-adim) * np.sin(wn_phases - phases) / q_mm
+                - SQR2 * b * np.exp(-adim) * np.sin(phases + PI_D4) / q_mp
+                + SQR2 * b * np.exp(-adim) * np.cos(phases + PI_D4) / q_mm
+            )
+            + c_2
+            * (
+                K * np.exp(-adim) * np.cos(wn_phases - phases) / q_mp
+                + K * np.exp(-adim) * np.cos(wn_phases - phases) / q_mm
+                + SQR2 * b * np.exp(-adim) * np.cos(phases + PI_D4) / q_mp
+                - SQR2 * b * np.exp(-adim) * np.sin(phases + PI_D4) / q_mm
+            )
+            + c_3
+            * (
+                -K * np.sin(wn_phases - phases) / q_pp
+                + K * np.sin(wn_phases - phases) / q_pm
+                - SQR2 * b * np.cos(phases + PI_D4) / q_pp
+                + SQR2 * b * np.sin(phases + PI_D4) / q_pm
+            )
+            + c_4
+            * (
+                -K * np.cos(wn_phases - phases) / q_pp
+                - K * np.cos(wn_phases - phases) / q_pm
+                - SQR2 * b * np.sin(phases + PI_D4) / q_pp
+                + SQR2 * b * np.cos(phases + PI_D4) / q_pm
+            )
+        )
+        energ_exp = (
+            c_1
+            * (
+                K * np.sin(wn_phases) * np.sin(phases) * np.sin(L * (b + k)) / q_mp
+                - K
+                * np.sin(wn_phases)
+                * np.cos(phases)
+                * np.cos(L * b)
+                * np.cos(L * k)
+                / q_mp
+                - K
+                * np.sin(phases)
+                * np.sin(L * b)
+                * np.sin(L * k)
+                * np.cos(wn_phases)
+                / q_mp
+                + K * np.sin(L * b) * np.cos(phases) * np.cos(L * k - wn_phases) / q_mp
+                + K * np.sin(L * k + phases) * np.cos(wn_phases) * np.cos(L * b) / q_mp
+                + K * np.sin(L * b - L * k + wn_phases - phases) / q_mm
+                + SQR2 * b * np.sin(L * b + L * k + phases + PI_D4) / q_mp
+                - SQR2 * b * np.sin(L * b - L * k - phases + PI_D4) / q_mm
+            )
+            + c_2
+            * (
+                -K * np.cos(L * b + L * k - wn_phases + phases) / q_mp
+                + K * np.sin(wn_phases) * np.sin(L * b) * np.cos(L * k + phases) / q_mm
+                + K * np.sin(phases) * np.sin(L * k - wn_phases) * np.cos(L * b) / q_mm
+                - K * np.sin(L * k) * np.sin(L * b + wn_phases) * np.cos(phases) / q_mm
+                - K * np.cos(wn_phases) * np.cos(L * k) * np.cos(L * b - phases) / q_mm
+                - b * np.sin(phases) * np.sin(L * b) * np.sin(L * k) / q_mp
+                + b * np.sin(phases) * np.sin(L * (b + k)) / q_mp
+                + SQR2
+                * b
+                * np.sin(L * k)
+                * np.sin(L * b + PI_D4)
+                * np.cos(phases)
+                / q_mp
+                + b * np.sin(L * b + phases) * np.cos(L * k) / q_mp
+                - b * np.cos(phases) * np.cos(L * b) * np.cos(L * k) / q_mp
+                + SQR2
+                * b
+                * np.sin(phases)
+                * np.sin(L * b)
+                * np.sin(L * k + PI_D4)
+                / q_mm
+                - b * np.sin(phases) * np.sin(L * k) * np.cos(L * b) / q_mm
+                - b * np.sin(L * b) * np.cos(phases) * np.cos(L * k) / q_mm
+                + b * np.sin(L * k + phases) * np.cos(L * b) / q_mm
+                + b * np.cos(phases) * np.cos(L * (b - k)) / q_mm
+            )
+            + c_3
+            * (
+                K
+                * np.exp(-L * b)
+                * np.sin(wn_phases)
+                * np.cos(L * k)
+                * np.cos(L * b + phases)
+                / q_pp
+                + K
+                * np.exp(-L * b)
+                * np.sin(phases)
+                * np.sin(L * k)
+                * np.sin(L * b - wn_phases)
+                / q_pp
+                - K
+                * np.exp(-L * b)
+                * np.sin(L * b)
+                * np.cos(phases)
+                * np.cos(L * k - wn_phases)
+                / q_pp
+                - K
+                * np.exp(-L * b)
+                * np.sin(L * k + phases)
+                * np.cos(wn_phases)
+                * np.cos(L * b)
+                / q_pp
+                - K * np.exp(-L * b) * np.sin(L * b - L * k + wn_phases - phases) / q_pm
+                - SQR2
+                * b
+                * np.exp(-L * b)
+                * np.sin(phases)
+                * np.sin(L * b)
+                * np.cos(L * k + PI_D4)
+                / q_pp
+                - SQR2
+                * b
+                * np.exp(-L * b)
+                * np.sin(L * k)
+                * np.sin(L * b + PI_D4)
+                * np.cos(phases)
+                / q_pp
+                - b * np.exp(-L * b) * np.sin(L * b + phases) * np.cos(L * k) / q_pp
+                + b * np.exp(-L * b) * np.cos(L * b) * np.cos(L * k + phases) / q_pp
+                + SQR2
+                * b
+                * np.exp(-L * b)
+                * np.sin(phases)
+                * np.sin(L * k)
+                * np.cos(L * b + PI_D4)
+                / q_pm
+                + SQR2
+                * b
+                * np.exp(-L * b)
+                * np.sin(L * b)
+                * np.cos(L * k)
+                * np.cos(phases + PI_D4)
+                / q_pm
+                - b * np.exp(-L * b) * np.sin(L * k + phases) * np.cos(L * b) / q_pm
+                - b * np.exp(-L * b) * np.cos(phases) * np.cos(L * (b - k)) / q_pm
+            )
+            + c_4
+            * (
+                K * np.exp(-L * b) * np.cos(L * b + L * k - wn_phases + phases) / q_pp
+                + K
+                * np.exp(-L * b)
+                * np.sin(wn_phases)
+                * np.sin(phases)
+                * np.cos(L * (b - k))
+                / q_pm
+                - K
+                * np.exp(-L * b)
+                * np.sin(wn_phases)
+                * np.sin(L * b)
+                * np.cos(phases)
+                * np.cos(L * k)
+                / q_pm
+                - K
+                * np.exp(-L * b)
+                * np.sin(phases)
+                * np.sin(L * k)
+                * np.cos(wn_phases)
+                * np.cos(L * b)
+                / q_pm
+                + K
+                * np.exp(-L * b)
+                * np.sin(L * k)
+                * np.sin(L * b + wn_phases)
+                * np.cos(phases)
+                / q_pm
+                + K
+                * np.exp(-L * b)
+                * np.cos(wn_phases)
+                * np.cos(L * k)
+                * np.cos(L * b - phases)
+                / q_pm
+                + SQR2
+                * b
+                * np.exp(-L * b)
+                * np.sin(L * b + L * k + phases + PI_D4)
+                / q_pp
+                - SQR2
+                * b
+                * np.exp(-L * b)
+                * np.sin(L * b - L * k - phases + PI_D4)
+                / q_pm
+            )
+        )
+
+        return (
+            2
+            * self.ice._red_elastic_number**2
+            * curv_moduli
+            * (energ_1 + np.exp(-self.ice.attenuations * L) * energ_exp)
+        )  # TODO: nettoyer array/scalaires
+
     def energy(self, spectrum: DiscreteSpectrum):
         return (
             self.ice.flex_rigidity
             * (
                 self._egy_hom2(spectrum._amps)
-                + 2 * self._egy_m(spectrum._amps)
+                + self._egy_m(spectrum._amps)
                 + self._egy_par(spectrum._amps)
             )
             / (2 * self.ice.thickness)
