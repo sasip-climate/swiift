@@ -936,30 +936,24 @@ class FloeCoupled(Floe):
         )
 
     def _egy_m(self, amplitudes: np.ndarray):
-        b = self.ice._red_elastic_number
-        L = self.length
-        # phases = self.phases
-        adim = b * L
-        wn_abs, wn_phases = np.abs(self.ice._c_wavenumbers), np.angle(
-            self.ice._c_wavenumbers
-        )
-        k = self.ice.wavenumbers
-        q_pp = (b + self.ice.attenuations) ** 2 + (b + self.ice.wavenumbers) ** 2
-        q_mp = (b - self.ice.attenuations) ** 2 + (b + self.ice.wavenumbers) ** 2
-        q_pm = (b + self.ice.attenuations) ** 2 + (b - self.ice.wavenumbers) ** 2
-        q_mm = (b - self.ice.attenuations) ** 2 + (b - self.ice.wavenumbers) ** 2
-
+        wn_abs, wn_phases = (_f(self.ice._c_wavenumbers) for _f in (np.abs, np.angle))
         _, comp_curvs = self._egy_par_vals(amplitudes)
         curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
-        phases = curv_phases
+        num_add = self.ice._red_elastic_number + self.ice.wavenumbers
+        num_sub = self.ice._red_elastic_number - self.ice.wavenumbers
+        att_add = self.ice._red_elastic_number + self.ice.attenuations
+        att_sub = self.ice._red_elastic_number - self.ice.attenuations
+        q_pp = att_add**2 + num_add**2
+        q_mp = att_sub**2 + num_add**2
+        q_pm = att_add**2 + num_sub**2
+        q_mm = att_sub**2 + num_sub**2
 
-        phase_deltas = wn_phases - phases
+        phase_deltas = wn_phases - curv_phases
         sin_phase_deltas = np.sin(phase_deltas)
         cos_phase_deltas = np.cos(phase_deltas)
-        phase_quads = phases + PI_D4
+        phase_quads = curv_phases + PI_D4
         sin_phase_quads = np.sin(phase_quads)
         cos_phase_quads = np.cos(phase_quads)
-
         energ_1_K = np.array(
             (
                 sin_phase_deltas * (1 / q_mp - 1 / q_mm),
@@ -976,24 +970,23 @@ class FloeCoupled(Floe):
                 -(sin_phase_quads / q_pp - cos_phase_quads / q_pm),
             )
         )
-        energ_1 = wn_abs * energ_1_K + SQR2 * b * energ_1_b
-        energ_1[:2, :] *= np.exp(-adim)
+        energ_1 = wn_abs * energ_1_K + SQR2 * self.ice._red_elastic_number * energ_1_b
+        energ_1[:2, :] *= np.exp(-self._adim)
 
-        arg_add = (b + k) * L
+        arg_add = num_add * self.length
         arg_add_phase = arg_add - phase_deltas
         sin_arg_ap = np.sin(arg_add_phase)
         cos_arg_ap = np.cos(arg_add_phase)
-        arg_sub = (b - k) * L
+        arg_sub = num_sub * self.length
         arg_sub_phase = arg_sub + phase_deltas
         sin_arg_sp = np.sin(arg_sub_phase)
         cos_arg_sp = np.cos(arg_sub_phase)
         arg_add_quad = arg_add + phase_quads
         sin_arg_aq = np.sin(arg_add_quad)
         cos_arg_aq = np.cos(arg_add_quad)
-        arg_sub_quad = arg_sub - phases + PI_D4
+        arg_sub_quad = arg_sub - curv_phases + PI_D4
         sin_arg_sq = np.sin(arg_sub_quad)
         cos_arg_sq = np.cos(arg_sub_quad)
-
         energ_exp_K = np.array(
             (
                 sin_arg_ap / q_mp + sin_arg_sp / q_mm,
@@ -1010,12 +1003,13 @@ class FloeCoupled(Floe):
                 sin_arg_aq / q_pp - sin_arg_sq / q_pm,
             )
         )
-        energ_exp = wn_abs * energ_exp_K + SQR2 * b * energ_exp_b
-        energ_exp[2:, :] *= np.exp(-adim)
+        energ_exp = (
+            wn_abs * energ_exp_K + SQR2 * self.ice._red_elastic_number * energ_exp_b
+        )
+        energ_exp[2:, :] *= np.exp(-self._adim)
         energ_exp *= np.exp(-self.ice.attenuations * self.length)
 
         energ = (energ_1 + energ_exp) @ curv_moduli @ self._dis_hom_coefs(amplitudes)
-
         return 2 * self.ice._red_elastic_number**2 * energ
 
     def energy(self, spectrum: DiscreteSpectrum):
