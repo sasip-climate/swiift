@@ -1016,7 +1016,7 @@ class FloeCoupled(Floe):
         return (
             self.ice.flex_rigidity
             * (
-                self._egy_hom2(spectrum._amps)
+                self._egy_hom(spectrum._amps)
                 + 2 * self._egy_m(spectrum._amps)
                 + self._egy_par(spectrum._amps)
             )
