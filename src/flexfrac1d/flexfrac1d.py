@@ -938,11 +938,9 @@ class FloeCoupled(Floe):
     def _egy_m(self, amplitudes: np.ndarray):
         b = self.ice._red_elastic_number
         L = self.length
-        phases = self.phases
+        # phases = self.phases
         adim = b * L
-        # adim2 = 2 * adim
-        c_1, c_2, c_3, c_4 = self._dis_hom_coefs(amplitudes)
-        K, wn_phases = np.abs(self.ice._c_wavenumbers), np.angle(
+        wn_abs, wn_phases = np.abs(self.ice._c_wavenumbers), np.angle(
             self.ice._c_wavenumbers
         )
         k = self.ice.wavenumbers
@@ -955,97 +953,70 @@ class FloeCoupled(Floe):
         curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
         phases = curv_phases
 
-        energ_1 = np.array(
-            [
-                (
-                    K * np.sin(wn_phases - phases) * (1 / q_mp - 1 / q_mm)
-                    - SQR2
-                    * b
-                    * (np.sin(phases + PI_D4) / q_mp - np.cos(phases + PI_D4) / q_mm)
-                )
-                * np.exp(-adim),
-                (
-                    K * np.cos(wn_phases - phases) * (1 / q_mp + 1 / q_mm)
-                    + SQR2
-                    * b
-                    * (np.cos(phases + PI_D4) / q_mp - np.sin(phases + PI_D4) / q_mm)
-                )
-                * np.exp(-adim),
-                (
-                    K * np.sin(wn_phases - phases) * (1 / q_pm - 1 / q_pp)
-                    - SQR2
-                    * b
-                    * (np.cos(phases + PI_D4) / q_pp - np.sin(phases + PI_D4) / q_pm)
-                ),
-                (
-                    -K * np.cos(wn_phases - phases) * (1 / q_pp + 1 / q_pm)
-                    - SQR2
-                    * b
-                    * (np.sin(phases + PI_D4) / q_pp - np.cos(phases + PI_D4) / q_pm)
-                ),
-            ]
-        )
+        phase_deltas = wn_phases - phases
+        sin_phase_deltas = np.sin(phase_deltas)
+        cos_phase_deltas = np.cos(phase_deltas)
+        phase_quads = phases + PI_D4
+        sin_phase_quads = np.sin(phase_quads)
+        cos_phase_quads = np.cos(phase_quads)
 
-        energ_exp = np.array(
-            [
-                K
-                * (
-                    np.sin((b + k) * L + phases - wn_phases) / q_mp
-                    + np.sin((b - k) * L + wn_phases - phases) / q_mm
-                )
-                + SQR2
-                * b
-                * (
-                    np.sin((b + k) * L + phases + PI_D4) / q_mp
-                    - np.sin((b - k) * L - phases + PI_D4) / q_mm
-                ),
-                -K
-                * (
-                    np.cos((b + k) * L - wn_phases + phases) / q_mp
-                    + np.cos((b - k) * L + wn_phases - phases) / q_mm
-                )
-                + SQR2
-                * b
-                * (
-                    -np.cos((b + k) * L + phases + PI_D4) / q_mp
-                    + np.cos((b - k) * L - phases + PI_D4) / q_mm
-                ),
-                -K
-                * (
-                    np.sin((b + k) * L + phases - wn_phases) / q_pp
-                    + np.sin((b - k) * L - phases + wn_phases) / q_pm
-                )
-                + SQR2
-                * b
-                * (
-                    np.cos((b + k) * L + phases + PI_D4) / q_pp
-                    - np.cos((b - k) * L - phases + PI_D4) / q_pm
-                ),
-                K
-                * (
-                    np.cos((b + k) * L - wn_phases + phases) / q_pp
-                    + np.cos((b - k) * L + wn_phases - phases) / q_pm
-                )
-                + SQR2
-                * b
-                * (
-                    np.sin((b + k) * L + phases + PI_D4) / q_pp
-                    - np.sin((b - k) * L - phases + PI_D4) / q_pm
-                ),
-            ]
+        energ_1_K = np.array(
+            (
+                sin_phase_deltas * (1 / q_mp - 1 / q_mm),
+                cos_phase_deltas * (1 / q_mp + 1 / q_mm),
+                sin_phase_deltas * (1 / q_pm - 1 / q_pp),
+                -cos_phase_deltas * (1 / q_pp + 1 / q_pm),
+            )
         )
+        energ_1_b = np.array(
+            (
+                -(sin_phase_quads / q_mp - cos_phase_quads / q_mm),
+                (cos_phase_quads / q_mp - sin_phase_quads / q_mm),
+                -(cos_phase_quads / q_pp - sin_phase_quads / q_pm),
+                -(sin_phase_quads / q_pp - cos_phase_quads / q_pm),
+            )
+        )
+        energ_1 = wn_abs * energ_1_K + SQR2 * b * energ_1_b
+        energ_1[:2, :] *= np.exp(-adim)
+
+        arg_add = (b + k) * L
+        arg_add_phase = arg_add - phase_deltas
+        sin_arg_ap = np.sin(arg_add_phase)
+        cos_arg_ap = np.cos(arg_add_phase)
+        arg_sub = (b - k) * L
+        arg_sub_phase = arg_sub + phase_deltas
+        sin_arg_sp = np.sin(arg_sub_phase)
+        cos_arg_sp = np.cos(arg_sub_phase)
+        arg_add_quad = arg_add + phase_quads
+        sin_arg_aq = np.sin(arg_add_quad)
+        cos_arg_aq = np.cos(arg_add_quad)
+        arg_sub_quad = arg_sub - phases + PI_D4
+        sin_arg_sq = np.sin(arg_sub_quad)
+        cos_arg_sq = np.cos(arg_sub_quad)
+
+        energ_exp_K = np.array(
+            (
+                sin_arg_ap / q_mp + sin_arg_sp / q_mm,
+                -(cos_arg_ap / q_mp + cos_arg_sp / q_mm),
+                -(sin_arg_ap / q_pp + sin_arg_sp / q_pm),
+                cos_arg_ap / q_pp + cos_arg_sp / q_pm,
+            )
+        )
+        energ_exp_b = np.array(
+            (
+                sin_arg_aq / q_mp - sin_arg_sq / q_mm,
+                -cos_arg_aq / q_mp + cos_arg_sq / q_mm,
+                cos_arg_aq / q_pp - cos_arg_sq / q_pm,
+                sin_arg_aq / q_pp - sin_arg_sq / q_pm,
+            )
+        )
+        energ_exp = wn_abs * energ_exp_K + SQR2 * b * energ_exp_b
         energ_exp[2:, :] *= np.exp(-adim)
-
         energ_exp *= np.exp(-self.ice.attenuations * self.length)
+
         energ = (energ_1 + energ_exp) @ curv_moduli @ self._dis_hom_coefs(amplitudes)
 
-        return (
-            2
-            * self.ice._red_elastic_number**2
-            * energ
-            # * curv_moduli
-            # * (energ_1 + np.exp(-self.ice.attenuations * L) * energ_exp)
-        )  # TODO: nettoyer array/scalaires
+        return 2 * self.ice._red_elastic_number**2 * energ
 
     def energy(self, spectrum: DiscreteSpectrum):
         return (
