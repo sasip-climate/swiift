@@ -1010,14 +1010,14 @@ class FloeCoupled(Floe):
         energ_exp *= np.exp(-self.ice.attenuations * self.length)
 
         energ = (energ_1 + energ_exp) @ curv_moduli @ self._dis_hom_coefs(amplitudes)
-        return 2 * self.ice._red_elastic_number**2 * energ
+        return self.ice._red_elastic_number**2 * energ
 
     def energy(self, spectrum: DiscreteSpectrum):
         return (
             self.ice.flex_rigidity
             * (
                 self._egy_hom2(spectrum._amps)
-                + self._egy_m(spectrum._amps)
+                + 2 * self._egy_m(spectrum._amps)
                 + self._egy_par(spectrum._amps)
             )
             / (2 * self.ice.thickness)
