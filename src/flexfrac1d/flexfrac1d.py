@@ -121,13 +121,13 @@ class Ice:
     def __init__(
         self,
         density: float = 922.5,
-        frac_energy: float = 1e5,
+        frac_toughness: float = 1e5,
         poissons_ratio: float = 0.3,
         thickness: float = 1.0,
         youngs_modulus: float = 6e9,
     ):
         self.__density = density
-        self.__frac_energy = frac_energy
+        self.__frac_toughness = frac_toughness
         self.__poissons_ratio = poissons_ratio
         self.__thickness = thickness
         self.__youngs_modulus = youngs_modulus
@@ -137,8 +137,15 @@ class Ice:
         return self.__density
 
     @property
-    def frac_energy(self):
-        return self.__frac_energy
+    def frac_toughness(self) -> float:
+        """Ice fracture toughness in Pa m**1/2
+
+        Returns
+        -------
+        frac_toughness: float
+
+        """
+        return self.__frac_toughness
 
     @property
     def poissons_ratio(self):
@@ -161,8 +168,17 @@ class Ice:
         return self.quad_moment * self.youngs_modulus
 
     @functools.cached_property
-    def frac_toughness(self):
-        return (1 - self.poissons_ratio**2) * self.frac_energy**2 / self.youngs_modulus
+    def frac_energy_rate(self) -> float:
+        """Ice fracture energy release rate in J m**-2
+
+        Returns
+        -------
+        frac_energy_rate: float
+
+        """
+        return (
+            (1 - self.poissons_ratio**2) * self.frac_toughness**2 / self.youngs_modulus
+        )
 
 
 class IceCoupled(Ice):
