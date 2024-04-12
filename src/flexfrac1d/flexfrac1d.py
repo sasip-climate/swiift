@@ -192,7 +192,7 @@ class IceCoupled(Ice):
     ):
         super().__init__(
             ice.density,
-            ice.frac_energy,
+            ice.frac_toughness,
             ice.poissons_ratio,
             ice.thickness,
             ice.youngs_modulus,
