@@ -1240,33 +1240,60 @@ class Domain:
 
     def __init__(
         self,
+        gravity,
         spectrum: WaveSpectrum,
         ocean: Ocean,
-        nf: int,
-        phases,
-        betas,
-        fmin,
-        fmax,
-        frequencies,
-        gravity,
     ) -> None:
         """"""
-        self.__spectrum = spectrum
+        self.__gravity = gravity
+        self.__frozen_spectrum = spectrum
         self.__ocean = OceanCoupled(ocean, spectrum)
 
-        self.__frozen_spectrum = DiscreteSpectrum(
-            spectrum.amplitude(frequencies), frequencies, phases, betas
-        )
-        # TODO: doit avoir un attribut gravité si le spectre n'en a pas
+        # TODO: callable spectrum
+        # self.__frozen_spectrum = DiscreteSpectrum(
+        #     spectrum.amplitude(frequencies), frequencies, phases, betas
+        # )
+
+    @property
+    def gravity(self):
+        return self.__gravity
+
+    @property
+    def ocean(self):
+        return self.__ocean
+
+    @property
+    def spectrum(self):
+        return self.__frozen_spectrum
 
     def _init_from_f(self): ...
 
     def add_floes(self, floes):
-        # TODO: test sur l'attribut ice des floes, ajouter l'IceCoupled
-        # correspondant en attribut des FloeCoupled, mais stocker les
-        # IceCoupled dans Domain pour centralisation et éviter de recalculer
-        # les wavenumbers, etc.: les FloeCoupled ne devraient qu'en avoir une
-        # référence
-        # TODO: les phases de chaque floe peuvent également être déterminée
-        # ici, à la chaine
-        ...
+        # TODO: define __slots__ in Floe for better memory allocation?
+        floes = sorted(self.floes + tuple(floes))
+        floes = sorted(floes)
+
+        # TODO juste recalculer la phase et l'attribuer avec __phases pour les
+        # floes qui existent déjà, pas de nouvelles instantiations
+
+        # spectrum.phases defined at x = 0
+        phase0 = (
+            floes[0].left_edge * self.ocean.wavenumbers + self.spectrum._phases
+        ) % (2 * PI)
+
+        cfloes = [None] * len(floes)
+        for i, floe in enumerate(floes):
+            if floe.ice not in self.ices:
+                self.ices[floe.ice] = IceCoupled(
+                    floe.ice, self.ocean, self.spectrum, None, self.gravity
+                )
+            if i == 0:
+                phases = phase0
+            else:
+                prev = cfloes[i - 1]
+                phases = (
+                    prev.phases
+                    + prev.length * prev.ice.wavenumbers
+                    + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
+                ) % (PI_2)
+            cfloes[i] = FloeCoupled(floe, self.ices[floe.ice], self.spectrum, phases)
