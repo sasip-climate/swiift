@@ -14,6 +14,7 @@ from .pars import g
 
 
 PI = np.pi
+PI_2 = 2 * PI
 PI_D4 = PI / 4
 SQR2 = np.sqrt(2)
 
