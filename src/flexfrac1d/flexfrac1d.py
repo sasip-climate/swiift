@@ -331,6 +331,12 @@ class Floe:
         self.__length = length
         self.__ice = ice
 
+    def __eq__(self, other: Floe) -> bool:
+        return self.left_edge == other.left_edge
+
+    def __lt__(self, other: Floe) -> bool:
+        return self.left_edge < other.left_edge
+
     @property
     def left_edge(self):
         return self.__left_edge
