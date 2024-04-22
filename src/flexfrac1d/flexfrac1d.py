@@ -790,6 +790,55 @@ class FloeCoupled(Floe):
             / (2 * self.ice.thickness)
         )
 
+    def search_fracture(self, spectrum: DiscreteSpectrum):
+        return self.binary_fracture(spectrum)
+
+    def binary_fracture(self, spectrum: DiscreteSpectrum):
+        coef_nd = 4
+        if self.energy(spectrum) < self.ice.frac_energy_rate:
+            return None
+        else:
+            nd = np.ceil(
+                4 * self.length * self.ice.wavenumbers.max() / (2 * np.pi)
+            ).astype(int)
+            lengths = np.linspace(0, self.length, nd * coef_nd)[1:-1]
+            ener = np.full(lengths.shape, np.nan)
+            for i, length in enumerate(lengths):
+                ener[i] = self.ener_min(length, spectrum)
+            # ener += self.ice.frac_energy_rate
+
+            peak_idxs = np.hstack(
+                (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
+            )
+
+            opts = [
+                optimize.minimize_scalar(
+                    lambda length: self.ener_min(length, spectrum),
+                    bounds=lengths[peak_idxs[[i, i + 1]]],
+                )
+                for i in range(len(peak_idxs) - 1)
+            ]
+            opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
+            if np.exp(opt.value) + self.ice.frac_energy_rate:
+                return opt.x
+            else:
+                return None
+
+    def ener_min(self, length, spec):
+        floe_l = Floe(left_edge=self.left_edge, length=length)
+        # phases_l = (
+        #     co.wavenumbers * floe_l.left_edge
+        #     + np.array([wave.phase for wave in spec.waves])
+        # ) % (2 * np.pi)
+        cf_l = FloeCoupled(floe_l, self.ice, spec, self.phases)
+
+        floe_r = Floe(left_edge=self.left_edge + length, length=self.length - length)
+        phases_r = (cf_l.phases + self.ice.wavenumbers * floe_l.length) % (2 * np.pi)
+        cf_r = FloeCoupled(floe_r, self.ice, spec, phases_r)
+
+        en_l, en_r = map(lambda _f: _f.energy(spec), (cf_l, cf_r))
+        return en_l + en_r
+
 
 class DiscreteSpectrum:
     def __init__(self, amplitudes, frequencies, phases=0, betas=0):
