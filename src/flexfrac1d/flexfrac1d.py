@@ -7,6 +7,7 @@ import itertools
 import warnings
 import numpy as np
 import scipy.optimize as optimize
+import scipy.signal as signal
 
 # from .libraries.WaveUtils import SpecVars
 from .pars import g
@@ -323,7 +324,7 @@ class Floe:
         self,
         left_edge: float,
         length: float,
-        ice: Ice,
+        ice: Ice = None,
         dispersion: str = "ElML",
     ):
         self.__left_edge = left_edge
@@ -725,7 +726,7 @@ class FloeCoupled(Floe):
             (
                 sin_phase_deltas * (1 / q_mp - 1 / q_mm),
                 cos_phase_deltas * (1 / q_mp + 1 / q_mm),
-                sin_phase_deltas * (1 / q_pm - 1 / q_pp),
+                -sin_phase_deltas * (1 / q_pp - 1 / q_pm),
                 -cos_phase_deltas * (1 / q_pp + 1 / q_pm),
             )
         )
@@ -872,6 +873,10 @@ class DiscreteSpectrum:
     @functools.cached_property
     def _amps(self):
         return np.asarray([wave.amplitude for wave in self.waves])
+
+    @functools.cached_property
+    def _freqs(self):
+        return np.asarray([wave.frequency for wave in self.waves])
 
     @functools.cached_property
     def _phases(self):
