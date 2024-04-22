@@ -118,6 +118,7 @@ class Ocean:
         return self.__depth
 
 
+# TODO: look at @dataclass
 class Ice:
     def __init__(
         self,
@@ -132,6 +133,17 @@ class Ice:
         self.__poissons_ratio = poissons_ratio
         self.__thickness = thickness
         self.__youngs_modulus = youngs_modulus
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.density,
+                self.frac_toughness,
+                self.poissons_ratio,
+                self.thickness,
+                self.youngs_modulus,
+            )
+        )
 
     @property
     def density(self):
@@ -198,6 +210,8 @@ class IceCoupled(Ice):
             ice.thickness,
             ice.youngs_modulus,
         )
+        if dispersion is not None or dispersion != "":
+            warnings.warn("Dispersion is ignored for now", stacklevel=1)
         self.__draft = self.density / ocean.density * self.thickness
         self.__dud = ocean.depth - self.draft
         self._elastic_length_pow4 = self.flex_rigidity / (ocean.density * gravity)
