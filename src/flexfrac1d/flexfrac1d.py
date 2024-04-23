@@ -863,11 +863,11 @@ class FloeCoupled(Floe):
         #     co.wavenumbers * floe_l.left_edge
         #     + np.array([wave.phase for wave in spec.waves])
         # ) % (2 * np.pi)
-        cf_l = FloeCoupled(floe_l, self.ice, spec, self.phases)
+        cf_l = FloeCoupled(floe_l, self.ice, self.phases)
 
         floe_r = Floe(left_edge=self.left_edge + length, length=self.length - length)
         phases_r = (cf_l.phases + self.ice.wavenumbers * floe_l.length) % (2 * np.pi)
-        cf_r = FloeCoupled(floe_r, self.ice, spec, phases_r)
+        cf_r = FloeCoupled(floe_r, self.ice, phases_r)
 
         en_l, en_r = map(lambda _f: _f.energy(spec), (cf_l, cf_r))
         return en_l + en_r
