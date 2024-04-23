@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 import scipy.optimize as optimize
 import scipy.signal as signal
+from sortedcontainers import SortedList
 
 # from .libraries.WaveUtils import SpecVars
 from .pars import g
@@ -211,8 +212,10 @@ class IceCoupled(Ice):
             ice.thickness,
             ice.youngs_modulus,
         )
-        if dispersion is not None or dispersion != "":
-            warnings.warn("Dispersion is ignored for now", stacklevel=1)
+        if not (dispersion is None or dispersion != ""):
+            warnings.warn(
+                "Dispersion is ignored for now and is always ElML", stacklevel=1
+            )
         self.__draft = self.density / ocean.density * self.thickness
         self.__dud = ocean.depth - self.draft
         self._elastic_length_pow4 = self.flex_rigidity / (ocean.density * gravity)
@@ -356,6 +359,10 @@ class Floe:
     def left_edge(self):
         return self.__left_edge
 
+    @functools.cached_property
+    def right_edge(self):
+        return self.left_edge + self.length
+
     @property
     def length(self):
         return self.__length
@@ -374,7 +381,6 @@ class FloeCoupled(Floe):
         self,
         floe: Floe,
         ice: IceCoupled,
-        spectrum: DiscreteSpectrum,
         phases: np.ndarray | list[float] | float,
         dispersion=None,
     ):
@@ -384,6 +390,10 @@ class FloeCoupled(Floe):
     @property
     def phases(self) -> np.ndarray:
         return self.__phases
+
+    @phases.setter
+    def phases(self, value):
+        self.__phases = np.asarray(value)
 
     @property
     def ice(self) -> IceCoupled:
@@ -1247,7 +1257,9 @@ class Domain:
         """"""
         self.__gravity = gravity
         self.__frozen_spectrum = spectrum
-        self.__ocean = OceanCoupled(ocean, spectrum)
+        self.__ocean = OceanCoupled(ocean, spectrum, gravity)
+        self.__floes = SortedList()
+        self.__ices = {}
 
         # TODO: callable spectrum
         # self.__frozen_spectrum = DiscreteSpectrum(
@@ -1255,45 +1267,58 @@ class Domain:
         # )
 
     @property
-    def gravity(self):
+    def floes(self) -> SortedList[FloeCoupled]:
+        return self.__floes
+
+    @property
+    def gravity(self) -> float:
         return self.__gravity
 
     @property
-    def ocean(self):
+    def ices(self) -> dict[Ice, IceCoupled]:
+        return self.__ices
+
+    @property
+    def ocean(self) -> OceanCoupled:
         return self.__ocean
 
     @property
-    def spectrum(self):
+    def spectrum(self) -> DiscreteSpectrum:
         return self.__frozen_spectrum
 
     def _init_from_f(self): ...
 
-    def add_floes(self, floes):
-        # TODO: define __slots__ in Floe for better memory allocation?
-        floes = sorted(self.floes + tuple(floes))
-        floes = sorted(floes)
-
-        # TODO juste recalculer la phase et l'attribuer avec __phases pour les
-        # floes qui existent déjà, pas de nouvelles instantiations
-
+    def _set_phases(self):
         # spectrum.phases defined at x = 0
-        phase0 = (
-            floes[0].left_edge * self.ocean.wavenumbers + self.spectrum._phases
+        self.floes[0].phases = (
+            self.floes[0].left_edge * self.ocean.wavenumbers + self.spectrum._phases
         ) % (2 * PI)
 
-        cfloes = [None] * len(floes)
-        for i, floe in enumerate(floes):
+        for i, floe in enumerate(self.floes[1:], 1):
+            prev = self.floes[i - 1]
+            self.floes[i].phases = (
+                prev.phases
+                + prev.length * prev.ice.wavenumbers
+                + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
+            ) % (PI_2)
+
+    def add_floes(self, floes):
+        # TODO: define __slots__ in Floe for better memory allocation?
+        # TODO this testing should be removed if add_floes made private
+        all_floes = self.floes.copy()
+        all_floes.update(floes)
+        l_edges, r_edges = map(
+            np.array, zip(*((floe.left_edge, floe.right_edge) for floe in all_floes))
+        )
+        if not (r_edges[:-1] <= l_edges[1:]).all():
+            raise AssertionError  # TODO: dedicated exception
+
+        for floe in floes:
             if floe.ice not in self.ices:
                 self.ices[floe.ice] = IceCoupled(
                     floe.ice, self.ocean, self.spectrum, None, self.gravity
                 )
-            if i == 0:
-                phases = phase0
-            else:
-                prev = cfloes[i - 1]
-                phases = (
-                    prev.phases
-                    + prev.length * prev.ice.wavenumbers
-                    + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
-                ) % (PI_2)
-            cfloes[i] = FloeCoupled(floe, self.ices[floe.ice], self.spectrum, phases)
+        c_floes = [FloeCoupled(floe, self.ices[floe.ice], 0) for floe in floes]
+
+        self.floes.update(c_floes)
+        self._set_phases()
