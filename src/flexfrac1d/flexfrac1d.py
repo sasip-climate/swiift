@@ -851,7 +851,7 @@ class FloeCoupled(Floe):
                 for i in range(len(peak_idxs) - 1)
             ]
             opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
-            if np.exp(opt.value) + self.ice.frac_energy_rate:
+            if np.exp(opt.fun) + self.ice.frac_energy_rate < self.energy(spectrum):
                 return opt.x
             else:
                 return None
