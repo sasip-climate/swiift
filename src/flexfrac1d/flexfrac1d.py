@@ -870,7 +870,23 @@ class FloeCoupled(Floe):
         cf_r = FloeCoupled(floe_r, self.ice, phases_r)
 
         en_l, en_r = map(lambda _f: _f.energy(spec), (cf_l, cf_r))
-        return en_l + en_r
+        return np.log(en_l + en_r)
+
+    def fracture(
+        self, xfs: np.ndarray | float
+    ) -> tuple[FloeCoupled, list[FloeCoupled]]:
+        xfs = np.asarray(xfs) + self.left_edge  # domain reference frame
+        left_edges = np.hstack((self.left_edge, xfs))
+        right_edges = np.hstack((xfs, self.right_edge))
+        lengths = right_edges - left_edges
+        phases = np.vstack(
+            (self.phases, self.ice.wavenumbers * lengths[:-1, None])
+        ).cumsum(axis=0)
+
+        return self, [
+            FloeCoupled(Floe(left_edge, length), self.ice, phase)
+            for left_edge, length, phase in zip(left_edges, lengths, phases)
+        ]
 
 
 class DiscreteSpectrum:
@@ -1323,3 +1339,21 @@ class Domain:
 
         self.floes.update(c_floes)
         self._set_phases()
+
+    def _pop_c_floe(self, floe: FloeCoupled):
+        self.floes.remove(floe)
+
+    def _add_c_floes(self, floes: list[FloeCoupled]):
+        # It is assume no overlap will occur, and phases have been properly
+        # set, as these method should only be called after a fracture event
+        self.floes.update(floes)
+
+    def breakup(self):
+        dct = {}
+        for i, floe in enumerate(self.floes):
+            xf = floe.search_fracture(self.spectrum)
+            if xf is not None:
+                dct[i] = floe.fracture(xf)
+        for old, new in dct.values():
+            self._pop_c_floe(old)
+            self._add_c_floes(new)
