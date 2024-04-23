@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import functools
 import itertools
 import warnings
@@ -825,7 +826,7 @@ class FloeCoupled(Floe):
     def search_fracture(self, spectrum: DiscreteSpectrum):
         return self.binary_fracture(spectrum)
 
-    def binary_fracture(self, spectrum: DiscreteSpectrum):
+    def binary_fracture(self, spectrum: DiscreteSpectrum) -> float | None:
         coef_nd = 4
         if self.energy(spectrum) < self.ice.frac_energy_rate:
             return None
@@ -1302,7 +1303,7 @@ class Domain:
                 + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
             ) % (PI_2)
 
-    def add_floes(self, floes):
+    def add_floes(self, floes: Sequence[Floe]):
         # TODO: define __slots__ in Floe for better memory allocation?
         # TODO this testing should be removed if add_floes made private
         all_floes = self.floes.copy()
