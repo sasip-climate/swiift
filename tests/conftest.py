@@ -46,7 +46,7 @@ physical_strategies = {
         "density": st.floats(500, 5e3, **float_kw),
     },
     "ice": {
-        "frac_energy": st.floats(**float_kw),
+        "frac_toughness": st.floats(**float_kw),
         "poissons_ratio": st.floats(-1, 0.5, exclude_min=True, **float_kw),
         "youngs_modulus": st.floats(1e6, 100e9, **float_kw),
     },
@@ -121,7 +121,7 @@ coupled_ocean_ice = {
                 ),
                 key="rhoi",
             ),
-            frac_energy=physical_strategies["ice"]["frac_energy"],
+            frac_toughness=physical_strategies["ice"]["frac_toughness"],
             poissons_ratio=physical_strategies["ice"]["poissons_ratio"],
             thickness=physical_strategies["ice"]["thickness"](
                 ocean_depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
