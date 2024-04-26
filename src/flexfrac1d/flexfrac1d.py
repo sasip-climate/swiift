@@ -12,6 +12,7 @@ import scipy.signal as signal
 from sortedcontainers import SortedList
 
 # from .libraries.WaveUtils import SpecVars
+from .lib.displacement import displacement
 from .pars import g
 
 
@@ -383,10 +384,12 @@ class FloeCoupled(Floe):
         floe: Floe,
         ice: IceCoupled,
         phases: np.ndarray | list[float] | float,
+        amp_coefficients: np.ndarray | list[float] | float,
         dispersion=None,
     ):
         super().__init__(floe.left_edge, floe.length, ice, dispersion)
         self.__phases = np.asarray(phases)
+        self.__amp_coefficients = amp_coefficients
 
     @property
     def phases(self) -> np.ndarray:
@@ -395,6 +398,10 @@ class FloeCoupled(Floe):
     @phases.setter
     def phases(self, value):
         self.__phases = np.asarray(value)
+
+    @property
+    def amp_coefficients(self):
+        return self.__amp_coefficients
 
     @property
     def ice(self) -> IceCoupled:
@@ -600,6 +607,13 @@ class FloeCoupled(Floe):
         """Sum of the particular solutions to the displacement ODE"""
         return self._wavefield(x, self._dis_par_amps(amplitudes))
 
+    def _pack(self, spectrum: DiscreteSpectrum):
+        return (self.ice._red_elastic_number, self.length), (
+            self.amp_coefficients * spectrum._amps,
+            self.ice._c_wavenumbers,
+            self.phases,
+        )
+
     def _displacement(self, x, amplitudes):
         return self._dis_hom(x, amplitudes) + self._dis_par(x, amplitudes)
 
@@ -608,6 +622,7 @@ class FloeCoupled(Floe):
 
         `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
         """
+        # return displacement(x, *self._pack(spectrum))
         return self._displacement(x, spectrum._amps)
 
     def _cur_wavefield(self, x, spectrum, complex_amps):
@@ -831,9 +846,12 @@ class FloeCoupled(Floe):
         if self.energy(spectrum) < self.ice.frac_energy_rate:
             return None
         else:
-            nd = np.ceil(
-                4 * self.length * self.ice.wavenumbers.max() / (2 * np.pi)
-            ).astype(int)
+            nd = (
+                np.ceil(
+                    4 * self.length * self.ice.wavenumbers.max() / (2 * np.pi)
+                ).astype(int)
+                + 2
+            )
             lengths = np.linspace(0, self.length, nd * coef_nd)[1:-1]
             ener = np.full(lengths.shape, np.nan)
             for i, length in enumerate(lengths):
@@ -1352,8 +1370,11 @@ class Domain:
         dct = {}
         for i, floe in enumerate(self.floes):
             xf = floe.search_fracture(self.spectrum)
+            print(xf)
             if xf is not None:
                 dct[i] = floe.fracture(xf)
+        print(f"len dct: {len(dct)}")
         for old, new in dct.values():
             self._pop_c_floe(old)
+            print(f"len new: {len(new)}")
             self._add_c_floes(new)
