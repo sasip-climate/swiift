@@ -14,6 +14,7 @@ from sortedcontainers import SortedList
 # from .libraries.WaveUtils import SpecVars
 from .lib.displacement import displacement
 from .lib.curvature import curvature
+from .lib.energy import energy
 from .pars import g
 
 
@@ -640,9 +641,10 @@ class FloeCoupled(Floe):
         return (
             self.ice.flex_rigidity
             * (
-                self._egy_hom(spectrum._amps)
-                + 2 * self._egy_m(spectrum._amps)
-                + self._egy_par(spectrum._amps)
+                # self._egy_hom(spectrum._amps)
+                # + 2 * self._egy_m(spectrum._amps)
+                # + self._egy_par(spectrum._amps)
+                energy(*self._pack(spectrum))
             )
             / (2 * self.ice.thickness)
         )
