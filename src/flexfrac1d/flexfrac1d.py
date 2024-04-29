@@ -411,156 +411,6 @@ class FloeCoupled(Floe):
     def _adim(self):
         return self.length * self.ice._red_elastic_number
 
-    def _dis_par_amps(self, amplitudes: np.ndarray):
-        """Complex amplitudes of individual particular solutions"""
-        return (
-            amplitudes
-            * np.exp(1j * self.phases)
-            / (1 + (self.ice._elastic_length_pow4 * self.ice._c_wavenumbers**4))
-        )
-
-    def _dis_hom_mat(self):
-        """Linear application to determine, from the BCs, the coefficients of
-        the four independent solutions to the homo ODE"""
-        red_el_num = self.ice._red_elastic_number
-        adim = self._adim
-        adim2 = 2 * adim
-        denom = (
-            -2
-            * red_el_num**2
-            * (np.expm1(-adim2) ** 2 + 2 * np.exp(-adim2) * (np.cos(adim2) - 1))
-        )
-        mat = np.array(
-            [
-                [
-                    SQR2 * np.exp(-adim) * np.sin(adim2 + PI_D4) - np.exp(-3 * adim),
-                    -SQR2 * np.cos(adim + PI_D4)
-                    - 3 * np.exp(-adim2) * np.sin(adim)
-                    + np.exp(-adim2) * np.cos(adim),
-                    np.exp(-adim) * np.sin(adim2) - np.exp(-adim) + np.exp(-3 * adim),
-                    np.cos(adim)
-                    - 2 * np.exp(-adim2) * np.sin(adim)
-                    - np.exp(-adim2) * np.cos(adim),
-                ],
-                [
-                    -SQR2 * np.exp(-adim) * np.cos(adim2 + PI_D4)
-                    + 2 * np.exp(-adim)
-                    - np.exp(-3 * adim),
-                    -SQR2 * np.sin(adim + PI_D4)
-                    + SQR2 * np.exp(-adim2) * np.cos(adim + PI_D4),
-                    -np.exp(-adim) * np.cos(adim2) + np.exp(-adim),
-                    np.sin(adim) - np.exp(-adim2) * np.sin(adim),
-                ],
-                [
-                    -1 + SQR2 * np.exp(-adim2) * np.cos(adim2 + PI_D4),
-                    (3 * np.sin(adim) + np.cos(adim)) * np.exp(-adim)
-                    - SQR2 * np.exp(-3 * adim) * np.sin(adim + PI_D4),
-                    (np.sin(adim2) + 1) * np.exp(-adim2) - 1,
-                    (-2 * np.sin(adim) + np.cos(adim)) * np.exp(-adim)
-                    - np.exp(-3 * adim) * np.cos(adim),
-                ],
-                [
-                    (SQR2 * np.sin(adim2 + PI_D4) - 2) * np.exp(-adim2) + 1,
-                    -SQR2 * np.exp(-adim) * np.sin(adim + PI_D4)
-                    + SQR2 * np.exp(-3 * adim) * np.cos(adim + PI_D4),
-                    (-np.cos(adim2) + 1) * np.exp(-adim2),
-                    np.exp(-adim) * np.sin(adim) - np.exp(-3 * adim) * np.sin(adim),
-                ],
-            ]
-        )
-        mat[:, 2:] /= red_el_num
-
-        return mat / denom
-
-    def _dis_hom_rhs(self, amplitudes):
-        """Vector onto which apply the matrix, to extract the coefficients"""
-        exp_arg = 1j * self.ice._c_wavenumbers * self.length
-
-        r1 = self.ice._c_wavenumbers**2 * self._dis_par_amps(amplitudes)
-        r2 = np.imag(r1 @ np.exp(exp_arg))
-        r3 = 1j * self.ice._c_wavenumbers * r1
-        r4 = np.imag(r3 @ np.exp(exp_arg))
-        r1 = np.imag(r1).sum()
-        r3 = np.imag(r3).sum()
-
-        return np.array((r1, r2, r3, r4))
-
-    def _dis_hom_coefs(self, amplitudes: np.ndarray) -> np.ndarray:
-        """Coefficients of the four orthogonal homogeneous solutions"""
-        return self._dis_hom_mat() @ self._dis_hom_rhs(amplitudes)
-
-    def _dis_hom_coefs2(self, amplitudes: np.ndarray) -> np.ndarray:
-        b = self.ice._red_elastic_number
-        L = self.length
-        denom = -(b**2) * (
-            np.expm1(-2 * b * L) ** 2 + 2 * np.exp(-2 * b * L) * (np.cos(2 * b * L) - 1)
-        )
-        coefs_rhs = self._dis_hom_rhs(amplitudes) / denom
-
-        expm_sin = coefs_rhs @ (
-            (
-                (np.sqrt(2) * np.sin(2 * L * b + PI / 4) / 2 - 1) * np.exp(-2 * L * b)
-                + 1 / 2
-            ),
-            (
-                -np.sqrt(2) * np.exp(-L * b) * np.sin(L * b + PI / 4) / 2
-                + np.sqrt(2) * np.exp(-3 * L * b) * np.cos(L * b + PI / 4) / 2
-            ),
-            (-np.cos(2 * L * b) / (2 * b) + 1 / (2 * b)) * np.exp(-2 * L * b),
-            (
-                np.exp(-L * b) * np.sin(L * b) / (2 * b)
-                - np.exp(-3 * L * b) * np.sin(L * b) / (2 * b)
-            ),
-        )
-        # for exp(b*x) scaled by exp(-b*L)
-        expp_sin = coefs_rhs @ (
-            (
-                (-np.sqrt(2) * np.cos(2 * L * b + PI / 4) / 2 + 1) * np.exp(-L * b)
-                - np.exp(-3 * L * b) / 2
-            ),
-            (
-                -np.sqrt(2) * np.sin(L * b + PI / 4) / 2
-                + np.sqrt(2) * np.exp(-2 * L * b) * np.cos(L * b + PI / 4) / 2
-            ),
-            (-np.cos(2 * L * b) / (2 * b) + 1 / (2 * b)) * np.exp(-L * b),
-            (np.sin(L * b) / (2 * b) - np.exp(-2 * L * b) * np.sin(L * b) / (2 * b)),
-        )
-        expm_cos = coefs_rhs @ (
-            (-1 / 2 + np.sqrt(2) * np.exp(-2 * L * b) * np.cos(2 * L * b + PI / 4) / 2),
-            (
-                (3 * np.sin(L * b) / 2 + np.cos(L * b) / 2) * np.exp(-L * b)
-                - np.sqrt(2) * np.exp(-3 * L * b) * np.sin(L * b + PI / 4) / 2
-            ),
-            (
-                (np.sin(2 * L * b) / (2 * b) + 1 / (2 * b)) * np.exp(-2 * L * b)
-                - 1 / (2 * b)
-            ),
-            (
-                (-np.sin(L * b) / b + np.cos(L * b) / (2 * b)) * np.exp(-L * b)
-                - np.exp(-3 * L * b) * np.cos(L * b) / (2 * b)
-            ),
-        )
-        # for exp(b*x) scaled by exp(-b*L)
-        expp_cos = coefs_rhs @ (
-            (
-                np.sqrt(2) * np.exp(-L * b) * np.sin(2 * L * b + PI / 4) / 2
-                - np.exp(-3 * L * b) / 2
-            ),
-            (
-                (-3 * np.sin(L * b) / 2 + np.cos(L * b) / 2) * np.exp(-2 * L * b)
-                - np.sqrt(2) * np.cos(L * b + PI / 4) / 2
-            ),
-            (
-                (np.sin(2 * L * b) / (2 * b) - 1 / (2 * b)) * np.exp(-L * b)
-                + np.exp(-3 * L * b) / (2 * b)
-            ),
-            (
-                (-np.sin(L * b) / b - np.cos(L * b) / (2 * b)) * np.exp(-2 * L * b)
-                + np.cos(L * b) / (2 * b)
-            ),
-        )
-        return np.array((expp_cos, expp_sin, expm_cos, expm_sin))
-
     def surface(self, x, spectrum):
         return (
             self._wavefield(x, spectrum._amps * np.exp(1j * self.phases))
@@ -593,20 +443,6 @@ class FloeCoupled(Floe):
             / self.length
         )
 
-    def _dis_hom(self, x, amplitudes: np.ndarray):
-        """Homogeneous solution to the displacement ODE"""
-        arr = self.ice._red_elastic_number * x
-        cosx, sinx = np.cos(arr), np.sin(arr)
-        expx = np.exp(-self.ice._red_elastic_number * (self.length - x))
-        exmx = np.exp(-arr)
-        return np.vstack(
-            ([expx * cosx, expx * sinx, exmx * cosx, exmx * sinx])
-        ).T @ self._dis_hom_coefs(amplitudes)
-
-    def _dis_par(self, x, amplitudes):
-        """Sum of the particular solutions to the displacement ODE"""
-        return self._wavefield(x, self._dis_par_amps(amplitudes))
-
     def _pack(self, spectrum: DiscreteSpectrum):
         return (self.ice._red_elastic_number, self.length), (
             self.amp_coefficients * spectrum._amps,
@@ -614,16 +450,12 @@ class FloeCoupled(Floe):
             self.phases,
         )
 
-    def _displacement(self, x, amplitudes):
-        return self._dis_hom(x, amplitudes) + self._dis_par(x, amplitudes)
-
     def displacement(self, x, spectrum):
         """Complete solution of the displacement ODE
 
         `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
         """
-        # return displacement(x, *self._pack(spectrum))
-        return self._displacement(x, spectrum._amps)
+        return displacement(x, *self._pack(spectrum))
 
     def _cur_wavefield(self, x, spectrum, complex_amps):
         """Second derivative of the interface"""
