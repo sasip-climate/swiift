@@ -13,6 +13,7 @@ from sortedcontainers import SortedList
 
 # from .libraries.WaveUtils import SpecVars
 from .lib.displacement import displacement
+from .lib.curvature import curvature
 from .pars import g
 
 
@@ -483,7 +484,8 @@ class FloeCoupled(Floe):
 
     def curvature(self, x, spectrum):
         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
-        return self._cur_hom(x, spectrum._amps) + self._cur_par(x, spectrum._amps)
+        return curvature(x, *self._pack(spectrum))
+        # return self._cur_hom(x, spectrum._amps) + self._cur_par(x, spectrum._amps)
 
     def _egy_hom(self, amplitudes: np.ndarray):
         """Energy from the homogen term of the displacement ODE"""
