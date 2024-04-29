@@ -458,34 +458,9 @@ class FloeCoupled(Floe):
         """
         return displacement(x, *self._pack(spectrum))
 
-    def _cur_wavefield(self, x, spectrum, complex_amps):
-        """Second derivative of the interface"""
-        return -np.imag(
-            (complex_amps * self.ice._c_wavenumbers**2)
-            @ np.exp(1j * self.ice._c_wavenumbers[:, None] * x)
-        )
-
-    def _cur_hom(self, x, amplitudes):
-        """Second derivative of the homogeneous part of the displacement"""
-        arr = self.ice._red_elastic_number * x
-        cosx, sinx = np.cos(arr), np.sin(arr)
-        expx = np.exp(-self.ice._red_elastic_number * (self.length - x))
-        exmx = np.exp(-arr)
-        return (
-            2
-            * self.ice._red_elastic_number**2
-            * np.vstack(([-expx * sinx, expx * cosx, exmx * sinx, -exmx * cosx])).T
-            @ self._dis_hom_coefs(amplitudes)
-        )
-
-    def _cur_par(self, x, spectrum):
-        """Second derivative of the particular part of the displacement"""
-        return self._cur_wavefield(x, spectrum, self._dis_par_amps(spectrum))
-
     def curvature(self, x, spectrum):
         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
         return curvature(x, *self._pack(spectrum))
-        # return self._cur_hom(x, spectrum._amps) + self._cur_par(x, spectrum._amps)
 
     def _egy_hom(self, amplitudes: np.ndarray):
         """Energy from the homogen term of the displacement ODE"""
