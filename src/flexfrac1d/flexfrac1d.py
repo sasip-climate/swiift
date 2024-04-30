@@ -527,10 +527,26 @@ class FloeCoupled(Floe):
         phases = np.vstack(
             (self.phases, self.ice.wavenumbers * lengths[:-1, None])
         ).cumsum(axis=0)
+        # amp_coefficients = np.vstack(
+        #     (
+        #         self.amp_coefficients,
+        #         np.exp(-self.ice.attenuations * lengths[:-1, None]),
+        #     )
+        # ).cumprod(axis=0)
+        amp_coefficients = np.exp(
+            np.vstack(
+                (
+                    np.log(self.amp_coefficients),
+                    -self.ice.attenuations * lengths[:-1, None],
+                )
+            ).cumsum(axis=0)
+        )
 
         return self, [
-            FloeCoupled(Floe(left_edge, length), self.ice, phase)
-            for left_edge, length, phase in zip(left_edges, lengths, phases)
+            FloeCoupled(Floe(left_edge, length), self.ice, phases_, coefs_)
+            for left_edge, length, phases_, coefs_ in zip(
+                left_edges, lengths, phases, amp_coefficients
+            )
         ]
 
 
@@ -980,7 +996,19 @@ class Domain:
                 self.ices[floe.ice] = IceCoupled(
                     floe.ice, self.ocean, self.spectrum, None, self.gravity
                 )
-        c_floes = [FloeCoupled(floe, self.ices[floe.ice], 0) for floe in floes]
+        coef_amps = np.exp(
+            np.array(
+                [0]
+                + [
+                    -self.ices[floe.ice].attenuations * floe.length
+                    for floe in floes[1:]
+                ]
+            ).cumsum(axis=0)
+        )
+        c_floes = [
+            FloeCoupled(floe, self.ices[floe.ice], 0, coefs)
+            for floe, coefs in zip(floes, coef_amps)
+        ]
 
         self.floes.update(c_floes)
         self._set_phases()
