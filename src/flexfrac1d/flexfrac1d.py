@@ -1024,7 +1024,7 @@ class Domain:
 
     def _shift_phases(self, phases: np.ndarray):
         for i in range(len(self.floes)):
-            self.floes[i].phases += phases
+            self.floes[i].phases -= phases
 
     def iterate(self, time: float):
         self.time = time
