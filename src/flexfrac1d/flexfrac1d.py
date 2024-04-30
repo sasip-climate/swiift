@@ -16,12 +16,7 @@ from .lib.displacement import displacement
 from .lib.curvature import curvature
 from .lib.energy import energy
 from .pars import g
-
-
-PI = np.pi
-PI_2 = 2 * PI
-PI_D4 = PI / 4
-SQR2 = np.sqrt(2)
+from .lib.constants import PI, PI_2
 
 
 class Wave:
