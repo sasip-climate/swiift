@@ -938,6 +938,7 @@ class Domain:
         self.__ocean = OceanCoupled(ocean, spectrum, gravity)
         self.__floes = SortedList()
         self.__ices = {}
+        self.__time = 0
 
         # TODO: callable spectrum
         # self.__frozen_spectrum = DiscreteSpectrum(
@@ -963,6 +964,14 @@ class Domain:
     @property
     def spectrum(self) -> DiscreteSpectrum:
         return self.__frozen_spectrum
+
+    @property
+    def time(self) -> float:
+        return self.__time
+
+    @time.setter
+    def time(self, value: float):
+        self.__time = value
 
     def _init_from_f(self): ...
 
@@ -1012,6 +1021,15 @@ class Domain:
 
         self.floes.update(c_floes)
         self._set_phases()
+
+    def _shift_phases(self, phases: np.ndarray):
+        for i in range(len(self.floes)):
+            self.floes[i].phases += phases
+
+    def iterate(self, time: float):
+        self.time = time
+        phase_shifts = time * self.spectrum._ang_freqs
+        self._shift_phases(phase_shifts)
 
     def _pop_c_floe(self, floe: FloeCoupled):
         self.floes.remove(floe)
