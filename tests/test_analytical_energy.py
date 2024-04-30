@@ -11,6 +11,7 @@ from flexfrac1d.lib.energy import energy
 PATH_DIS = pathlib.Path("tests/target/displacement")
 PATH_CUR = pathlib.Path("tests/target/curvature")
 PATH_EGY = pathlib.Path("tests/target/energy/")
+PATH_PLY = pathlib.Path("tests/target/poly_analytical/")
 
 
 def format_to_pack(
@@ -59,6 +60,22 @@ def test_displacement():
 
 def test_curvature():
     _test_analytical(PATH_CUR, curvature)
+
+
+def test_dc_poly():
+    sentinel = 0
+    for handle in PATH_PLY.glob("*"):
+        sentinel += 1
+        loaded = np.loadtxt(handle.joinpath("values.ssv"))
+        x, dis, cur = loaded
+        floe_params = np.loadtxt(handle.joinpath("floe_params.ssv"))
+        wave_params_real = np.loadtxt(handle.joinpath("wave_params.ssv"))
+        assert len(wave_params_real.shape) == 2
+        floe_params, wave_params = format_to_pack(*floe_params, wave_params_real)
+
+        assert np.all(dis == displacement(x, floe_params, wave_params))
+        assert np.all(cur == curvature(x, floe_params, wave_params))
+    assert sentinel > 1
 
 
 def test_energy():
