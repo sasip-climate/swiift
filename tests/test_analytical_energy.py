@@ -5,23 +5,38 @@ import pathlib
 import numpy as np
 from flexfrac1d.lib.displacement import displacement
 from flexfrac1d.lib.curvature import curvature
+from flexfrac1d.lib.energy import energy
 
 # Test configurations visually examined against solution from scipy.solve_bvp
 PATH_DIS = pathlib.Path("tests/target/displacement")
 PATH_CUR = pathlib.Path("tests/target/curvature")
+PATH_EGY = pathlib.Path("tests/target/energy/")
 
 
-def format_to_pack(handle: pathlib.Path) -> tuple[tuple[float], tuple[np.ndarray]]:
-    """Format individual input parameters"""
+def format_to_pack(
+    red_num, length, wave_params_real
+) -> tuple[tuple[float], tuple[np.ndarray]]:
+    # format raw floats to output of FloeCoupled._pack
+    floe_params = red_num, length
+    wave_params = tuple(
+        map(
+            np.atleast_1d,
+            (
+                wave_params_real[0],
+                wave_params_real[1] + 1j * wave_params_real[2],
+                wave_params_real[3],
+            ),
+        )
+    )
+    return floe_params, wave_params
+
+
+def read_header(handle: pathlib.Path):
     with open(handle, "r") as file:
         header = file.readline()
-
     # remove trailing '# ' and split
-    _rn, _lg, *_wv = map(float, header[2:-1].split(","))
-    # format raw floats to output of FloeCoupled._pack
-    _fp = _rn, _lg
-    _wp = tuple(map(np.atleast_1d, (_wv[0], _wv[1] + 1j * _wv[2], _wv[3])))
-    return _fp, _wp
+    red_num, length, *wave_params_real = map(float, header[2:-1].split(","))
+    return red_num, length, wave_params_real
 
 
 def _test_analytical(root_dir: pathlib.Path, func: Callable):
@@ -31,7 +46,7 @@ def _test_analytical(root_dir: pathlib.Path, func: Callable):
         loaded = np.loadtxt(handle)
         # loaded[0]: along-floe space variable x
         # loaded[1]: reference values for func(x)
-        floe_params, wave_params = format_to_pack(handle)
+        floe_params, wave_params = format_to_pack(*read_header(handle))
 
         # test func(x) against existing displacement
         assert np.all(loaded[1] == func(loaded[0], floe_params, wave_params))
@@ -44,3 +59,11 @@ def test_displacement():
 
 def test_curvature():
     _test_analytical(PATH_CUR, curvature)
+
+
+def test_energy():
+    loaded = np.loadtxt(PATH_EGY.joinpath("energy_mono.ssv"))
+    for vars in loaded.T:
+        red_num, length, *wave_params_real = vars[:-1]
+        floe_params, wave_params = format_to_pack(red_num, length, wave_params_real)
+        assert vars[-1] == energy(floe_params, wave_params)
