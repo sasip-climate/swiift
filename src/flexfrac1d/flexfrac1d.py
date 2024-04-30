@@ -588,6 +588,10 @@ class DiscreteSpectrum:
         return np.asarray([wave.frequency for wave in self.waves])
 
     @functools.cached_property
+    def _ang_freqs(self):
+        return np.asarray([wave.angular_frequency for wave in self.waves])
+
+    @functools.cached_property
     def _phases(self):
         return np.asarray([wave.phase for wave in self.waves])
 
