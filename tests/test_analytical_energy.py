@@ -50,7 +50,7 @@ def _test_analytical(root_dir: pathlib.Path, func: Callable):
         floe_params, wave_params = format_to_pack(*read_header(handle))
 
         # test func(x) against existing displacement
-        assert np.all(loaded[1] == func(loaded[0], floe_params, wave_params))
+        assert np.allclose(loaded[1] - func(loaded[0], floe_params, wave_params), 0)
     assert sentinel > 0
 
 
@@ -81,7 +81,7 @@ def test_dce_poly():
 
 
 def _test_poly(ref_val, function, *args):
-    assert np.all(ref_val == function(*args))
+    assert np.allclose(ref_val - function(*args), 0)
 
 
 def test_energy():
@@ -89,4 +89,4 @@ def test_energy():
     for vars in loaded.T:
         red_num, length, *wave_params_real = vars[:-1]
         floe_params, wave_params = format_to_pack(red_num, length, wave_params_real)
-        assert vars[-1] == energy(floe_params, wave_params)
+        assert np.isclose(vars[-1] - energy(floe_params, wave_params), 0)
