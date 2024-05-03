@@ -1,0 +1,9 @@
+Values in the headers of files under `displacement/`, `curvature/` are given as:
+reduced elastic number,
+floe length (sigma tilde),
+wave amplitude (L),
+wavenumber underneath the floe (k),
+wave amplitude attenuation number (alpha),
+wave phase at the floe left edge (phi).
+The file `energy_mono.ssv` has, in column order, these same variables, followed
+by the integrated squared curvature (not including any prefactor).

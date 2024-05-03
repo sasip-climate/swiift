@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from hypothesis import example, given, settings, strategies as st
+from hypothesis import given, settings, strategies as st
 import numpy as np
 
 from flexfrac1d.flexfrac1d import Ocean, OceanCoupled, DiscreteSpectrum
@@ -8,18 +8,7 @@ from flexfrac1d.flexfrac1d import Ice, IceCoupled
 from flexfrac1d.libraries.WaveUtils import free_surface, elas_mass_surface
 
 from .conftest import physical_strategies
-
-# Bounds set to be sure to avoid non-sensical overflows and underflows,
-# when multiplying and dividing various variables together:
-# we want m < (2 pi)^2 x^4 < M,
-# where m := float.tiny, M := float.max, x the sampled value
-# float_kw = {
-#     "min_value": 3e-77,
-#     "max_value": 4e76,
-#     "allow_nan": False,
-#     "exclude_min": True,
-#     "allow_subnormal": False,
-# }
+from .conftest import coupled_ocean_ice, spec_mono
 
 
 # Use a monochromatic spectrum, which sould not be limiting as
@@ -46,52 +35,7 @@ def test_free_surface(ocean, spec, gravity):
     assert np.allclose(x * co.depth, y * co.depth)
 
 
-# float_kw = {
-#     "min_value": 5e-39,
-#     "max_value": 4e51,
-#     "allow_nan": False,
-#     "exclude_min": True,
-#     "allow_subnormal": False,
-# }
-
-
-@given(
-    ocean=st.builds(
-        Ocean,
-        depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
-        density=st.shared(physical_strategies["ocean"]["density"], key="rhow"),
-    ),
-    spec=st.builds(
-        DiscreteSpectrum,
-        st.just(1),
-        physical_strategies["wave"]["wave_frequency"],
-    ),
-    ice=st.builds(
-        Ice,
-        density=st.shared(
-            physical_strategies["ice"]["density"](
-                st.shared(physical_strategies["ocean"]["density"], key="rhow")
-            ),
-            key="rhoi",
-        ),
-        frac_energy=physical_strategies["ice"]["frac_energy"],
-        poissons_ratio=physical_strategies["ice"]["poissons_ratio"],
-        thickness=physical_strategies["ice"]["thickness"](
-            ocean_depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
-            ocean_density=st.shared(
-                physical_strategies["ocean"]["density"], key="rhow"
-            ),
-            ice_density=st.shared(
-                physical_strategies["ice"]["density"](
-                    st.shared(physical_strategies["ocean"]["density"], key="rhow")
-                ),
-                key="rhoi",
-            ),
-        ),
-        youngs_modulus=physical_strategies["ice"]["youngs_modulus"],
-    ),
-    gravity=physical_strategies["gravity"],
-)
+@given(**(coupled_ocean_ice | {"spec": spec_mono()}))
 @settings(max_examples=500)
 def test_elas_mass_surface(
     ocean: Ocean, spec: DiscreteSpectrum, ice: Ice, gravity: float

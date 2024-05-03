@@ -1,5 +1,6 @@
 numpy~=1.26
 scipy~=1.11
+sortedcontainers~=2.4
 
 # testing
 hypothesis~=6.98
