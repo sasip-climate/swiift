@@ -410,7 +410,9 @@ class FloeCoupled(Floe):
 
     def surface(self, x, spectrum):
         return (
-            self._wavefield(x, spectrum._amps * np.exp(1j * self.phases))
+            self._wavefield(
+                x, self.amp_coefficients * spectrum._amps * np.exp(1j * self.phases)
+            )
             - self.ice.draft
         )
 
@@ -508,11 +510,16 @@ class FloeCoupled(Floe):
         #     co.wavenumbers * floe_l.left_edge
         #     + np.array([wave.phase for wave in spec.waves])
         # ) % (2 * np.pi)
-        cf_l = FloeCoupled(floe_l, self.ice, self.phases)
+        cf_l = FloeCoupled(floe_l, self.ice, self.phases, self.amp_coefficients)
 
         floe_r = Floe(left_edge=self.left_edge + length, length=self.length - length)
-        phases_r = (cf_l.phases + self.ice.wavenumbers * floe_l.length) % (2 * np.pi)
-        cf_r = FloeCoupled(floe_r, self.ice, phases_r)
+        phases_r = cf_l.phases + self.ice.wavenumbers * floe_l.length
+        cf_r = FloeCoupled(
+            floe_r,
+            self.ice,
+            phases_r,
+            self.amp_coefficients * np.exp(-self.ice.attenuations * cf_l.length),
+        )
 
         en_l, en_r = map(lambda _f: _f.energy(spec), (cf_l, cf_r))
         return np.log(en_l + en_r)
@@ -1009,18 +1016,25 @@ class Domain:
                 self.ices[floe.ice] = IceCoupled(
                     floe.ice, self.ocean, self.spectrum, None, self.gravity
                 )
+
+        # If len(floes) == 1, the following expression evaluates to an empty
+        # array. If the forcing is polychromatic, this empty array could not be
+        # v-stacked with the existing, 1D-coefficients of the first floe. To
+        # circumvent this, we treat the first floe separately, and use
+        # itertools.chain when building the final list of floes. It is barely
+        # more expensive than a test, and cheaper than np.vstack, anyways.
         coef_amps = np.exp(
-            np.array(
-                [0]
-                + [
-                    -self.ices[floe.ice].attenuations * floe.length
-                    for floe in floes[1:]
-                ]
-            ).cumsum(axis=0)
+            np.cumsum(
+                [-self.ices[floe.ice].attenuations * floe.length for floe in floes[1:]],
+                axis=0,
+            )
         )
         c_floes = [
             FloeCoupled(floe, self.ices[floe.ice], 0, coefs)
-            for floe, coefs in zip(floes, coef_amps)
+            for floe, coefs in zip(
+                floes,
+                itertools.chain(np.ones((1, len(self.spectrum.waves))), coef_amps),
+            )
         ]
 
         self.floes.update(c_floes)
