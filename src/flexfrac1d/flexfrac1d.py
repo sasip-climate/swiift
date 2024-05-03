@@ -385,7 +385,7 @@ class FloeCoupled(Floe):
         dispersion=None,
     ):
         super().__init__(floe.left_edge, floe.length, ice, dispersion)
-        self.__phases = np.asarray(phases)
+        self.phases = np.asarray(phases)  # no dunder, so use the setter method
         self.__amp_coefficients = amp_coefficients
 
     @property
@@ -394,7 +394,7 @@ class FloeCoupled(Floe):
 
     @phases.setter
     def phases(self, value):
-        self.__phases = np.asarray(value)
+        self.__phases = np.asarray(value) % PI_2
 
     @property
     def amp_coefficients(self):
@@ -983,7 +983,7 @@ class Domain:
         # spectrum.phases defined at x = 0
         self.floes[0].phases = (
             self.floes[0].left_edge * self.ocean.wavenumbers + self.spectrum._phases
-        ) % (2 * PI)
+        )
 
         for i, floe in enumerate(self.floes[1:], 1):
             prev = self.floes[i - 1]
@@ -991,7 +991,7 @@ class Domain:
                 prev.phases
                 + prev.length * prev.ice.wavenumbers
                 + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
-            ) % (PI_2)
+            )
 
     def add_floes(self, floes: Sequence[Floe]):
         # TODO: define __slots__ in Floe for better memory allocation?
