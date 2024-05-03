@@ -1047,11 +1047,8 @@ class Domain:
         dct = {}
         for i, floe in enumerate(self.floes):
             xf = floe.search_fracture(self.spectrum)
-            print(xf)
             if xf is not None:
                 dct[i] = floe.fracture(xf)
-        print(f"len dct: {len(dct)}")
         for old, new in dct.values():
             self._pop_c_floe(old)
-            print(f"len new: {len(new)}")
             self._add_c_floes(new)
