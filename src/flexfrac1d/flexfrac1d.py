@@ -1045,7 +1045,7 @@ class Domain:
             self.floes[i].phases -= phases
 
     def iterate(self, time: float):
-        self.time = time
+        self.time += time
         phase_shifts = time * self.spectrum._ang_freqs
         self._shift_phases(phase_shifts)
 
