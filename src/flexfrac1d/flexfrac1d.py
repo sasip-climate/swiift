@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 import functools
 import itertools
+from numbers import Real
 import warnings
 import numpy as np
 import scipy.optimize as optimize
@@ -336,6 +337,7 @@ class IceCoupled(Ice):
         return roots / self.elastic_length
 
 
+@functools.total_ordering
 class Floe:
     def __init__(
         self,
@@ -348,11 +350,23 @@ class Floe:
         self.__length = length
         self.__ice = ice
 
-    def __eq__(self, other: Floe) -> bool:
-        return self.left_edge == other.left_edge
+    def __eq__(self, other: [Floe, Real]) -> bool:
+        match other:
+            case Floe():
+                return self.left_edge == other.left_edge
+            case Real():
+                return self.left_edge == other
+            case _:
+                raise NotImplementedError
 
     def __lt__(self, other: Floe) -> bool:
-        return self.left_edge < other.left_edge
+        match other:
+            case Floe():
+                return self.left_edge < other.left_edge
+            case Real():
+                return self.left_edge < other
+            case _:
+                raise NotImplementedError
 
     @property
     def left_edge(self):
