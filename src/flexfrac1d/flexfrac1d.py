@@ -535,7 +535,7 @@ class FloeCoupled(Floe):
             self.amp_coefficients * np.exp(-self.ice.attenuations * cf_l.length),
         )
 
-        en_l, en_r = map(lambda _f: _f.energy(spec), (cf_l, cf_r))
+        en_l, en_r = (_f.energy(spec) for _f in (cf_l, cf_r))
         return np.log(en_l + en_r)
 
     def fracture(
