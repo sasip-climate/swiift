@@ -520,10 +520,6 @@ class FloeCoupled(Floe):
 
     def ener_min(self, length, spec):
         floe_l = Floe(left_edge=self.left_edge, length=length)
-        # phases_l = (
-        #     co.wavenumbers * floe_l.left_edge
-        #     + np.array([wave.phase for wave in spec.waves])
-        # ) % (2 * np.pi)
         cf_l = FloeCoupled(floe_l, self.ice, self.phases, self.amp_coefficients)
 
         floe_r = Floe(left_edge=self.left_edge + length, length=self.length - length)
@@ -548,12 +544,6 @@ class FloeCoupled(Floe):
         phases = np.vstack(
             (self.phases, self.ice.wavenumbers * lengths[:-1, None])
         ).cumsum(axis=0)
-        # amp_coefficients = np.vstack(
-        #     (
-        #         self.amp_coefficients,
-        #         np.exp(-self.ice.attenuations * lengths[:-1, None]),
-        #     )
-        # ).cumprod(axis=0)
         amp_coefficients = np.exp(
             np.vstack(
                 (
