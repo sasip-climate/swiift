@@ -562,7 +562,13 @@ class FloeCoupled(Floe):
 
 
 class DiscreteSpectrum:
-    def __init__(self, amplitudes, frequencies, phases=0, betas=0):
+    def __init__(
+        self,
+        amplitudes,
+        frequencies,
+        phases=0,
+        betas=0,
+    ):
 
         # np.ravel force precisely 1D-arrays
         # Promote the map to list so the iterator can be used several times
@@ -605,6 +611,12 @@ class DiscreteSpectrum:
     @functools.cached_property
     def _phases(self):
         return np.asarray([wave.phase for wave in self.waves])
+
+    def growth_kernel(self, x, mean, std):
+        kern = np.ones(self.amplitudes.shape + x.shape)
+        mask = np.where(x > mean)
+        kern[mask] = np.exp(-((x - mean) ** 2) / (2 * std**2))[mask]
+        return kern
 
 
 class _GenericSpectrum:
@@ -946,6 +958,8 @@ class Domain:
         gravity,
         spectrum: WaveSpectrum,
         ocean: Ocean,
+        growth_mean=None,
+        growth_std=None,
     ) -> None:
         """"""
         self.__gravity = gravity
@@ -954,6 +968,8 @@ class Domain:
         self.__floes = SortedList()
         self.__ices = {}
         self.__time = 0
+        self.__g_mean = growth_mean
+        self.__g_std = growth_std
 
         # TODO: callable spectrum
         # self.__frozen_spectrum = DiscreteSpectrum(
@@ -987,6 +1003,18 @@ class Domain:
     @time.setter
     def time(self, value: float):
         self.__time = value
+
+    @property
+    def growth_mean(self):
+        return self.__g_mean
+
+    @growth_mean.setter
+    def growth_mean(self, value: np.ndarray):
+        self.__g_mean = value
+
+    @property
+    def growth_std(self):
+        return self.__g_std
 
     def _init_from_f(self): ...
 
@@ -1048,10 +1076,20 @@ class Domain:
         for i in range(len(self.floes)):
             self.floes[i].phases -= phases
 
-    def iterate(self, time: float):
-        self.time += time
-        phase_shifts = time * self.spectrum._ang_freqs
+    def _shift_growth_means(self, phases: np.ndarray):
+        # TODO: refine to take into account subdomain transitions
+        # and floes with variying properties
+        mask = self.growth_mean < self.floes[0].left_edge
+        self.growth_mean[mask] += phases[mask] / self.ocean.wavenumbers
+        self.growth_mean[~mask] += phases[~mask] / self.floes[0].wavenumbers
+
+    def iterate(self, delta_time: float):
+        self.time += delta_time
+        phase_shifts = delta_time * self.spectrum._ang_freqs
         self._shift_phases(phase_shifts)
+        if self.growth_mean is not None:
+            # Phases are only modulo'd in the setter
+            self._shift_growth_means(phase_shifts)
 
     def _pop_c_floe(self, floe: FloeCoupled):
         self.floes.remove(floe)
