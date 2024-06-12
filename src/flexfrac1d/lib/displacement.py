@@ -3,7 +3,11 @@ from .constants import PI_D4, SQR2
 
 
 def _wavefield(x, c_amps, c_wavenumbers):
-    return np.imag(c_amps @ np.exp((1j * c_wavenumbers)[:, None] * x))
+    return np.imag(c_amps @ _unit_wavefield(x, c_wavenumbers))
+
+
+def _unit_wavefield(x, c_wavenumbers):
+    return np.exp((1j * c_wavenumbers[:, None]) * x)
 
 
 def _dis_par_amps(red_num: float, wave_params: tuple[np.ndarray]):

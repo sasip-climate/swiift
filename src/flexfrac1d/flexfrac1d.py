@@ -456,13 +456,16 @@ class FloeCoupled(Floe):
             / self.length
         )
 
-    def _pack(self, spectrum: DiscreteSpectrum):
+    def _pack(
+        self, spectrum: DiscreteSpectrum
+    ) -> tuple[tuple[float], tuple[np.ndarray]]:
         return (self.ice._red_elastic_number, self.length), (
             self.amp_coefficients * spectrum._amps,
             self.ice._c_wavenumbers,
             self.phases,
         )
 
+    # TODO: add numerical displacement and curvature
     def displacement(self, x, spectrum):
         """Complete solution of the displacement ODE
 
@@ -474,19 +477,27 @@ class FloeCoupled(Floe):
         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
         return curvature(x, *self._pack(spectrum))
 
-    def energy(self, spectrum: DiscreteSpectrum):
-        return (
-            self.ice.flex_rigidity
-            / (2 * self.ice.thickness)
-            * energy(*self._pack(spectrum))
-        )
+    def energy(self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params):
+        factor = self.ice.flex_rigidity / (2 * self.ice.thickness)
+        unit_energy = energy(*self._pack(spectrum), growth_params, an_sol, num_params)
+        return factor * unit_energy
+        # In case of a numerical solution, the result is the output of
+        # integrate.quad, that is a (solution, bound on error) tuple.
+        # We do not do anything with the latter at the moment.
+        # return factor * unit_energy[0]
 
-    def search_fracture(self, spectrum: DiscreteSpectrum):
-        return self.binary_fracture(spectrum)
+    def search_fracture(
+        self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params
+    ):
+        return self.binary_fracture(spectrum, growth_params, an_sol, num_params)
 
-    def binary_fracture(self, spectrum: DiscreteSpectrum) -> float | None:
+    def binary_fracture(
+        self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params
+    ) -> float | None:
         coef_nd = 4
-        if self.energy(spectrum) < self.ice.frac_energy_rate:
+        base_energy = self.energy(spectrum, growth_params, an_sol, num_params)
+        # No fracture if the elastic energy is below the threshold
+        if base_energy < self.ice.frac_energy_rate:
             return None
         else:
             nd = (
@@ -498,27 +509,33 @@ class FloeCoupled(Floe):
             lengths = np.linspace(0, self.length, nd * coef_nd)[1:-1]
             ener = np.full(lengths.shape, np.nan)
             for i, length in enumerate(lengths):
-                ener[i] = self.ener_min(length, spectrum)
+                ener[i] = self.ener_min(
+                    length, spectrum, growth_params, an_sol, num_params
+                )
             # ener += self.ice.frac_energy_rate
 
             peak_idxs = np.hstack(
                 (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
             )
 
+            # TODO: temp func for ener_min and its arguments
             opts = [
                 optimize.minimize_scalar(
-                    lambda length: self.ener_min(length, spectrum),
+                    lambda length: self.ener_min(
+                        length, spectrum, growth_params, an_sol, num_params
+                    ),
                     bounds=lengths[peak_idxs[[i, i + 1]]],
                 )
                 for i in range(len(peak_idxs) - 1)
             ]
             opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
-            if np.exp(opt.fun) + self.ice.frac_energy_rate < self.energy(spectrum):
+            # Minimisation is done on the log of energy
+            if np.exp(opt.fun) + self.ice.frac_energy_rate < base_energy:
                 return opt.x
             else:
                 return None
 
-    def ener_min(self, length, spec):
+    def ener_min(self, length, spectrum, growth_params, an_sol, num_params) -> float:
         floe_l = Floe(left_edge=self.left_edge, length=length)
         cf_l = FloeCoupled(floe_l, self.ice, self.phases, self.amp_coefficients)
 
@@ -530,8 +547,16 @@ class FloeCoupled(Floe):
             phases_r,
             self.amp_coefficients * np.exp(-self.ice.attenuations * cf_l.length),
         )
+        growth_params_r = (
+            (growth_params[0] - length, growth_params[1])
+            if growth_params is not None
+            else None
+        )
 
-        en_l, en_r = (_f.energy(spec) for _f in (cf_l, cf_r))
+        en_l, en_r = (
+            _f.energy(spectrum, _gp, an_sol, num_params)
+            for _f, _gp in zip((cf_l, cf_r), (growth_params, growth_params_r))
+        )
         return np.log(en_l + en_r)
 
     def fracture(
@@ -611,6 +636,10 @@ class DiscreteSpectrum:
     @functools.cached_property
     def _phases(self):
         return np.asarray([wave.phase for wave in self.waves])
+
+    @functools.cached_property
+    def nf(self):
+        return len(self.waves)
 
     def growth_kernel(self, x, mean, std):
         kern = np.ones(self.amplitudes.shape + x.shape)
@@ -968,8 +997,22 @@ class Domain:
         self.__floes = SortedList()
         self.__ices = {}
         self.__time = 0
-        self.__g_mean = growth_mean
-        self.__g_std = growth_std
+
+        if growth_mean is None:
+            if growth_std is not None:
+                growth_mean = np.zeros((self.spectrum.nf, 1))
+        else:
+            growth_mean = np.asarray(growth_mean)
+            if growth_mean.size == 1:
+                # As `broadcast_to` returns a view,
+                # copying is necessary to obtain a mutable array
+                growth_mean = np.broadcast_to(growth_mean, (self.spectrum.nf, 1)).copy()
+            if growth_std is None:
+                growth_std = (
+                    2 * np.pi / self.ocean.wavenumbers[self.spectrum._amps.argmax()]
+                )
+        self.__growth_mean = growth_mean
+        self.__growth_std = growth_std
 
         # TODO: callable spectrum
         # self.__frozen_spectrum = DiscreteSpectrum(
@@ -1006,15 +1049,20 @@ class Domain:
 
     @property
     def growth_mean(self):
-        return self.__g_mean
+        return self.__growth_mean
 
     @growth_mean.setter
     def growth_mean(self, value: np.ndarray):
-        self.__g_mean = value
+        self.__growth_mean = value
 
     @property
     def growth_std(self):
-        return self.__g_std
+        return self.__growth_std
+
+    def _pack_growth(self, floe):
+        if self.growth_mean is None:
+            return None
+        return self.growth_mean - floe.left_edge, self.growth_std
 
     def _init_from_f(self): ...
 
@@ -1080,8 +1128,14 @@ class Domain:
         # TODO: refine to take into account subdomain transitions
         # and floes with variying properties
         mask = self.growth_mean < self.floes[0].left_edge
-        self.growth_mean[mask] += phases[mask] / self.ocean.wavenumbers
-        self.growth_mean[~mask] += phases[~mask] / self.floes[0].wavenumbers
+        if mask.any():
+            self.growth_mean[mask] += (
+                phases[mask[:, 0]] / self.ocean.wavenumbers[mask[:, 0]]
+            )
+        if not mask.all():
+            self.growth_mean[~mask] += (
+                phases[~mask[:, 0]] / self.floes[0].ice.wavenumbers[~mask[:, 0]]
+            )
 
     def iterate(self, delta_time: float):
         self.time += delta_time
@@ -1099,10 +1153,15 @@ class Domain:
         # set, as these method should only be called after a fracture event
         self.floes.update(floes)
 
-    def breakup(self):
+    def breakup(self, an_sol=None, num_params=None):
         dct = {}
         for i, floe in enumerate(self.floes):
-            xf = floe.search_fracture(self.spectrum)
+            xf = floe.search_fracture(
+                self.spectrum,
+                self._pack_growth(floe),
+                an_sol,
+                num_params,
+            )
             if xf is not None:
                 dct[i] = floe.fracture(xf)
         for old, new in dct.values():
