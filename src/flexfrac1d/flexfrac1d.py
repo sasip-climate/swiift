@@ -16,6 +16,7 @@ from sortedcontainers import SortedList
 from .lib.displacement import displacement
 from .lib.curvature import curvature
 from .lib.energy import energy
+from .lib.numerical import free_surface
 from .pars import g
 from .lib.constants import PI, PI_2
 
@@ -430,6 +431,9 @@ class FloeCoupled(Floe):
             self.ice._c_wavenumbers,
             self.phases,
         )
+
+    def forcing(self, x, spectrum, growth_params):
+        return free_surface(x, self._pack(spectrum)[1], growth_params)
 
     def displacement(self, x, spectrum, growth_params, an_sol, num_params):
         """Complete solution of the displacement ODE

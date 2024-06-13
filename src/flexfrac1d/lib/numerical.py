@@ -13,23 +13,31 @@ def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
     return kern
 
 
+def free_surface(
+    x,
+    wave_params: tuple[np.ndarray],
+    growth_params: tuple[np.ndarray, Real] | None,
+) -> np.ndarray:
+    amplitudes, c_wavenumbers, phases = wave_params
+    wave_shape = an_dis._unit_wavefield(x, c_wavenumbers)
+    if growth_params is not None:
+        kern = _growth_kernel(x, *growth_params)
+        wave_shape *= kern
+    eta = np.imag((amplitudes * np.exp(1j * phases)) @ wave_shape)
+    return eta
+
+
 def _ode_system(
     x,
     w,
     *,
     floe_params: tuple[float],
     wave_params: tuple[np.ndarray],
-    growth_params: tuple[np.ndarray, Real] | None = None
-):
-    red_num, length = floe_params
-    amplitudes, c_wavenumbers, phases = wave_params
-
-    wave_shape = an_dis._unit_wavefield(x, c_wavenumbers)
-    if growth_params is not None:
-        kern = _growth_kernel(x, *growth_params)
-        wave_shape *= kern
-    eta = np.imag((amplitudes * np.exp(1j * phases)) @ wave_shape)
-
+    growth_params: tuple[np.ndarray, Real] | None,
+) -> np.ndarray:
+    red_num, _ = floe_params
+    eta = free_surface(x, wave_params, growth_params)
+    # Factor 4 comes from sqrt(2)**4
     wprime = np.vstack((w[1], w[2], w[3], 4 * red_num**4 * (eta - w[0])))
     return wprime
 
@@ -58,7 +66,7 @@ def _solve_bvp(
         _boundary_conditions,
         x0,
         w0,
-        **kwargs
+        **kwargs,
     )
     return opt
 
