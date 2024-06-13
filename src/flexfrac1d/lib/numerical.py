@@ -19,7 +19,7 @@ def _ode_system(
     *,
     floe_params: tuple[float],
     wave_params: tuple[np.ndarray],
-    growth_params: tuple[np.ndarray, [np.ndarray, Real]] | None = None
+    growth_params: tuple[np.ndarray, Real] | None = None
 ):
     red_num, length = floe_params
     amplitudes, c_wavenumbers, phases = wave_params
