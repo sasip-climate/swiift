@@ -1,19 +1,9 @@
 import numpy as np
 
-# from .constants import PI_D4, SQR2
 from .displacement import _dis_hom_coefs, _dis_par_amps
 from . import numerical
 
-# red_num, length = floe_params
-# amplitudes, c_wavenumbers, phases = wave_params
 
-
-# def _cur_wavefield(self, x, spectrum, complex_amps):
-#     """Second derivative of the interface"""
-#     return -np.imag(
-#         (complex_amps * self.ice._c_wavenumbers**2)
-#         @ np.exp(1j * self.ice._c_wavenumbers[:, None] * x)
-#     )
 def _cur_wavefield(x, red_num: float, wave_params):
     """Second derivative of the interface"""
     _, c_wavenumbers, _ = wave_params
@@ -39,9 +29,6 @@ def _cur_hom(x, floe_params, wave_params):
     )
 
 
-# def _cur_par(self, x, spectrum):
-#     """Second derivative of the particular part of the displacement"""
-#     return self._cur_wavefield(x, spectrum, self._dis_par_amps(spectrum))
 def _cur_par(x, red_num, wave_params):
     """Second derivative of the particular part of the displacement"""
     return _cur_wavefield(x, red_num, wave_params)

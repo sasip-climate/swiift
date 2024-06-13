@@ -9,7 +9,6 @@ from . import displacement as an_dis
 def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
     kern = np.ones((mean.size, x.size))
     mask = np.nonzero(x > mean)
-    breakpoint()
     kern[mask] = np.exp(-((x - mean) ** 2) / (2 * std**2))[mask]
     return kern
 
@@ -111,8 +110,6 @@ def energy(floe_params, wave_params, growth_params, num_params) -> tuple[float]:
     """Numerically evaluate the energy
 
     The energy is up to a prefactor"""
-    # Extract the part of the solution that corresponds to the second derivative,
-    # so four terms are not computed where one suffices
     opt = _get_result(floe_params, growth_params, num_params, wave_params)
     curvature_poly = _extract_cur_poly(opt.sol)
 

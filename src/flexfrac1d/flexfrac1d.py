@@ -422,40 +422,6 @@ class FloeCoupled(Floe):
     def _adim(self):
         return self.length * self.ice._red_elastic_number
 
-    def surface(self, x, spectrum):
-        return (
-            self._wavefield(
-                x, self.amp_coefficients * spectrum._amps * np.exp(1j * self.phases)
-            )
-            - self.ice.draft
-        )
-
-    def _wavefield(self, x, complex_amps):
-        """Vertical coordinate of the floe--wave interface
-
-        `complex_amps` is left free, so it can be used with natural spectral amplitudes,
-        or user-provided ones, incorporating a phase
-
-        """
-        # TODO: could be better off in DiscreteSpectrum
-        return np.imag(
-            complex_amps
-            @ np.exp((-self.ice.attenuations + 1j * self.ice.wavenumbers)[:, None] * x)
-        )
-
-    def _mean_wavefield(self, amplitudes):
-        """Mean interface of the floe-attenuated wave"""
-        comp_wn = -self.ice.attenuations + 1j * self.ice.wavenumbers
-        return (
-            np.imag(
-                amplitudes
-                * np.exp(1j * self.phases)
-                / comp_wn
-                * (np.exp(comp_wn * self.length) - 1)
-            ).sum()
-            / self.length
-        )
-
     def _pack(
         self, spectrum: DiscreteSpectrum
     ) -> tuple[tuple[float], tuple[np.ndarray]]:
@@ -511,7 +477,6 @@ class FloeCoupled(Floe):
                 ener[i] = self.ener_min(
                     length, spectrum, growth_params, an_sol, num_params
                 )
-            # ener += self.ice.frac_energy_rate
 
             peak_idxs = np.hstack(
                 (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
@@ -594,7 +559,7 @@ class DiscreteSpectrum:
         betas=0,
     ):
 
-        # np.ravel force precisely 1D-arrays
+        # np.ravel to force precisely 1D-arrays
         # Promote the map to list so the iterator can be used several times
         args = list(map(np.ravel, (amplitudes, frequencies, phases, betas)))
         (size,) = np.broadcast_shapes(*(arr.shape for arr in args))
@@ -639,12 +604,6 @@ class DiscreteSpectrum:
     @functools.cached_property
     def nf(self):
         return len(self.waves)
-
-    def growth_kernel(self, x, mean, std):
-        kern = np.ones(self.amplitudes.shape + x.shape)
-        mask = np.where(x > mean)
-        kern[mask] = np.exp(-((x - mean) ** 2) / (2 * std**2))[mask]
-        return kern
 
 
 class _GenericSpectrum:
