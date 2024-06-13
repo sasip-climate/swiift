@@ -17,6 +17,7 @@ from .lib.displacement import displacement
 from .lib.curvature import curvature
 from .lib.energy import energy
 from .lib.numerical import free_surface
+from .lib.graphics import plot_displacement
 from .pars import g
 from .lib.constants import PI, PI_2
 
@@ -1129,3 +1130,18 @@ class Domain:
         for old, new in dct.values():
             self._pop_c_floe(old)
             self._add_c_floes(new)
+
+    def plot(
+        self,
+        resolution: float,
+        left_bound: float,
+        ax=None,
+        an_sol=None,
+        add_surface=True,
+        base=0,
+        kw_dis=None,
+        kw_sur=None,
+    ):
+        plot_displacement(
+            resolution, self, left_bound, ax, an_sol, add_surface, base, kw_dis, kw_sur
+        )
