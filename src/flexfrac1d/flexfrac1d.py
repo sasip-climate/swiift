@@ -465,17 +465,16 @@ class FloeCoupled(Floe):
             self.phases,
         )
 
-    # TODO: add numerical displacement and curvature
-    def displacement(self, x, spectrum):
+    def displacement(self, x, spectrum, growth_params, an_sol, num_params):
         """Complete solution of the displacement ODE
 
         `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
         """
-        return displacement(x, *self._pack(spectrum))
+        return displacement(x, *self._pack(spectrum), growth_params, an_sol, num_params)
 
-    def curvature(self, x, spectrum):
+    def curvature(self, x, spectrum, growth_params, an_sol, num_params):
         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
-        return curvature(x, *self._pack(spectrum))
+        return curvature(x, *self._pack(spectrum), growth_params, an_sol, num_params)
 
     def energy(self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params):
         factor = self.ice.flex_rigidity / (2 * self.ice.thickness)

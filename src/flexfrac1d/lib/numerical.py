@@ -3,7 +3,7 @@ import numpy as np
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 import warnings
-from .displacement import _unit_wavefield
+from . import displacement as an_dis
 
 
 def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
@@ -25,7 +25,7 @@ def _ode_system(
     red_num, length = floe_params
     amplitudes, c_wavenumbers, phases = wave_params
 
-    wave_shape = _unit_wavefield(x, c_wavenumbers)
+    wave_shape = an_dis._unit_wavefield(x, c_wavenumbers)
     if growth_params is not None:
         kern = _growth_kernel(x, *growth_params)
         wave_shape *= kern
@@ -61,21 +61,60 @@ def _solve_bvp(
         w0,
         **kwargs
     )
+    return opt
+
+
+def _get_result(
+    floe_params, wave_params, growth_params, num_params
+) -> integrate._bvp.BVPResult:
+    if num_params is None:
+        num_params = {}
+    opt = _solve_bvp(floe_params, wave_params, growth_params, **num_params)
     if not opt.success:
         warnings.warn("Numerical solution did not converge", stacklevel=2)
     return opt
 
 
-def _energy(floe_params, wave_params, growth_params, num_params):
+def _use_an_sol(
+    an_sol: bool | None, length: float, growth_params: tuple | None
+) -> None:
+    if an_sol is None:
+        if growth_params is None:
+            an_sol = True
+        else:
+            # If the wave growth kernel mean is to the right of the floe
+            # for every wave component, the wave is fully developed
+            # and the analytical solution can be used
+            an_sol = np.all(growth_params[0] > length)
+    return an_sol
+
+
+def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
+    return interpolate.PPoly(sol.c[:, :, 0], sol.x, extrapolate=False)
+
+
+def _extract_cur_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
+    return interpolate.PPoly(sol.c[:, :, 2], sol.x, extrapolate=False)
+
+
+def displacement(x, floe_params, wave_params, growth_params, num_params):
+    opt = _get_result(floe_params, wave_params, growth_params, num_params)
+    return _extract_dis_poly(opt.sol)(x)
+
+
+def curvature(x, floe_params, wave_params, growth_params, num_params):
+    opt = _get_result(floe_params, wave_params, growth_params, num_params)
+    return _extract_cur_poly(opt.sol)(x)
+
+
+def energy(floe_params, wave_params, growth_params, num_params) -> tuple[float]:
     """Numerically evaluate the energy
 
     The energy is up to a prefactor"""
     # Extract the part of the solution that corresponds to the second derivative,
     # so four terms are not computed where one suffices
-    if num_params is None:
-        num_params = {}
-    opt = _solve_bvp(floe_params, wave_params, growth_params, **num_params)
-    curvature_poly = interpolate.PPoly(opt.sol.c[:, :, 2], opt.sol.x, extrapolate=False)
+    opt = _get_result(floe_params, growth_params, num_params, wave_params)
+    curvature_poly = _extract_cur_poly(opt.sol)
 
     def unit_energy(x: float) -> float:
         return curvature_poly(x) ** 2

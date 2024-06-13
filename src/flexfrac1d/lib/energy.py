@@ -1,5 +1,4 @@
 import numpy as np
-from typing import overload, Literal
 from .constants import PI_D4, SQR2
 from .displacement import _dis_hom_coefs, _dis_par_amps
 from . import numerical
@@ -205,26 +204,6 @@ def _egy_m(floe_params, wave_params):
     return red_num**2 * energ
 
 
-# @overload
-# def energy(
-#     floe_params: tuple[float],
-#     wave_params: tuple[np.ndarray],
-#     growth_params: tuple | None = None,
-#     an_sol: Literal[True] = True,
-#     num_params: dict | None = None,
-# ) -> float: ...
-#
-#
-# @overload
-# def energy(
-#     floe_params: tuple[float],
-#     wave_params: tuple[np.ndarray],
-#     growth_params: tuple | None = None,
-#     an_sol: Literal[False] = False,
-#     num_params: dict | None = None,
-# ) -> tuple[float]: ...
-
-
 def energy(
     floe_params: tuple[float],
     wave_params: tuple[np.ndarray],
@@ -232,20 +211,10 @@ def energy(
     an_sol: bool | None = None,
     num_params: dict | None = None,
 ) -> float:
-    if an_sol is None:
-        if growth_params is None:
-            an_sol = True
-        else:
-            # If the wave growth kernel mean is to the right of the floe
-            # for every wave component, the wave is fully developed
-            # and the analytical solution can be used
-            an_sol = np.all(growth_params[0] > floe_params[1])
-
-    if an_sol:
+    if numerical._use_an_sol(an_sol, floe_params[1], growth_params):
         return (
             _egy_hom(floe_params, wave_params)
             + 2 * _egy_m(floe_params, wave_params)
             + _egy_par(floe_params, wave_params)
         )
-    else:
-        return numerical._energy(floe_params, wave_params, growth_params, num_params)[0]
+    return numerical.energy(floe_params, wave_params, growth_params, num_params)[0]

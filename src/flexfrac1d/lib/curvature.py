@@ -2,6 +2,7 @@ import numpy as np
 
 # from .constants import PI_D4, SQR2
 from .displacement import _dis_hom_coefs, _dis_par_amps
+from . import numerical
 
 # red_num, length = floe_params
 # amplitudes, c_wavenumbers, phases = wave_params
@@ -46,8 +47,17 @@ def _cur_par(x, red_num, wave_params):
     return _cur_wavefield(x, red_num, wave_params)
 
 
-def curvature(x, floe_params, wave_params):
+def curvature(
+    x,
+    floe_params: tuple[float],
+    wave_params: tuple[np.ndarray],
+    growth_params: tuple | None = None,
+    an_sol: bool | None = None,
+    num_params: dict | None = None,
+):
     """Curvature of the floe, i.e. second derivative of the vertical displacement"""
-    return _cur_hom(x, floe_params, wave_params) + _cur_par(
-        x, floe_params[0], wave_params
-    )
+    if numerical._use_an_sol(an_sol, floe_params[1], growth_params):
+        return _cur_hom(x, floe_params, wave_params) + _cur_par(
+            x, floe_params[0], wave_params
+        )
+    return numerical.curvature(x, floe_params, wave_params, growth_params, num_params)
