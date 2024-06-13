@@ -1,9 +1,14 @@
 import numpy as np
 from .constants import PI_D4, SQR2
+from . import numerical
 
 
 def _wavefield(x, c_amps, c_wavenumbers):
-    return np.imag(c_amps @ np.exp((1j * c_wavenumbers)[:, None] * x))
+    return np.imag(c_amps @ _unit_wavefield(x, c_wavenumbers))
+
+
+def _unit_wavefield(x, c_wavenumbers):
+    return np.exp((1j * c_wavenumbers[:, None]) * x)
 
 
 def _dis_par_amps(red_num: float, wave_params: tuple[np.ndarray]):
@@ -108,7 +113,18 @@ def _dis_par(x: np.ndarray, red_num: float, wave_params: tuple[np.ndarray]):
     return _wavefield(x, _dis_par_amps(red_num, wave_params), wave_params[1])
 
 
-def displacement(x, floe_params, wave_params):
-    return _dis_hom(x, floe_params, wave_params) + _dis_par(
-        x, floe_params[0], wave_params
+def displacement(
+    x,
+    floe_params: tuple[float],
+    wave_params: tuple[np.ndarray],
+    growth_params: tuple | None = None,
+    an_sol: bool | None = None,
+    num_params: dict | None = None,
+):
+    if numerical._use_an_sol(an_sol, floe_params[1], growth_params):
+        return _dis_hom(x, floe_params, wave_params) + _dis_par(
+            x, floe_params[0], wave_params
+        )
+    return numerical.displacement(
+        x, floe_params, wave_params, growth_params, num_params
     )
