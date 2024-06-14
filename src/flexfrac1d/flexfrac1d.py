@@ -408,9 +408,9 @@ class FloeCoupled(Floe):
     def phases(self) -> np.ndarray:
         return self.__phases
 
-    @phases.setter
-    def phases(self, value):
-        self.__phases = np.asarray(value) % PI_2
+    # @phases.setter
+    # def phases(self, value):
+    #     self.__phases = np.asarray(value) % PI_2
 
     @property
     def amp_coefficients(self):
@@ -957,8 +957,10 @@ class Domain:
         self.__gravity = gravity
         self.__frozen_spectrum = spectrum
         self.__ocean = OceanCoupled(ocean, spectrum, gravity)
+        # TODO moved to Experiment
         self.__floes = SortedList()
         self.__ices = {}
+        # TODO moved to Experiment
         self.__time = 0
 
         if growth_mean is None:
@@ -982,6 +984,7 @@ class Domain:
         #     spectrum.amplitude(frequencies), frequencies, phases, betas
         # )
 
+    # TODO moved to Experiment
     @property
     def floes(self) -> SortedList[FloeCoupled]:
         return self.__floes
@@ -1004,10 +1007,12 @@ class Domain:
 
     @property
     def time(self) -> float:
+        # TODO moved to Experiment
         return self.__time
 
     @time.setter
     def time(self, value: float):
+        # TODO moved to Experiment
         self.__time = value
 
     @property
@@ -1030,6 +1035,7 @@ class Domain:
     def _init_from_f(self): ...
 
     def _set_phases(self):
+        # TODO moved to Experiment
         # spectrum.phases defined at x = 0
         self.floes[0].phases = (
             self.floes[0].left_edge * self.ocean.wavenumbers + self.spectrum._phases
@@ -1043,7 +1049,11 @@ class Domain:
                 + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
             )
 
+    def _couple_ice(self, ice):
+        self.ices[ice] = IceCoupled(ice, self.ocean, self.spectrum, None, self.gravity)
+
     def add_floes(self, floes: Sequence[Floe]):
+        # TODO moved to Experiment
         # TODO: define __slots__ in Floe for better memory allocation?
         # TODO this testing should be removed if add_floes made private
         all_floes = self.floes.copy()
@@ -1101,6 +1111,7 @@ class Domain:
             )
 
     def iterate(self, delta_time: float):
+        # TODO moved to Experiment
         self.time += delta_time
         phase_shifts = delta_time * self.spectrum._ang_freqs
         self._shift_phases(phase_shifts)
@@ -1109,14 +1120,17 @@ class Domain:
             self._shift_growth_means(phase_shifts)
 
     def _pop_c_floe(self, floe: FloeCoupled):
+        # TODO moved to Experiment
         self.floes.remove(floe)
 
     def _add_c_floes(self, floes: list[FloeCoupled]):
+        # TODO moved to Experiment
         # It is assume no overlap will occur, and phases have been properly
         # set, as these method should only be called after a fracture event
         self.floes.update(floes)
 
     def breakup(self, an_sol=None, num_params=None):
+        # TODO moved to Experiment
         dct = {}
         for i, floe in enumerate(self.floes):
             xf = floe.search_fracture(
@@ -1142,6 +1156,112 @@ class Domain:
         kw_dis=None,
         kw_sur=None,
     ):
+        # TODO moved to Experiment
         plot_displacement(
             resolution, self, left_bound, ax, an_sol, add_surface, base, kw_dis, kw_sur
         )
+
+
+class Experiment:
+    def __init__(self, domain: Domain, floes: Floe | Sequence[Floe]):
+        match floes:
+            case Floe():
+                floes = (floes,)
+            case Sequence():
+                pass
+            case _:
+                ValueError(
+                    "`floes` should be a `Floe` object or a sequence of such objects"
+                )
+        self.__domain = domain
+        self.__history = {0: self._init_floes(floes)}
+
+    @property
+    def domain(self):
+        return self.__domain
+
+    @property
+    def history(self):
+        return self.__history
+
+    @functools.cached_property
+    def time(self):
+        return next(reversed(self.history))
+
+    # TODO: extract from class
+    def _check_overlap(self, floes: Sequence[Floe]):
+        l_edges, r_edges = map(
+            np.array, zip(*((floe.left_edge, floe.right_edge) for floe in floes))
+        )
+        if not (r_edges[:-1] <= l_edges[1:]).all():
+            raise ValueError("Floe overlap")  # TODO: dedicated exception
+
+    def _init_floes(self, floes: Sequence[Floe]):
+        self._check_overlap(floes)
+
+        for floe in floes:
+            if floe.ice not in self.domain.ices:
+                self.domain._couple_ice(floe.ice)
+
+        phases = self._init_phases(
+            floes,
+            self.domain.ices,
+            self.domain.ocean.wavenumbers,
+            self.domain.spectrum._phases,
+        )
+
+        # If `len(floes) == 1`, the following expression evaluates to an empty
+        # array. If the forcing is polychromatic, this empty array could not be
+        # v-stacked with the existing, 1D-coefficients of the first floe. To
+        # circumvent this, we treat the first floe separately, and use
+        # `itertools.chain` when building the final list of floes. It is barely
+        # more expensive than a test, and cheaper than `np.vstack`.
+        coef_amps = np.exp(
+            np.cumsum(
+                [-self.ices[floe.ice].attenuations * floe.length for floe in floes[1:]],
+                axis=0,
+            )
+        )
+
+        c_floes = [
+            FloeCoupled(floe, self.domain.ices[floe.ice], _phs, coefs)
+            for floe, _phs, coefs in zip(
+                floes,
+                itertools.chain(
+                    np.ones((1, self.domain.spectrum.nf)), phases, coef_amps
+                ),
+            )
+        ]
+        return SortedList(c_floes)
+
+        # self.floes.update(c_floes)
+        # self._set_phases()
+
+    # TODO: extract from class
+    def _init_phases(
+        self,
+        floes: Sequence[Floe],
+        ices: dict[Ice, IceCoupled],
+        wavenumbers: np.ndarray,  # wavenumbers := free surface wavenumbers
+        phases0: np.ndarray,
+    ):
+        # TODO: rewrite passing floes/ices as iterators on the quantities
+        # actually needed?
+        phases = [np.full(phases0.shape, np.nan) for _ in range(len(floes))]
+        phases[0] = phases0 + floes[0].left_edge * wavenumbers
+        for i, floe in enumerate(floes[1:], 1):
+            prev = floes[i - 1]
+            phases[i] = (
+                phases[i - 1]
+                + floe.length * ices[prev.ice].wavenumbers
+                + (prev.right_edge - floe.left_edge) * wavenumbers
+            )
+
+        return phases % PI_2
+
+    def step(self, delta_time: float):
+        current_time = self.time
+        next_time = current_time + delta_time
+        # TODO breakup
+        # TODO copy history[current_time], set the new phases, assign to
+        # history[next_time]
