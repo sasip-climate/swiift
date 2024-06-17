@@ -401,7 +401,7 @@ class FloeCoupled(Floe):
         dispersion=None,
     ):
         super().__init__(floe.left_edge, floe.length, ice, dispersion)
-        self.phases = np.asarray(phases)  # no dunder, so use the setter method
+        self.phases = np.asarray(phases)  # no dunder: uses the setter method
         self.__amp_coefficients = amp_coefficients
 
     @property
