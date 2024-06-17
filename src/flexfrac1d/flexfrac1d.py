@@ -403,6 +403,7 @@ class FloeCoupled(Floe):
         super().__init__(floe.left_edge, floe.length, ice, dispersion)
         self.phases = np.asarray(phases)  # no dunder: uses the setter method
         self.__amp_coefficients = amp_coefficients
+        self.__gen = 0
 
     @property
     def phases(self) -> np.ndarray:
@@ -415,6 +416,10 @@ class FloeCoupled(Floe):
     @property
     def amp_coefficients(self):
         return self.__amp_coefficients
+
+    @property
+    def gen(self):
+        return self.__gen
 
     @property
     def ice(self) -> IceCoupled:
@@ -548,7 +553,9 @@ class FloeCoupled(Floe):
         )
 
         return self, [
-            FloeCoupled(Floe(left_edge, length), self.ice, phases_, coefs_)
+            FloeCoupled(
+                Floe(left_edge, length), self.ice, phases_, coefs_, self.gen + 1
+            )
             for left_edge, length, phases_, coefs_ in zip(
                 left_edges, lengths, phases, amp_coefficients
             )
@@ -1224,7 +1231,7 @@ class Experiment:
         )
 
         c_floes = [
-            FloeCoupled(floe, self.domain.ices[floe.ice], _phs, coefs)
+            FloeCoupled(floe, self.domain.ices[floe.ice], _phs, coefs, 0)
             for floe, _phs, coefs in zip(
                 floes,
                 itertools.chain(
