@@ -75,7 +75,7 @@ def _get_result(
     floe_params, wave_params, growth_params, num_params
 ) -> integrate._bvp.BVPResult:
     if num_params is None:
-        num_params = {}
+        num_params = dict()
     opt = _solve_bvp(floe_params, wave_params, growth_params, **num_params)
     if not opt.success:
         warnings.warn("Numerical solution did not converge", stacklevel=2)
@@ -118,7 +118,7 @@ def energy(floe_params, wave_params, growth_params, num_params) -> tuple[float]:
     """Numerically evaluate the energy
 
     The energy is up to a prefactor"""
-    opt = _get_result(floe_params, growth_params, num_params, wave_params)
+    opt = _get_result(floe_params, wave_params, growth_params, num_params)
     curvature_poly = _extract_cur_poly(opt.sol)
 
     def unit_energy(x: float) -> float:
