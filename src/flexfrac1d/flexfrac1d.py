@@ -553,11 +553,9 @@ class FloeCoupled(Floe):
         )
 
         return self, [
-            FloeCoupled(
-                Floe(left_edge, length), self.ice, phases_, coefs_, self.gen + 1
-            )
-            for left_edge, length, phases_, coefs_ in zip(
-                left_edges, lengths, phases, amp_coefficients
+            FloeCoupled(Floe(left_edge, length), self.ice, phases_, coefs_, gen_)
+            for left_edge, length, phases_, coefs_, gen_ in zip(
+                left_edges, lengths, phases, amp_coefficients, (self.gen + 1, self.gen)
             )
         ]
 
