@@ -967,11 +967,8 @@ class Domain:
         self.__gravity = gravity
         self.__frozen_spectrum = spectrum
         self.__ocean = OceanCoupled(ocean, spectrum, gravity)
-        # TODO moved to Experiment
         self.__floes = SortedList()
         self.__ices = {}
-        # TODO moved to Experiment
-        # self.__time = 0
 
         if growth_mean is None:
             if growth_std is not None:
@@ -994,7 +991,6 @@ class Domain:
         #     spectrum.amplitude(frequencies), frequencies, phases, betas
         # )
 
-    # TODO moved to Experiment
     @property
     def floes(self) -> SortedList[FloeCoupled]:
         return self.__floes
@@ -1034,64 +1030,8 @@ class Domain:
 
     def _init_from_f(self): ...
 
-    # def _set_phases(self):
-    #     # TODO moved to Experiment
-    #     # spectrum.phases defined at x = 0
-    #     self.floes[0].phases = (
-    #         self.floes[0].left_edge * self.ocean.wavenumbers + self.spectrum._phases
-    #     )
-    #
-    #     for i, floe in enumerate(self.floes[1:], 1):
-    #         prev = self.floes[i - 1]
-    #         self.floes[i].phases = (
-    #             prev.phases
-    #             + prev.length * prev.ice.wavenumbers
-    #             + (prev.right_edge - floe.left_edge) * self.ocean.wavenumbers
-    #         )
-
     def _couple_ice(self, ice):
         self.ices[ice] = IceCoupled(ice, self.ocean, self.spectrum, None, self.gravity)
-
-    # def add_floes(self, floes: Sequence[Floe]):
-    #     # TODO moved to Experiment
-    #     # TODO: define __slots__ in Floe for better memory allocation?
-    #     # TODO this testing should be removed if add_floes made private
-    #     all_floes = self.floes.copy()
-    #     all_floes.update(floes)
-    #     l_edges, r_edges = map(
-    #         np.array, zip(*((floe.left_edge, floe.right_edge) for floe in all_floes))
-    #     )
-    #     if not (r_edges[:-1] <= l_edges[1:]).all():
-    #         raise AssertionError  # TODO: dedicated exception
-    #
-    #     for floe in floes:
-    #         if floe.ice not in self.ices:
-    #             self.ices[floe.ice] = IceCoupled(
-    #                 floe.ice, self.ocean, self.spectrum, None, self.gravity
-    #             )
-    #
-    #     # If len(floes) == 1, the following expression evaluates to an empty
-    #     # array. If the forcing is polychromatic, this empty array could not be
-    #     # v-stacked with the existing, 1D-coefficients of the first floe. To
-    #     # circumvent this, we treat the first floe separately, and use
-    #     # itertools.chain when building the final list of floes. It is barely
-    #     # more expensive than a test, and cheaper than np.vstack, anyways.
-    #     coef_amps = np.exp(
-    #         np.cumsum(
-    #             [-self.ices[floe.ice].attenuations * floe.length for floe in floes[1:]],
-    #             axis=0,
-    #         )
-    #     )
-    #     c_floes = [
-    #         FloeCoupled(floe, self.ices[floe.ice], 0, coefs)
-    #         for floe, coefs in zip(
-    #             floes,
-    #             itertools.chain(np.ones((1, len(self.spectrum.waves))), coef_amps),
-    #         )
-    #     ]
-    #
-    #     self.floes.update(c_floes)
-    #     self._set_phases()
 
     def _shift_phases(self, phases: np.ndarray):
         for i in range(len(self.floes)):
