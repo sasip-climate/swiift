@@ -57,7 +57,7 @@ def plot_displacement(
     kw_sur=None,
 ):
     if kw_dis is None:
-        kw_dis = dict()
+        kw_dis = {"color": "k", "lw": 3}
     displacements = LineCollection(
         _dis_segments(resolution, domain, an_sol, base), **kw_dis
     )
@@ -68,7 +68,7 @@ def plot_displacement(
 
     if add_surface:
         if kw_sur is None:
-            kw_sur = dict()
+            kw_sur = {"color": "#008aa6", "lw": 1.5}
         surface = LineCollection(
             _surface_segments(resolution, domain, left_bound, an_sol), **kw_sur
         )
