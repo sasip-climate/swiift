@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import namedtuple
 from collections.abc import Sequence
 import copy
 import functools
@@ -486,7 +487,7 @@ class FloeCoupled(Floe):
             lengths = np.linspace(0, self.length, nd * coef_nd)[1:-1]
             ener = np.full(lengths.shape, np.nan)
             for i, length in enumerate(lengths):
-                ener[i] = self.ener_min(
+                ener[i] = self._ener_min(
                     length, spectrum, growth_params, an_sol, num_params
                 )
 
@@ -494,12 +495,16 @@ class FloeCoupled(Floe):
                 (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
             )
 
-            # TODO: temp func for ener_min and its arguments
+            local_ener_cost = functools.partial(
+                self._ener_min,
+                spectrum=spectrum,
+                growth_params=growth_params,
+                an_sol=an_sol,
+                num_params=num_params,
+            )
             opts = [
                 optimize.minimize_scalar(
-                    lambda length: self.ener_min(
-                        length, spectrum, growth_params, an_sol, num_params
-                    ),
+                    local_ener_cost,
                     bounds=lengths[peak_idxs[[i, i + 1]]],
                 )
                 for i in range(len(peak_idxs) - 1)
@@ -511,7 +516,22 @@ class FloeCoupled(Floe):
             else:
                 return None
 
-    def ener_min(self, length, spectrum, growth_params, an_sol, num_params) -> float:
+    def _fracture_diagnostic(
+        self, spectrum, res=0.1, growth_params=None, an_sol=False, num_params=None
+    ):
+        lengths = np.linspace(
+            0, self.length, np.ceil(self.length / res).astype(int) + 1
+        )[1:-1]
+        energies = np.full((lengths.size, 2), np.nan)
+        for i, length in enumerate(lengths):
+            energies[i, :] = [
+                _f.energy(spectrum, growth_params, an_sol, num_params)
+                for _f in self._binary_split(length)
+            ]
+        frac_diag = namedtuple("FractureDiagnostic", ("length", "energy"))
+        return frac_diag(lengths, energies)
+
+    def _binary_split(self, length) -> tuple[FloeCoupled]:
         floe_l = Floe(left_edge=self.left_edge, length=length)
         cf_l = FloeCoupled(floe_l, self.ice, self.phases, self.amp_coefficients)
 
@@ -523,6 +543,11 @@ class FloeCoupled(Floe):
             phases_r,
             self.amp_coefficients * np.exp(-self.ice.attenuations * cf_l.length),
         )
+        return cf_l, cf_r
+
+    def _ener_min(self, length, spectrum, growth_params, an_sol, num_params) -> float:
+        """Objective function to minimise for energy-based fracture"""
+        cf_l, cf_r = self._binary_split(length)
         growth_params_r = (
             (growth_params[0] - length, growth_params[1])
             if growth_params is not None
