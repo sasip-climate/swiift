@@ -1111,6 +1111,14 @@ class Domain:
             )
 
     def iterate(self, delta_time: float):
+        # NOTE: delta_time is likely to not change between calls. The computed
+        # phases could be cached, but the cost of the computation seems
+        # independent of the size of the array up to about size := 100--500. It
+        # is not advisable to cache methods, and the array of angular
+        # frequencies would have to be cast to (for example) a tuple before
+        # being passed to a cached function, as arrays are not hashable. The
+        # cost of a back-and-forth cast is tenfold the cost of the product for
+        # size := 100; more than fiftyfold for size := 1000.
         phase_shifts = delta_time * self.spectrum._ang_freqs
         self._shift_phases(phase_shifts)
         if self.growth_mean is not None:
