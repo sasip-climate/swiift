@@ -7,9 +7,10 @@ from collections.abc import Sequence
 import copy
 import functools
 import itertools
-from numbers import Real, Complex
+from numbers import Real
 import warnings
 import numpy as np
+from pydantic import BaseModel, PositiveFloat
 import scipy.optimize as optimize
 import scipy.signal as signal
 from sortedcontainers import SortedList
@@ -123,59 +124,12 @@ class Ocean:
         return self.__depth
 
 
-# TODO: look at @dataclass
-class Ice:
-    def __init__(
-        self,
-        density: float = 922.5,
-        frac_toughness: float = 1e5,
-        poissons_ratio: float = 0.3,
-        thickness: float = 1.0,
-        youngs_modulus: float = 6e9,
-    ):
-        self.__density = density
-        self.__frac_toughness = frac_toughness
-        self.__poissons_ratio = poissons_ratio
-        self.__thickness = thickness
-        self.__youngs_modulus = youngs_modulus
-
-    def __hash__(self) -> int:
-        return hash(
-            (
-                self.density,
-                self.frac_toughness,
-                self.poissons_ratio,
-                self.thickness,
-                self.youngs_modulus,
-            )
-        )
-
-    @property
-    def density(self):
-        return self.__density
-
-    @property
-    def frac_toughness(self) -> float:
-        """Ice fracture toughness in Pa m**1/2
-
-        Returns
-        -------
-        frac_toughness: float
-
-        """
-        return self.__frac_toughness
-
-    @property
-    def poissons_ratio(self):
-        return self.__poissons_ratio
-
-    @property
-    def thickness(self):
-        return self.__thickness
-
-    @property
-    def youngs_modulus(self):
-        return self.__youngs_modulus
+class Ice(BaseModel, frozen=True):
+    density: PositiveFloat = 922.5
+    frac_toughness: PositiveFloat = 1e5
+    poissons_ratio: PositiveFloat = 0.3
+    thickness: PositiveFloat = 1.0
+    youngs_modulus: PositiveFloat = 6e9
 
     @functools.cached_property
     def quad_moment(self):
