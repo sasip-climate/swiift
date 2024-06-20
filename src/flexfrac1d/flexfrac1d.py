@@ -7,7 +7,7 @@ from collections.abc import Sequence
 import copy
 import functools
 import itertools
-from numbers import Real
+from numbers import Real, Complex
 import warnings
 import numpy as np
 import scipy.optimize as optimize
@@ -20,6 +20,7 @@ from .lib.curvature import curvature
 from .lib.energy import energy
 from .lib.numerical import free_surface
 from .lib.graphics import plot_displacement
+from .lib.utils import sanitize_input
 from .pars import g
 from .lib.constants import PI, PI_2
 
@@ -39,7 +40,7 @@ class Wave:
         if period is None and frequency is None:
             raise ValueError("Either period or frequency must be specified.")
         elif period is not None:
-            self.__period = period
+            self.__period = sanitize_input(period, "period")
             if frequency is not None:
                 warnings.warn(
                     (
@@ -48,13 +49,13 @@ class Wave:
                     ),
                     stacklevel=2,
                 )
-            self.__frequency = 1 / period
+            self.__frequency = 1 / self.period
         else:
-            self.__frequency = frequency
-            self.__period = 1 / frequency
+            self.__frequency = sanitize_input(frequency, "frequency")
+            self.__period = 1 / self.frequency
 
-        self.__amplitude = amplitude
-        self.__phase = phase
+        self.__amplitude = sanitize_input(amplitude, "amplitude")
+        self.__phase = sanitize_input(phase, "phase", True) % PI_2
 
     @property
     def amplitude(self) -> float:

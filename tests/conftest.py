@@ -3,6 +3,7 @@
 import numpy as np
 from hypothesis import strategies as st
 from flexfrac1d.flexfrac1d import Ocean, DiscreteSpectrum, Ice, Floe
+from flexfrac1d.lib.constants import PI_2
 
 # Generic float options
 float_kw = {
@@ -51,9 +52,10 @@ physical_strategies = {
         "youngs_modulus": st.floats(1e6, 100e9, **float_kw),
     },
     "wave": {
-        "wave_frequency": st.floats(min_value=1e-4, max_value=10, **float_kw),
-        "wave_phase": st.floats(-np.pi, np.pi, exclude_min=True, **float_kw),
         "wave_amplitude": st.floats(1e-6, 1e3, **float_kw),
+        "wave_period": st.floats(min_value=1e-1, max_value=1e4, **float_kw),
+        "wave_frequency": st.floats(min_value=1e-4, max_value=10, **float_kw),
+        "wave_phase": st.floats(0, PI_2, exclude_max=True, **float_kw),
     },
     "gravity": st.floats(0.1, 30, **float_kw),
 }
@@ -67,7 +69,7 @@ physical_strategies["ice"]["thickness"] = ice_thickness
 @st.composite
 def spec_mono(draw):
     return DiscreteSpectrum(
-        st.just(0.5), draw(physical_strategies["wave"]["wave_frequency"])
+        draw(st.just(0.5)), draw(physical_strategies["wave"]["wave_frequency"])
     )
 
 
