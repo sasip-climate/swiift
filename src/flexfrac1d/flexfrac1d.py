@@ -34,7 +34,6 @@ class Wave:
         period: float = None,
         frequency: float = None,
         phase: float = 0,
-        beta: float = 0,
     ):
         """Initialise self."""
         if period is None and frequency is None:
@@ -56,7 +55,6 @@ class Wave:
 
         self.__amplitude = amplitude
         self.__phase = phase
-        self.__beta = beta
 
     @property
     def amplitude(self) -> float:
@@ -596,12 +594,11 @@ class DiscreteSpectrum:
         amplitudes,
         frequencies,
         phases=0,
-        betas=0,
     ):
 
         # np.ravel to force precisely 1D-arrays
         # Promote the map to list so the iterator can be used several times
-        args = list(map(np.ravel, (amplitudes, frequencies, phases, betas)))
+        args = list(map(np.ravel, (amplitudes, frequencies, phases)))
         (size,) = np.broadcast_shapes(*(arr.shape for arr in args))
 
         # TODO: sort waves by frequencies or something
@@ -613,9 +610,7 @@ class DiscreteSpectrum:
                 if arr.size == 1:
                     args[i] = itertools.repeat(arr[0], size)
 
-        self.__waves = [
-            Wave(_a, frequency=_f, phase=_ph, beta=_b) for _a, _f, _ph, _b in zip(*args)
-        ]
+        self.__waves = [Wave(_a, frequency=_f, phase=_ph) for _a, _f, _ph in zip(*args)]
 
     @property
     def waves(self):

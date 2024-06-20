@@ -67,8 +67,6 @@ def broadcastable(draw):
     opt = draw(get_optional_kwargs("phases", "shapes"))
     if "phases" in opt:
         ds_kw["phases"] = draw(get_number_or_array(shape_st, False))
-    if "betas" in opt:
-        ds_kw["betas"] = draw(get_number_or_array(shape_st, False, "non_neg"))
 
     return amplitudes, frequencies, ds_kw
 
@@ -107,7 +105,7 @@ def not_broadcastable(draw):
         return isinstance(arr, np.ndarray) and arr.size > 1
 
     ds_kw = dict()
-    opt = draw(get_optional_kwargs("phases", "betas"))
+    opt = draw(get_optional_kwargs("phases"))
     nb_args = len(opt) + 2
     n_arr = 0
 
@@ -132,15 +130,8 @@ def not_broadcastable(draw):
             frequencies = draw(get_number_or_array(shape_st[i], strict, "pos"))
             if inc_n_arr(frequencies):
                 n_arr += 1
-        elif idx == 2:
-            if "phases" in opt:
-                ds_kw["phases"] = draw(get_number_or_array(shape_st[i], strict))
-            else:
-                ds_kw["betas"] = draw(
-                    get_number_or_array(shape_st[i], strict, "non_neg")
-                )
         else:
-            ds_kw["betas"] = draw(get_number_or_array(shape_st[i], strict, "non_neg"))
+            ds_kw["phases"] = draw(get_number_or_array(shape_st[i], strict))
 
     # Should not be necessarry, here as a final "just in case" filter
     assume(
