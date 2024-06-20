@@ -5,7 +5,7 @@ import numpy as np
 
 from flexfrac1d.flexfrac1d import Ocean, OceanCoupled, DiscreteSpectrum
 from flexfrac1d.flexfrac1d import Ice, IceCoupled
-from flexfrac1d.libraries.WaveUtils import free_surface, elas_mass_surface
+from flexfrac1d.lib.disprel import free_surface, elas_mass_surface
 
 from .conftest import physical_strategies
 from .conftest import coupled_ocean_ice, spec_mono
