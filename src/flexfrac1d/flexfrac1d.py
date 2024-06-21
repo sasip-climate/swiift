@@ -10,7 +10,8 @@ import itertools
 from numbers import Real
 import warnings
 import numpy as np
-from pydantic import BaseModel, PositiveFloat
+
+import pydantic
 import scipy.optimize as optimize
 import scipy.signal as signal
 from sortedcontainers import SortedList
@@ -21,27 +22,28 @@ from .lib.curvature import curvature
 from .lib.energy import energy
 from .lib.numerical import free_surface
 from .lib.graphics import plot_displacement
-from .lib.utils import sanitize_input
 from .pars import g
 from .lib.constants import PI, PI_2
 
 
-class Wave:
+class Wave(pydantic.BaseModel, frozen=True):
     """Represents a monochromatic wave."""
+
+    amplitude: pydantic.PositiveFloat
+    period: pydantic.PositiveFloat
+    phase: float = 0
 
     def __init__(
         self,
-        amplitude: float,
+        amplitude: pydantic.PositiveFloat,
         *,
-        period: float = None,
-        frequency: float = None,
-        phase: float = 0,
+        period: pydantic.PositiveFloat | None = None,
+        frequency: float | None = None,
+        **kwargs,
     ):
-        """Initialise self."""
         if period is None and frequency is None:
-            raise ValueError("Either period or frequency must be specified.")
+            raise ValueError("Either period or frequency must be specified")
         elif period is not None:
-            self.__period = sanitize_input(period, "period")
             if frequency is not None:
                 warnings.warn(
                     (
@@ -50,32 +52,20 @@ class Wave:
                     ),
                     stacklevel=2,
                 )
-            self.__frequency = 1 / self.period
         else:
-            self.__frequency = sanitize_input(frequency, "frequency")
-            self.__period = 1 / self.frequency
+            period = 1 / frequency
+        super().__init__(amplitude=amplitude, period=period, **kwargs)
 
-        self.__amplitude = sanitize_input(amplitude, "amplitude")
-        self.__phase = sanitize_input(phase, "phase", True) % PI_2
+    @pydantic.field_validator("phase", mode="before")
+    @classmethod
+    def modulo_phase(cls, raw_phase: float) -> float:
+        return raw_phase % PI_2
 
-    @property
-    def amplitude(self) -> float:
-        """Wave amplitude in m."""
-        return self.__amplitude
-
-    @property
-    def period(self) -> float:
-        """Wave period in s."""
-        return self.__period
-
-    @property
-    def phase(self) -> float:
-        return self.__phase
-
-    @property
+    @pydantic.computed_field
+    @functools.cached_property
     def frequency(self) -> float:
         """Wave frequency in Hz."""
-        return self.__frequency
+        return 1 / self.period
 
     @functools.cached_property
     def angular_frequency(self) -> float:
@@ -124,12 +114,12 @@ class Ocean:
         return self.__depth
 
 
-class Ice(BaseModel, frozen=True):
-    density: PositiveFloat = 922.5
-    frac_toughness: PositiveFloat = 1e5
-    poissons_ratio: PositiveFloat = 0.3
-    thickness: PositiveFloat = 1.0
-    youngs_modulus: PositiveFloat = 6e9
+class Ice(pydantic.BaseModel, frozen=True):
+    density: pydantic.PositiveFloat = 922.5
+    frac_toughness: pydantic.PositiveFloat = 1e5
+    poissons_ratio: pydantic.PositiveFloat = 0.3
+    thickness: pydantic.PositiveFloat = 1.0
+    youngs_modulus: pydantic.PositiveFloat = 6e9
 
     @functools.cached_property
     def quad_moment(self):
