@@ -62,7 +62,7 @@ def broadcastable(draw):
     shape_st = comp_shapes(size)
     ds_kw = dict()
 
-    amplitudes = draw(get_number_or_array(shape_st, False, "non_neg"))
+    amplitudes = draw(get_number_or_array(shape_st, False, "pos"))
     frequencies = draw(get_number_or_array(shape_st, False, "pos"))
     opt = draw(get_optional_kwargs("phases", "shapes"))
     if "phases" in opt:
@@ -123,7 +123,7 @@ def not_broadcastable(draw):
     for i, idx in enumerate(idxs):
         strict = n_arr + len(idxs) - i
         if idx == 0:
-            amplitudes = draw(get_number_or_array(shape_st[i], strict, "non_neg"))
+            amplitudes = draw(get_number_or_array(shape_st[i], strict, "pos"))
             if inc_n_arr(amplitudes):
                 n_arr += 1
         elif idx == 1:

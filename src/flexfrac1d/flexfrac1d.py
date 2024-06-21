@@ -117,7 +117,7 @@ class Ocean:
 class Ice(pydantic.BaseModel, frozen=True):
     density: pydantic.PositiveFloat = 922.5
     frac_toughness: pydantic.PositiveFloat = 1e5
-    poissons_ratio: pydantic.PositiveFloat = 0.3
+    poissons_ratio: float = 0.3
     thickness: pydantic.PositiveFloat = 1.0
     youngs_modulus: pydantic.PositiveFloat = 6e9
 
@@ -152,13 +152,7 @@ class IceCoupled(Ice):
         dispersion: str,
         gravity: float,
     ):
-        super().__init__(
-            ice.density,
-            ice.frac_toughness,
-            ice.poissons_ratio,
-            ice.thickness,
-            ice.youngs_modulus,
-        )
+        super().__init__(**{k: getattr(ice, k) for k in ice.model_fields})
         if not (dispersion is None or dispersion != ""):
             warnings.warn(
                 "Dispersion is ignored for now and is always ElML", stacklevel=1
