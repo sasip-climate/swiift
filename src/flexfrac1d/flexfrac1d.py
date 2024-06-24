@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import attrs
 from collections import namedtuple
 from collections.abc import Sequence
 import copy
@@ -11,7 +12,6 @@ from numbers import Real
 import warnings
 import numpy as np
 
-import pydantic
 import scipy.optimize as optimize
 import scipy.signal as signal
 from sortedcontainers import SortedList
@@ -19,49 +19,26 @@ from sortedcontainers import SortedList
 # from .libraries.WaveUtils import SpecVars
 from .lib.displacement import displacement
 from .lib.curvature import curvature
+from .lib import dr
 from .lib.energy import energy
 from .lib.numerical import free_surface
 from .lib.graphics import plot_displacement
 from .pars import g
-from .lib.constants import PI, PI_2
+from .lib.constants import PI, PI_2, SQR2
 
 
-class Wave(pydantic.BaseModel, frozen=True):
+@attrs.define(frozen=True)
+class Wave:
     """Represents a monochromatic wave."""
 
-    amplitude: pydantic.PositiveFloat
-    period: pydantic.PositiveFloat
-    phase: float = 0
+    amplitude: float
+    period: float
+    phase: float = attrs.field(default=0, converter=lambda raw: raw % PI_2)
 
-    def __init__(
-        self,
-        amplitude: pydantic.PositiveFloat,
-        *,
-        period: pydantic.PositiveFloat | None = None,
-        frequency: float | None = None,
-        **kwargs,
-    ):
-        if period is None and frequency is None:
-            raise ValueError("Either period or frequency must be specified")
-        elif period is not None:
-            if frequency is not None:
-                warnings.warn(
-                    (
-                        "Both period and frequency were specified, "
-                        "frequency will be ignored"
-                    ),
-                    stacklevel=2,
-                )
-        else:
-            period = 1 / frequency
-        super().__init__(amplitude=amplitude, period=period, **kwargs)
-
-    @pydantic.field_validator("phase", mode="before")
     @classmethod
-    def modulo_phase(cls, raw_phase: float) -> float:
-        return raw_phase % PI_2
+    def from_frequency(cls, amplitude, frequency, phase):
+        return cls(amplitude, 1 / frequency, phase)
 
-    @pydantic.computed_field
     @functools.cached_property
     def frequency(self) -> float:
         """Wave frequency in Hz."""
@@ -72,6 +49,7 @@ class Wave(pydantic.BaseModel, frozen=True):
         """Wave angular frequency in rad s**-1."""
         return 2 * PI * self.frequency
 
+    # TODO: rename to ..._pow2
     @functools.cached_property
     def angular_frequency2(self) -> float:
         """Squared wave angular frequency, for convenience."""
@@ -114,12 +92,13 @@ class Ocean:
         return self.__depth
 
 
-class Ice(pydantic.BaseModel, frozen=True):
-    density: pydantic.PositiveFloat = 922.5
-    frac_toughness: pydantic.PositiveFloat = 1e5
+@attrs.define(frozen=True)
+class Ice:
+    density: float = 922.5
+    frac_toughness: float = 1e5
     poissons_ratio: float = 0.3
-    thickness: pydantic.PositiveFloat = 1.0
-    youngs_modulus: pydantic.PositiveFloat = 6e9
+    thickness: float = 1.0
+    youngs_modulus: float = 6e9
 
     @functools.cached_property
     def quad_moment(self):
@@ -143,139 +122,82 @@ class Ice(pydantic.BaseModel, frozen=True):
         )
 
 
-class IceCoupled(Ice):
-    def __init__(
-        self,
-        ice: Ice,
-        ocean: OceanCoupled,
-        spec: DiscreteSpectrum,
-        dispersion: str,
-        gravity: float,
-    ):
-        super().__init__(**{k: getattr(ice, k) for k in ice.model_fields})
-        if not (dispersion is None or dispersion != ""):
-            warnings.warn(
-                "Dispersion is ignored for now and is always ElML", stacklevel=1
-            )
-        self.__draft = self.density / ocean.density * self.thickness
-        self.__dud = ocean.depth - self.draft
-        self._elastic_length_pow4 = self.flex_rigidity / (ocean.density * gravity)
-        self.__elastic_length = self._elastic_length_pow4 ** (1 / 4)
-        self.__wavenumbers = self.compute_wavenumbers(ocean, spec, gravity)
+@attrs.define(kw_only=True, frozen=True)
+class FloatingIce(Ice):
+    draft: float
+    dud: float
+    elastic_length_pow4: float
 
-    @property
-    def draft(self):
-        return self.__draft
-
-    @property
-    def dud(self):
-        return self.__dud
-
-    @property
-    def elastic_length(self):
-        return self.__elastic_length
-
-    @property
-    def wavenumbers(self):
-        return self.__wavenumbers
+    @classmethod
+    def from_ice_ocean(cls, ice: Ice, ocean: Ocean, gravity: float):
+        draft = ice.density / ocean.density * ice.thickness
+        dud = ocean.depth - draft
+        el_lgth_pow4 = ice.flex_rigidity / (ocean.density * gravity)
+        return cls(
+            density=ice.density,
+            frac_toughness=ice.frac_toughness,
+            poissons_ratio=ice.poissons_ratio,
+            thickness=ice.thickness,
+            youngs_modulus=ice.youngs_modulus,
+            draft=draft,
+            dud=dud,
+            elastic_length_pow4=el_lgth_pow4,
+        )
 
     @functools.cached_property
-    def _c_wavenumbers(self):
-        return self.wavenumbers + 1j * self.attenuations
+    def elastic_length(self):
+        return self.elastic_length_pow4**0.25
 
     @functools.cached_property
     def freeboard(self):
         return self.thickness - self.draft
 
     @functools.cached_property
-    def attenuations(self):
-        return self.wavenumbers**2 * self.thickness / 4
+    def _elastic_number(self):
+        return 1 / self.elastic_length
 
     @functools.cached_property
     def _red_elastic_number(self):
-        return 1 / (2**0.5 * self.elastic_length)
+        return 1 / (SQR2 * self.elastic_length)
 
-    def compute_wavenumbers(
-        self, ocean: OceanCoupled, ds: DiscreteSpectrum, gravity: float
-    ) -> np.ndarray:
-        return self._comp_wns(ocean.density, ds._ang_freq2, gravity)
 
-    def _comp_wns(
-        self, density: float, angfreqs2: np.ndarray, gravity: float
-    ) -> np.ndarray:
-        def f(kk: float, d0: float, d1: float, rr: float) -> float:
-            obj = (kk**5 + d1 * kk) * np.tanh(rr * kk) + d0
-            return obj
+@attrs.define(frozen=True)
+class WaveUnderIce:
+    ice: FloatingIce
+    wavenumbers: np.ndarray = attrs.field(repr=False)
 
-        def df_dk(kk: float, d0: float, d1: float, rr: float) -> float:
-            return (5 * kk**4 + d1 + rr * d0) * np.tanh(rr * kk) + rr * (
-                kk**5 + d1 * kk
-            )
+    @wavenumbers.default
+    def _dummy_array_factory(self):
+        return np.full(1, np.nan)
 
-        def extract_real_root(roots):
-            mask = (np.imag(roots) == 0) & (np.real(roots) > 0)
-            if mask.nonzero()[0].size != 1:
-                raise ValueError("An approximate initial guess could not be found")
-            return np.real(roots[mask][0])
+    @classmethod
+    def from_floating(
+        cls, ice: FloatingIce, spectrum: DiscreteSpectrum, gravity: float
+    ):
+        alphas = spectrum._ang_freq2 / gravity
+        deg1 = 1 - alphas * ice.draft
+        deg0 = -alphas * ice.elastic_length
+        scaled_ratio = ice.dud / ice.elastic_length
 
-        def find_k(k0, alpha, d0, d1, rr):
-            res = optimize.root_scalar(
-                f,
-                args=(d0, d1, rr),
-                fprime=df_dk,
-                x0=k0,
-                xtol=1e-10,
-            )
-            if not res.converged:
-                warnings.warn(
-                    f"Root finding did not converge: ice-covered surface, "
-                    f"f={np.sqrt(alpha*gravity)/(2*PI):1.2g} Hz",
-                    stacklevel=2,
-                )
-            return res.root
+        solver = dr.ElasticMassLoadingSolver(alphas, deg1, deg0, scaled_ratio)
+        wavenumbers = solver.compute_wavenumbers() / ice.elastic_length
 
-        scaled_ratio = self.dud / self.elastic_length
+        return cls(ice, wavenumbers)
 
-        alphas = angfreqs2 / gravity
-        deg1 = 1 - alphas * self.draft
-        deg0 = -alphas * self.elastic_length
-        roots = np.full(angfreqs2.size, np.nan)
+    @classmethod
+    def from_ocean(
+        cls, ice: Ice, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float
+    ):
+        floating_ice = FloatingIce.from_ice_ocean(ice, ocean, gravity)
+        return cls.from_floating(floating_ice, spectrum, gravity)
 
-        for i, (alpha, _d0, _d1) in enumerate(zip(alphas, deg0, deg1)):
-            find_k_i = functools.partial(
-                find_k,
-                alpha=alpha,
-                d0=_d0,
-                d1=_d1,
-                rr=scaled_ratio,
-            )
+    @functools.cached_property
+    def _c_wavenumbers(self):
+        return self.wavenumbers + 1j * self.attenuations
 
-            # We always expect one positive real root,
-            # and if _d1 < 0, eventually two additional negative real roots.
-            roots_dw = np.polynomial.polynomial.polyroots([_d0, _d1, 0, 0, 0, 1])
-            k0_dw = extract_real_root(roots_dw)
-            if np.isposinf(self.dud):
-                roots[i] = k0_dw
-                continue
-            # Use a DW initial guess if |1-1/tanh(rr*k_DW)| < 0.15
-            # Use a SW initial guess if |1-rr*k_SW/tanh(rr*k_SW)| < 0.20
-            thrsld_dw, thrsld_sw = 1.33, 0.79
-            if scaled_ratio * k0_dw > thrsld_dw:
-                roots[i] = find_k_i(k0_dw)
-            else:
-                roots_sw = np.polynomial.polynomial.polyroots(
-                    [_d0 / scaled_ratio, 0, _d1, 0, 0, 0, 1]
-                )
-                k0_sw = extract_real_root(roots_sw)
-
-                if scaled_ratio * k0_sw < thrsld_sw:
-                    roots[i] = find_k_i(k0_sw)
-                # Use an initial guess in the middle otherwise
-                else:
-                    k0_ = (k0_sw + k0_dw) / 2
-                    roots[i] = find_k_i(k0_)
-
-        return roots / self.elastic_length
+    @functools.cached_property
+    def attenuations(self):
+        return self.wavenumbers**2 * self.ice.thickness / 4
 
 
 @functools.total_ordering
@@ -549,7 +471,9 @@ class DiscreteSpectrum:
                 if arr.size == 1:
                     args[i] = itertools.repeat(arr[0], size)
 
-        self.__waves = [Wave(_a, frequency=_f, phase=_ph) for _a, _f, _ph in zip(*args)]
+        self.__waves = [
+            Wave.from_frequency(_a, _f, phase=_ph) for _a, _f, _ph in zip(*args)
+        ]
 
     @property
     def waves(self):

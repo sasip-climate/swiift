@@ -4,7 +4,8 @@ from hypothesis import given, settings, strategies as st
 import numpy as np
 
 from flexfrac1d.flexfrac1d import Ocean, OceanCoupled, DiscreteSpectrum
-from flexfrac1d.flexfrac1d import Ice, IceCoupled
+from flexfrac1d.flexfrac1d import WaveUnderIce
+from flexfrac1d.flexfrac1d import Ice
 from flexfrac1d.lib.disprel import free_surface, elas_mass_surface
 
 from .conftest import physical_strategies
@@ -37,14 +38,16 @@ def test_free_surface(ocean, spec, gravity):
 
 @given(**(coupled_ocean_ice | {"spec": spec_mono()}))
 @settings(max_examples=500)
-def test_elas_mass_surface(
+def test_elas_mass_loading(
     ocean: Ocean, spec: DiscreteSpectrum, ice: Ice, gravity: float
 ):
     assert ocean.density > ice.density
     assert ocean.depth - ice.density / ocean.density * ice.thickness > 0
     angfreqs2 = spec._ang_freq2
-    co = OceanCoupled(ocean, spec, gravity)
-    ci = IceCoupled(ice, co, spec, None, gravity)
-    x = elas_mass_surface(ci.wavenumbers, ice, ocean, gravity)
+    # co = OceanCoupled(ocean, spec, gravity)
+    # ci = IceCoupled(ice, co, spec, None, gravity)
+    wui = WaveUnderIce.from_ocean(ice, ocean, spec, gravity)
+    x = elas_mass_surface(wui.wavenumbers, ice, ocean, gravity)
+    # x = elas_mass_surface(ci.wavenumbers, ice, ocean, gravity)
     y = angfreqs2 / gravity
     assert np.allclose(x, y)
