@@ -42,11 +42,6 @@ class ElasticMassLoadingSolver:
         return res.root
 
     def compute_wavenumbers(self) -> np.ndarray:
-        # scaled_ratio = self.dud / self.elastic_length
-
-        # alphas = angfreqs2 / gravity
-        # deg1 = 1 - alphas * self.draft
-        # deg0 = -alphas * self.elastic_length
         roots = np.full(self.alphas.size, np.nan)
 
         for i, (alpha, _d0, _d1) in enumerate(zip(self.alphas, self.deg0, self.deg1)):
