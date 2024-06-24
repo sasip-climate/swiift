@@ -56,6 +56,7 @@ class Wave:
         return self.angular_frequency**2
 
 
+@attrs.define(frozen=True)
 class Ocean:
     """Represents the fluid bearing the floes.
 
@@ -76,20 +77,8 @@ class Ocean:
 
     """
 
-    def __init__(self, depth: float = 1000, density: float = 1025) -> None:
-        """Initialise self."""
-        self.__depth = depth
-        self.__density = density
-
-    @property
-    def density(self) -> float:
-        """Ocean density in kg m**-3."""
-        return self.__density
-
-    @property
-    def depth(self) -> float:
-        """Ocean depth in m."""
-        return self.__depth
+    depth: float
+    density: float
 
 
 @attrs.define(frozen=True)
@@ -200,6 +189,25 @@ class WaveUnderIce:
         return self.wavenumbers**2 * self.ice.thickness / 4
 
 
+@attrs.define(frozen=True)
+class FreeSurfaceWave:
+    ocean: Ocean
+    wavenumbers: np.ndarray
+
+    @classmethod
+    def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
+        alphas = spectrum._ang_freq2 / gravity
+        solver = dr.FreeSurfaceSolver(alphas, ocean.depth)
+        wavenumbers = solver.compute_wavenumbers()
+        return cls(ocean, wavenumbers)
+
+    @functools.cached_property
+    def wavelengths(self) -> np.ndarray:
+        """Wavelengths in m"""
+        return PI_2 / self.wavenumbers
+
+
+@attrs.define(frozen=True)
 @functools.total_ordering
 class Floe:
     def __init__(
@@ -773,62 +781,6 @@ class PiersonMoskowitz(_GenericSpectrum):
 
 #         self.setWaves()
 #         self.af = [0] * self.nf
-
-
-class OceanCoupled(Ocean):
-    """Extend `Ocean` to include wave-dependent quantities."""
-
-    def __init__(self, ocean: Ocean, ds: DiscreteSpectrum, gravity: float):
-        super().__init__(ocean.depth, ocean.density)
-        self.__wavenumbers = self.compute_wavenumbers(ds, gravity)
-
-    @property
-    def wavenumbers(self) -> np.ndarray:
-        """Array of wave numbers in rad m**-1"""
-        return self.__wavenumbers
-
-    @functools.cached_property
-    def wavelengths(self) -> np.ndarray:
-        """Wavelengths in m"""
-        return 2 * PI / self.wavenumbers
-
-    def _comp_wns(self, angfreqs2: np.ndarray, gravity: float) -> np.ndarray:
-        def f(kk: float, alpha: float) -> float:
-            # Dispersion relation (form f(k) = 0), for a free surface,
-            # admitting one positive real root.
-            return kk * np.tanh(kk) - alpha
-
-        def df_dk(kk: float, alpha: float) -> float:
-            # Derivative of dr with respect to kk.
-            tt = np.tanh(kk)
-            return tt + kk * (1 - tt**2)
-
-        alphas = angfreqs2 / gravity
-        if np.isposinf(self.depth):
-            return alphas
-
-        coefs_d0 = alphas * self.depth
-        roots = np.full(len(coefs_d0), np.nan)
-        for i, _d0 in enumerate(coefs_d0):
-            if _d0 >= np.arctanh(np.nextafter(1, 0)):
-                roots[i] = _d0
-                continue
-            res = optimize.root_scalar(f, (_d0,), fprime=df_dk, x0=_d0)
-            if not res.converged:
-                warnings.warn(
-                    f"Root finding did not converge: free surface, "
-                    f"f={np.sqrt(_d0/self.depth*gravity)/(2*PI):1.2g} Hz",
-                    stacklevel=2,
-                )
-            roots[i] = res.root
-
-        return roots / self.depth
-
-    def compute_wavenumbers(self, ds: DiscreteSpectrum, gravity: float) -> np.ndarray:
-        """ """
-        return self._comp_wns(
-            np.array([wave.angular_frequency2 for wave in ds.waves]), gravity
-        )
 
 
 class WaveSpectrum:

@@ -8,6 +8,50 @@ import warnings
 
 
 @attrs.define
+class FreeSurfaceSolver:
+    alphas: np.ndarray
+    depth: float
+
+    def f(self, kk: float, alpha: float) -> float:
+        # Dispersion relation (form f(k) = 0), for a free surface,
+        # admitting one positive real root.
+        return kk * np.tanh(kk) - alpha
+
+    def df_dk(self, kk: float, alpha: float) -> float:
+        # Derivative of dr with respect to kk.
+        tt = np.tanh(kk)
+        return tt + kk * (1 - tt**2)
+
+    def find_k(self, k0, alpha):
+        res = optimize.root_scalar(self.f, args=(alpha,), fprime=self.df_dk, x0=alpha)
+        if not res.converged:
+            warnings.warn(
+                "Root finding did not converge: free surface",
+                stacklevel=2,
+            )
+        return res.root
+
+    def compute_wavenumbers(self) -> np.ndarray:
+        if np.isposinf(self.depth):
+            return self.alphas
+
+        coefs_d0 = self.alphas * self.depth
+        roots = np.full(len(coefs_d0), np.nan)
+        for i, _d0 in enumerate(coefs_d0):
+            if _d0 >= np.arctanh(np.nextafter(1, 0)):
+                roots[i] = _d0
+                continue
+
+            find_k_i = functools.partial(
+                self.find_k,
+                alpha=_d0,
+            )
+            roots[i] = find_k_i(_d0)
+
+        return roots / self.depth
+
+
+@attrs.define
 class ElasticMassLoadingSolver:
     alphas: np.ndarray
     deg1: np.ndarray
@@ -78,4 +122,4 @@ class ElasticMassLoadingSolver:
                     k0_ = (k0_sw + k0_dw) / 2
                     roots[i] = find_k_i(k0_)
 
-        return roots  # / self.elastic_length
+        return roots

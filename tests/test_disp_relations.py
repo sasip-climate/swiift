@@ -3,9 +3,8 @@
 from hypothesis import given, settings, strategies as st
 import numpy as np
 
-from flexfrac1d.flexfrac1d import Ocean, OceanCoupled, DiscreteSpectrum
-from flexfrac1d.flexfrac1d import WaveUnderIce
-from flexfrac1d.flexfrac1d import Ice
+from flexfrac1d.flexfrac1d import Ice, Ocean, DiscreteSpectrum
+from flexfrac1d.flexfrac1d import FreeSurfaceWave, WaveUnderIce
 from flexfrac1d.lib.disprel import free_surface, elas_mass_surface
 
 from .conftest import physical_strategies
@@ -30,10 +29,10 @@ from .conftest import coupled_ocean_ice, spec_mono
 )
 def test_free_surface(ocean, spec, gravity):
     angfreqs2 = np.array([wave.angular_frequency2 for wave in spec.waves])
-    co = OceanCoupled(ocean, spec, gravity)
-    x = free_surface(co.wavenumbers, co.depth)
+    fsw = FreeSurfaceWave.from_ocean(ocean, spec, gravity)
+    x = free_surface(fsw.wavenumbers, ocean.depth)
     y = angfreqs2 / gravity
-    assert np.allclose(x * co.depth, y * co.depth)
+    assert np.allclose(x * ocean.depth, y * ocean.depth)
 
 
 @given(**(coupled_ocean_ice | {"spec": spec_mono()}))
