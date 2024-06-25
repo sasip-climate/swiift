@@ -23,7 +23,7 @@ from .conftest import coupled_ocean_ice, spec_mono
     spec=st.builds(
         DiscreteSpectrum,
         st.just(1),
-        physical_strategies["wave"]["wave_frequency"],
+        physical_strategies["wave"]["frequency"],
     ),
     gravity=physical_strategies["gravity"],
 )

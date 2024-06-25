@@ -52,10 +52,10 @@ physical_strategies = {
         "youngs_modulus": st.floats(1e6, 100e9, **float_kw),
     },
     "wave": {
-        "wave_amplitude": st.floats(1e-6, 1e3, **float_kw),
-        "wave_period": st.floats(min_value=1e-1, max_value=1e4, **float_kw),
-        "wave_frequency": st.floats(min_value=1e-4, max_value=10, **float_kw),
-        "wave_phase": st.floats(0, PI_2, exclude_max=True, **float_kw),
+        "amplitude": st.floats(1e-6, 1e3, **float_kw),
+        "period": st.floats(min_value=1e-1, max_value=1e4, **float_kw),
+        "frequency": st.floats(min_value=1e-4, max_value=10, **float_kw),
+        "phase": st.floats(0, PI_2, exclude_max=True, **float_kw),
     },
     "gravity": st.floats(0.1, 30, **float_kw),
 }
@@ -69,7 +69,7 @@ physical_strategies["ice"]["thickness"] = ice_thickness
 @st.composite
 def spec_mono(draw):
     return DiscreteSpectrum(
-        draw(st.just(0.5)), draw(physical_strategies["wave"]["wave_frequency"])
+        draw(st.just(0.5)), draw(physical_strategies["wave"]["frequency"])
     )
 
 
@@ -78,7 +78,7 @@ def spec_poly(draw):
     n = draw(st.integers(min_value=1, max_value=100))
     amplitudes = draw(
         st.lists(
-            physical_strategies["wave"]["wave_amplitude"],
+            physical_strategies["wave"]["amplitude"],
             min_size=n,
             max_size=n,
             unique=True,
@@ -86,7 +86,7 @@ def spec_poly(draw):
     )
     frequencies = draw(
         st.lists(
-            physical_strategies["wave"]["wave_frequency"],
+            physical_strategies["wave"]["frequency"],
             min_size=n,
             max_size=n,
             unique=True,
@@ -94,7 +94,7 @@ def spec_poly(draw):
     )
     # phases = draw(
     #     st.lists(
-    #         physical_strategies["wave"]["wave_phase"],
+    #         physical_strategies["wave"]["phase"],
     #         min_size=n,
     #         max_size=n,
     #         unique=True,
@@ -112,7 +112,7 @@ coupled_ocean_ice = {
     # "spec": st.builds(
     #     DiscreteSpectrum,
     #     st.just(1),
-    #     physical_strategies["wave"]["wave_frequency"],
+    #     physical_strategies["wave"]["frequency"],
     # ),
     "ice": st.shared(
         st.builds(
