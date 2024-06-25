@@ -3,10 +3,8 @@
 import itertools
 import primefac
 import pytest
-from hypothesis import assume
 from hypothesis import given, strategies as st
 import hypothesis.extra.numpy as npst
-import numpy as np
 
 from flexfrac1d.flexfrac1d import DiscreteSpectrum
 

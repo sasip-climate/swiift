@@ -9,14 +9,12 @@ import copy
 import functools
 import itertools
 from numbers import Real
-import warnings
 import numpy as np
 
 import scipy.optimize as optimize
 import scipy.signal as signal
 from sortedcontainers import SortedList
 
-# from .libraries.WaveUtils import SpecVars
 # from .lib.displacement import displacement
 # from .lib.curvature import curvature
 from .lib import dr
@@ -24,8 +22,7 @@ from .lib import dr
 # from .lib.energy import energy
 from .lib.numerical import free_surface
 from .lib.graphics import plot_displacement
-from .pars import g
-from .lib.constants import PI, PI_2, SQR2
+from .lib.constants import PI_2, SQR2
 
 
 @attrs.define(frozen=True)
@@ -152,7 +149,7 @@ class FloatingIce(Ice):
 
 
 @attrs.define(frozen=True)
-class WaveUnderIce:
+class WavesUnderIce:
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
 
@@ -191,7 +188,7 @@ class WaveUnderIce:
 
 
 @attrs.define(frozen=True)
-class FreeSurfaceWave:
+class FreeSurfaceWaves:
     ocean: Ocean
     wavenumbers: np.ndarray
 
@@ -239,8 +236,9 @@ class Floe:
         return self.left_edge + self.length
 
 
+@attrs.define
 class WavesUnderFloe:
-    wui: WaveUnderIce
+    wui: WavesUnderIce
     floe: Floe
     edge_amplitudes: np.ndarray
 
