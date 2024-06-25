@@ -18,12 +18,12 @@ def free_surface(
     wave_params: tuple[np.ndarray],
     growth_params: tuple[np.ndarray, Real] | None,
 ) -> np.ndarray:
-    amplitudes, c_wavenumbers, phases = wave_params
+    c_amplitudes, c_wavenumbers = wave_params
     wave_shape = an_dis._unit_wavefield(x, c_wavenumbers)
     if growth_params is not None:
         kern = _growth_kernel(x, *growth_params)
         wave_shape *= kern
-    eta = np.imag((amplitudes * np.exp(1j * phases)) @ wave_shape)
+    eta = np.imag(c_amplitudes @ wave_shape)
     return eta
 
 

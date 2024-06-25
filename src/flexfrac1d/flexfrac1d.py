@@ -17,10 +17,11 @@ import scipy.signal as signal
 from sortedcontainers import SortedList
 
 # from .libraries.WaveUtils import SpecVars
-from .lib.displacement import displacement
-from .lib.curvature import curvature
+# from .lib.displacement import displacement
+# from .lib.curvature import curvature
 from .lib import dr
-from .lib.energy import energy
+
+# from .lib.energy import energy
 from .lib.numerical import free_surface
 from .lib.graphics import plot_displacement
 from .pars import g
@@ -36,7 +37,7 @@ class Wave:
     phase: float = attrs.field(default=0, converter=lambda raw: raw % PI_2)
 
     @classmethod
-    def from_frequency(cls, amplitude, frequency, phase):
+    def from_frequency(cls, amplitude, frequency, phase=0):
         return cls(amplitude, 1 / frequency, phase)
 
     @functools.cached_property
@@ -47,7 +48,7 @@ class Wave:
     @functools.cached_property
     def angular_frequency(self) -> float:
         """Wave angular frequency in rad s**-1."""
-        return 2 * PI * self.frequency
+        return PI_2 / self.period
 
     # TODO: rename to ..._pow2
     @functools.cached_property
@@ -246,111 +247,6 @@ class WavesUnderFloe:
     @functools.cached_property
     def _adim(self):
         return self.length * self.wui.ice._red_elastic_number
-
-    def _pack(self):
-        return (
-            (self.wui.ice._red_elastic_number, self.length),
-            (self.edge_amplitudes, self.wui._c_wavenumbers),
-        )
-
-    def fracture(): ...
-
-
-class BinaryFracture:
-    coef_nd: int = 4
-
-    def _binary_split(self, wuf, length) -> tuple[FloeCoupled]:
-        sub_left = WavesUnderFloe(
-            wuf.wui,
-            Floe(left_edge=wuf.floe.left_edge, length=length),
-            wuf.edge_amplitudes,
-        )
-        sub_right = WavesUnderFloe(
-            wuf.wui,
-            Floe(
-                left_edge=wuf.floe.left_edge + length, length=wuf.floe.length - length
-            ),
-            wuf.edge_amplitudes * np.exp(1j * wuf.wui._c_wavenumbers * length),
-        )
-        return sub_left, sub_right
-
-    def _ener_min(self, length, growth_params, an_sol, num_params) -> float:
-        """Objective function to minimise for energy-based fracture"""
-        sub_left, sub_right = self._binary_split(length)
-        growth_params_r = (
-            (growth_params[0] - length, growth_params[1])
-            if growth_params is not None
-            else None
-        )
-
-        ecs = (EnergyHandler.from_wuf(_wuf) for _wuf in (sub_left, sub_right))
-        energy_left, energy_right = [
-            ec.compute(gp, an_sol, num_params)
-            for ec, gp in zip(ecs, (growth_params, growth_params_r))
-        ]
-        return np.log(energy_left + energy_right)
-
-    def search(self, wuf: WavesUnderFloe, growth_params, an_sol, num_params):
-        energy = EnergyHandler.from_wuf(wuf)
-
-        base_energy = energy.compute(growth_params, an_sol, num_params)
-        # No fracture if the elastic energy is below the threshold
-        if base_energy < wuf.wui.ice.frac_energy_rate:
-            return None
-        else:
-            nd = (
-                np.ceil(4 * self.length * self.ice.wavenumbers.max() / PI_2).astype(int)
-                + 2
-            )
-            lengths = np.linspace(0, self.length, nd * self.coef_nd)[1:-1]
-            ener = np.full(lengths.shape, np.nan)
-            for i, length in enumerate(lengths):
-                ener[i] = self._ener_min(
-                    length, spectrum, growth_params, an_sol, num_params
-                )
-
-            peak_idxs = np.hstack(
-                (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
-            )
-
-            local_ener_cost = functools.partial(
-                self._ener_min,
-                growth_params=growth_params,
-                an_sol=an_sol,
-                num_params=num_params,
-            )
-            opts = [
-                optimize.minimize_scalar(
-                    local_ener_cost,
-                    bounds=lengths[peak_idxs[[i, i + 1]]],
-                )
-                for i in range(len(peak_idxs) - 1)
-            ]
-            opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
-            # Minimisation is done on the log of energy
-            if np.exp(opt.fun) + self.ice.frac_energy_rate < base_energy:
-                return opt.x
-            else:
-                return None
-
-
-class EnergyHandler:
-    floe_params: tuple[np.ndarray]
-    wave_params: tuple[np.ndarray]
-    factor: float
-
-    @classmethod
-    def from_wuf(cls, wuf: WavesUnderFloe):
-        floe_params = wuf.wui.ice._red_elastic_number, wuf.floe.length
-        wave_params = wuf.edge_amplitudes, wuf.wui._c_wavenumbers
-        factor = wuf.wui.ice.flex_rigidity / (2 * wuf.wui.ice.thickness)
-        return cls(floe_params, wave_params, factor)
-
-    def compute(self, growth_params, an_sol, num_params):
-        unit_energy = energy(
-            self.floe_params, self.wave_params, growth_params, an_sol, num_params
-        )
-        return self.factor * unit_energy
 
 
 class FloeCoupled(Floe):
@@ -567,8 +463,15 @@ class DiscreteSpectrum:
         # TODO: sanity checks on nan, etc. that could be returned
         #       by the Spectrum objects
 
+        # If size is one, all the arguments are scalar and the "spectrum" is
+        # monochromatic. Otherwise, there is at least one argument with
+        # different components. The eventual other arguments with a single
+        # component are repeated for instantiating as many Wave objects as
+        # needed.
         if size != 1:
             for i, arr in enumerate(args):
+                if arr.size == 0:
+                    raise ValueError
                 if arr.size == 1:
                     args[i] = itertools.repeat(arr[0], size)
 
