@@ -5,7 +5,6 @@ from __future__ import annotations
 import attrs
 from collections import namedtuple
 from collections.abc import Sequence
-import copy
 import functools
 import itertools
 from numbers import Real
@@ -213,7 +212,7 @@ class Floe:
     ice: FloatingIce
     generation: int = 0
 
-    def __eq__(self, other: [Floe, Real]) -> bool:
+    def __eq__(self, other: Floe | Real) -> bool:
         match other:
             case Floe():
                 return self.left_edge == other.left_edge
@@ -222,7 +221,7 @@ class Floe:
             case _:
                 raise NotImplementedError
 
-    def __lt__(self, other: Floe) -> bool:
+    def __lt__(self, other: Floe | Real) -> bool:
         match other:
             case Floe():
                 return self.left_edge < other.left_edge
@@ -245,6 +244,24 @@ class WavesUnderFloe:
     @functools.cached_property
     def _adim(self):
         return self.length * self.wui.ice._red_elastic_number
+
+    def __eq__(self, other: WavesUnderFloe | Real) -> bool:
+        match other:
+            case WavesUnderFloe():
+                return self.floe.left_edge == other.floe.left_edge
+            case Real():
+                return self.floe.left_edge == other
+            case _:
+                raise NotImplementedError
+
+    def __lt__(self, other: WavesUnderFloe | Real) -> bool:
+        match other:
+            case WavesUnderFloe():
+                return self.floe.left_edge < other.floe.left_edge
+            case Real():
+                return self.floe.left_edge < other
+            case _:
+                raise NotImplementedError
 
 
 class FloeCoupled(Floe):
@@ -506,86 +523,115 @@ class DiscreteSpectrum:
         return len(self.waves)
 
 
+@attrs.define
 class Domain:
-    """"""
+    gravity: float
+    spectrum: DiscreteSpectrum
+    fsw: FreeSurfaceWaves
+    growth_params: list[np.array, float] | None = None
+    subdomains: SortedList = attrs.field(init=False, factory=SortedList)
+    _cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(factory=dict, init=False)
 
-    def __init__(
-        self,
-        gravity,
-        spectrum: WaveSpectrum,
-        ocean: Ocean,
-        growth_mean=None,
-        growth_std=None,
-    ) -> None:
-        """"""
-        self.__gravity = gravity
-        self.__frozen_spectrum = spectrum
-        self.__ocean = OceanCoupled(ocean, spectrum, gravity)
-        self.__floes = SortedList()
-        self.__ices = {}
+    @classmethod
+    def from_discrete(cls, gravity, spectrum, ocean, growth_params):
+        fsw = FreeSurfaceWaves.from_ocean(ocean, spectrum, gravity)
+        return cls(gravity, spectrum, fsw, growth_params)
 
-        if growth_mean is None:
-            if growth_std is not None:
-                growth_mean = np.zeros((self.spectrum.nf, 1))
-        else:
-            growth_mean = np.asarray(growth_mean)
+    def __attrs_post_init__(self):
+        if self.growth_params is not None:
+            if len(self.growth_params) != 2:
+                raise ValueError
+            growth_mean, growth_std = (
+                np.asarray(self.growth_params[0]),
+                self.growth_params[1],
+            )
             if growth_mean.size == 1:
                 # As `broadcast_to` returns a view,
-                # copying is necessary to obtain a mutable array
+                # copying is necessary to obtain a mutable array. It is easier
+                # than dealing with 0-length and 1-length arrays seperately.
                 growth_mean = np.broadcast_to(growth_mean, (self.spectrum.nf, 1)).copy()
             if growth_std is None:
-                growth_std = (
-                    2 * np.pi / self.ocean.wavenumbers[self.spectrum._amps.argmax()]
-                )
-        self.__growth_mean = growth_mean
-        self.__growth_std = growth_std
+                growth_std = self.fsw.wavelengths[self.spectrum._amps.argmax()]
+            self.growth_params = [growth_mean, growth_std]
 
-        # TODO: callable spectrum
-        # self.__frozen_spectrum = DiscreteSpectrum(
-        #     spectrum.amplitude(frequencies), frequencies, phases, betas
-        # )
+    # def __init__(
+    #     self,
+    #     gravity,
+    #     spectrum: WaveSpectrum,
+    #     ocean: Ocean,
+    #     growth_mean=None,
+    #     growth_std=None,
+    # ) -> None:
+    #     """"""
+    #     self.__gravity = gravity
+    #     self.__frozen_spectrum = spectrum
+    #     self.__ocean = OceanCoupled(ocean, spectrum, gravity)
+    #     self.__floes = SortedList()
+    #     self.__ices = {}
 
-    @property
-    def floes(self) -> SortedList[FloeCoupled]:
-        return self.__floes
+    #     if growth_mean is None:
+    #         if growth_std is not None:
+    #             growth_mean = np.zeros((self.spectrum.nf, 1))
+    #     else:
+    #         growth_mean = np.asarray(growth_mean)
+    #         if growth_mean.size == 1:
+    #             # As `broadcast_to` returns a view,
+    #             # copying is necessary to obtain a mutable array
+    # growth_mean = np.broadcast_to(growth_mean,
+    #                               (self.spectrum.nf, 1)).copy()
+    #         if growth_std is None:
+    #             growth_std = (
+    #                 2 * np.pi / self.ocean.wavenumbers[self.spectrum._amps.argmax()]
+    #             )
+    #     self.__growth_mean = growth_mean
+    #     self.__growth_std = growth_std
 
-    @property
-    def gravity(self) -> float:
-        return self.__gravity
+    # @property
+    # def floes(self) -> SortedList[FloeCoupled]:
+    #     return self.__floes
 
-    @property
-    def ices(self) -> dict[Ice, IceCoupled]:
-        return self.__ices
+    # @property
+    # def gravity(self) -> float:
+    #     return self.__gravity
 
-    @property
-    def ocean(self) -> OceanCoupled:
-        return self.__ocean
+    # @property
+    # def ices(self) -> dict[Ice, IceCoupled]:
+    #     return self.__ices
 
-    @property
-    def spectrum(self) -> DiscreteSpectrum:
-        return self.__frozen_spectrum
+    # @property
+    # def ocean(self) -> OceanCoupled:
+    #     return self.__ocean
 
-    @property
-    def growth_mean(self):
-        return self.__growth_mean
+    # @property
+    # def spectrum(self) -> DiscreteSpectrum:
+    #     return self.__frozen_spectrum
 
-    @growth_mean.setter
-    def growth_mean(self, value: np.ndarray):
-        self.__growth_mean = value
+    # @property
+    # def growth_mean(self):
+    #     return self.__growth_mean
 
-    @property
-    def growth_std(self):
-        return self.__growth_std
+    # @growth_mean.setter
+    # def growth_mean(self, value: np.ndarray):
+    #     self.__growth_mean = value
 
-    def _pack_growth(self, floe):
-        if self.growth_mean is None:
-            return None
-        return self.growth_mean - floe.left_edge, self.growth_std
+    # @property
+    # def growth_std(self):
+    #     return self.__growth_std
 
-    def _init_from_f(self): ...
+    # def _pack_growth(self, floe):
+    #     if self.growth_mean is None:
+    #         return None
+    #     return self.growth_mean - floe.left_edge, self.growth_std
 
     def _couple_ice(self, ice):
         self.ices[ice] = IceCoupled(ice, self.ocean, self.spectrum, None, self.gravity)
+
+    def _compute_wui(self, ice: Ice):
+        if ice not in cached_wuis:
+            self._cached_wuis[ice] = WavesUnderIce.from_ocean(
+                ice, self.fsw.ocean, self.spectrum, self.gravity
+            )
+        return self._cached_wuis[ice]
 
     def _shift_phases(self, phases: np.ndarray):
         for i in range(len(self.floes)):
@@ -596,132 +642,64 @@ class Domain:
         # and floes with variying properties
         mask = self.growth_mean < self.floes[0].left_edge
         if mask.any():
-            self.growth_mean[mask] += (
-                phases[mask[:, 0]] / self.ocean.wavenumbers[mask[:, 0]]
+            self.growth_params[0][mask] += (
+                phases[mask[:, 0]] / self.fsw.wavenumbers[mask[:, 0]]
             )
         if not mask.all():
-            self.growth_mean[~mask] += (
-                phases[~mask[:, 0]] / self.floes[0].ice.wavenumbers[~mask[:, 0]]
+            self.growth_params[0][~mask] += (
+                phases[~mask[:, 0]] / self.subdomains[0].wui.wavenumbers[~mask[:, 0]]
             )
 
-    def iterate(self, delta_time: float):
-        # NOTE: delta_time is likely to not change between calls. The computed
-        # phases could be cached, but the cost of the computation seems
-        # independent of the size of the array up to about size := 100--500. It
-        # is not advisable to cache methods, and the array of angular
-        # frequencies would have to be cast to (for example) a tuple before
-        # being passed to a cached function, as arrays are not hashable. The
-        # cost of a back-and-forth cast is tenfold the cost of the product for
-        # size := 100; more than fiftyfold for size := 1000.
-        phase_shifts = delta_time * self.spectrum._ang_freqs
-        self._shift_phases(phase_shifts)
-        if self.growth_mean is not None:
-            # Phases are only modulo'd in the setter
-            self._shift_growth_means(phase_shifts)
+    def add_floes(self, floes: Floe | Sequence[Floe]): ...
 
-    def _pop_c_floe(self, floe: FloeCoupled):
-        self.floes.remove(floe)
-
-    def _add_c_floes(self, floes: list[FloeCoupled]):
-        # It is assume no overlap will occur, and phases have been properly
-        # set, as these method should only be called after a fracture event
-        self.floes.update(floes)
-
-    def breakup(self, an_sol=None, num_params=None):
-        dct = {}
-        for i, floe in enumerate(self.floes):
-            xf = floe.search_fracture(
-                self.spectrum,
-                self._pack_growth(floe),
-                an_sol,
-                num_params,
-            )
-            if xf is not None:
-                dct[i] = floe.fracture(xf)
-        for old, new in dct.values():
-            self._pop_c_floe(old)
-            self._add_c_floes(new)
-
-    def plot(
-        self,
-        resolution: float,
-        left_bound: float,
-        ax=None,
-        an_sol=None,
-        add_surface=True,
-        base=0,
-        kw_dis=None,
-        kw_sur=None,
-    ):
-        # TODO moved to Experiment
-        plot_displacement(
-            resolution, self, left_bound, ax, an_sol, add_surface, base, kw_dis, kw_sur
-        )
-
-
-class Experiment:
-    def __init__(self, domain: Domain, floes: Floe | Sequence[Floe]):
-        self.__time = 0
-        self.__domain = domain
+    @staticmethod
+    def _promote_floe(floes: Floe | Sequence[Floe]):
         match floes:
             case Floe():
-                floes = (floes,)
+                return (floes,)
             case Sequence():
-                pass
+                return floes
             case _:
                 ValueError(
                     "`floes` should be a `Floe` object or a sequence of such objects"
                 )
-        self.domain.floes.update(self._init_floes(floes))
-        self.__history = {}
-        self.save_step()
 
-    @property
-    def domain(self):
-        return self.__domain
-
-    @property
-    def history(self):
-        return self.__history
-
-    @property
-    def time(self):
-        return self.__time
-
-    @time.setter
-    def time(self, time: float):
-        self.__time = time
-
-    def last_step(self):
-        return self.history[next(reversed(self.history))]
-
-    def save_step(self):
-        self.history[self.time] = (
-            copy.deepcopy(self.domain.floes),
-            (self.domain.growth_mean.copy(), self.domain.growth_std),
-        )
-
-    # TODO: extract from class
     def _check_overlap(self, floes: Sequence[Floe]):
+        # TODO: look for already existing floes
         l_edges, r_edges = map(
             np.array, zip(*((floe.left_edge, floe.right_edge) for floe in floes))
         )
         if not (r_edges[:-1] <= l_edges[1:]).all():
             raise ValueError("Floe overlap")  # TODO: dedicated exception
 
+    # TODO: extract from class
+    def _init_phases(
+        self,
+        floes: Sequence[Floe],
+    ):
+        phases0 = self.spectrum._phases
+        phases = [np.full(phases0.shape, np.nan) for _ in range(len(floes))]
+        phases[0] = phases0 + floes[0].left_edge * self.fsw.wavenumbers
+        for i, floe in enumerate(floes[1:], 1):
+            wui = self._compute_wui(floe)
+            prev = floes[i - 1]
+            phases[i] = (
+                phases[i - 1]
+                + floe.length * wui.wavenumbers
+                + (prev.right_edge - floe.left_edge) * self.fsw.wavenumbers
+            )
+            phases[i] %= PI_2
+
+        return phases
+
+    def _init_amplitudes(self, floes):
+        amplitudes0 = self.spectrum._amps
+
     def _init_floes(self, floes: Sequence[Floe]) -> list[FloeCoupled]:
         self._check_overlap(floes)
-
-        for floe in floes:
-            if floe.ice not in self.domain.ices:
-                self.domain._couple_ice(floe.ice)
-
-        phases = self._init_phases(
-            floes,
-            self.domain.ices,
-            self.domain.ocean.wavenumbers,
-            self.domain.spectrum._phases,
-        )
+        floes = self.__class__._promote_floe(floes)
+        wuis = (self.domain._compute_wui(floe) for floe in floes)
+        phases = self._init_phases(floes)
 
         # If `len(floes) == 1`, the following expression evaluates to an empty
         # array. If the forcing is polychromatic, this empty array could not be
@@ -749,28 +727,139 @@ class Experiment:
         # self.floes.update(c_floes)
         # self._set_phases()
 
-    # TODO: extract from class
-    def _init_phases(
-        self,
-        floes: Sequence[Floe],
-        ices: dict[Ice, IceCoupled],
-        wavenumbers: np.ndarray,  # wavenumbers := free surface wavenumbers
-        phases0: np.ndarray,
-    ):
-        # TODO: rewrite passing floes/ices as iterators on the quantities
-        # actually needed?
-        phases = [np.full(phases0.shape, np.nan) for _ in range(len(floes))]
-        phases[0] = phases0 + floes[0].left_edge * wavenumbers
-        for i, floe in enumerate(floes[1:], 1):
-            prev = floes[i - 1]
-            phases[i] = (
-                phases[i - 1]
-                + floe.length * ices[prev.ice].wavenumbers
-                + (prev.right_edge - floe.left_edge) * wavenumbers
-            )
-            phases[i] %= PI_2
+    def iterate(self, delta_time: float):
+        # NOTE: delta_time is likely to not change between calls. The computed
+        # phases could be cached, but the cost of the computation seems
+        # independent of the size of the array up to about size := 100--500. It
+        # is not advisable to cache methods, and the array of angular
+        # frequencies would have to be cast to (for example) a tuple before
+        # being passed to a cached function, as arrays are not hashable. The
+        # cost of a back-and-forth cast is tenfold the cost of the product for
+        # size := 100; more than fiftyfold for size := 1000.
+        phase_shifts = delta_time * self.spectrum._ang_freqs
+        complex_shifts = np.exp(-1j * phase_shifts)
+        # TODO: can be optimised by iterating a first time to extract the
+        # edges, coerce them to a np.array, apply the product with
+        # complex_shifts, and then iterate a second time to build the objects.
+        # See Propagation_tests.ipynb/DNE06-26
+        new_wufs = [
+            WavesUnderFloe(wuf.wui, wuf.floe, wuf.edge_amplitudes * complex_shifts)
+            for wuf in self.subdomains
+        ]
+        self.subdomains = SortedList(new_wufs)
+        if self.growth_params is not None:
+            # Phases are only modulo'd in the setter
+            self._shift_growth_means(phase_shifts)
 
-        return phases
+    def _pop_c_floe(self, wuf: WavesUnderFloe):
+        self.floes.remove(wuf)
+
+    def _add_c_floes(self, wuf: tuple[WavesUnderFloe]):
+        # It is assume no overlap will occur, and phases have been properly
+        # set, as these method should only be called after a fracture event
+        self.floes.update(wuf)
+
+    def breakup(self, fracture_handler, an_sol=None, num_params=None):
+        dct = {}
+        for i, wuf in enumerate(self.subdomains):
+            xf = fracture_handler.search(wuf, self.growth_params, an_sol, num_params)
+            if xf is not None:
+                old = wuf
+                new = fracture_handler.split(wuf, xf)
+                dct[i] = old, new
+        for old, new in dct.values():
+            self._pop_c_floe(old)
+            self._add_c_floes(new)
+
+    def plot(
+        self,
+        resolution: float,
+        left_bound: float,
+        ax=None,
+        an_sol=None,
+        add_surface=True,
+        base=0,
+        kw_dis=None,
+        kw_sur=None,
+    ):
+        # TODO moved to Experiment
+        plot_displacement(
+            resolution, self, left_bound, ax, an_sol, add_surface, base, kw_dis, kw_sur
+        )
+
+
+@attrs.define
+class Experiment:
+    time: float
+    domain: Domain
+    history: dict = attrs.field(factory=dict, init=False)
+
+    # def __init__(self, domain: Domain, floes: Floe | Sequence[Floe]):
+    #     self.__time = 0
+    #     self.__domain = domain
+    #     match floes:
+    #         case Floe():
+    #             floes = (floes,)
+    #         case Sequence():
+    #             pass
+    #         case _:
+    #             ValueError(
+    #                 "`floes` should be a `Floe` object or a sequence of such objects"
+    #             )
+    #     self.domain.floes.update(self._init_floes(floes))
+    #     self.__history = {}
+    #     self.save_step()
+
+    def __attrs_post_init__(self):
+        self.save_step()
+
+    @classmethod
+    def from_domain(cls, domain: Domain):
+        wuf_list = cls._init_floes(cls._promote_floe(floes))
+        domain.floes.update(wuf_list)
+        return cls(0, domain)
+
+    @classmethod
+    def from_discrete(
+        cls,
+        gravity: float,
+        spectrum: DiscreteSpectrum,
+        ocean: Ocean,
+        growth_params: tuple,
+    ):
+        return cls.from_domain(
+            0, Domain.from_discrete(gravity, spectrum, ocean, growth_params)
+        )
+
+    def add_floes(self, floes: Floe | Sequence[Floe]):
+        self.domain.add_floes(floes)
+        # No need to save_step: self.history only holds a reference to
+        # self.domain.subdomains
+
+    # @property
+    # def domain(self):
+    #     return self.__domain
+
+    # @property
+    # def history(self):
+    #     return self.__history
+
+    # @property
+    # def time(self):
+    #     return self.__time
+
+    # @time.setter
+    # def time(self, time: float):
+    #     self.__time = time
+
+    def last_step(self):
+        return self.history[next(reversed(self.history))]
+
+    def save_step(self):
+        self.history[self.time] = (
+            self.domain.subdomains,
+            (self.domain.growth_params[0].copy(), self.domain.growth_params[1]),
+        )
 
     def step(self, delta_time: float, an_sol=None, num_params=None):
         self.domain.breakup(an_sol, num_params)
