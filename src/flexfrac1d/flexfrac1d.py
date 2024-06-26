@@ -75,8 +75,8 @@ class Ocean:
 
     """
 
-    depth: float
-    density: float
+    depth: float = np.inf
+    density: float = 1025
 
 
 @attrs.define(frozen=True)
