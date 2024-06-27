@@ -792,7 +792,7 @@ class Domain:
 class Experiment:
     time: float
     domain: Domain
-    history: dict = attrs.field(factory=dict, init=False)
+    history: dict = attrs.field(init=False, factory=dict)
 
     # def __init__(self, domain: Domain, floes: Floe | Sequence[Floe]):
     #     self.__time = 0
