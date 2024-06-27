@@ -348,84 +348,6 @@ class Domain:
                 growth_std = self.fsw.wavelengths[self.spectrum._amps.argmax()]
             self.growth_params = [growth_mean, growth_std]
 
-    # def __init__(
-    #     self,
-    #     gravity,
-    #     spectrum: WaveSpectrum,
-    #     ocean: Ocean,
-    #     growth_mean=None,
-    #     growth_std=None,
-    # ) -> None:
-    #     """"""
-    #     self.__gravity = gravity
-    #     self.__frozen_spectrum = spectrum
-    #     self.__ocean = OceanCoupled(ocean, spectrum, gravity)
-    #     self.__floes = SortedList()
-    #     self.__ices = {}
-
-    #     if growth_mean is None:
-    #         if growth_std is not None:
-    #             growth_mean = np.zeros((self.spectrum.nf, 1))
-    #     else:
-    #         growth_mean = np.asarray(growth_mean)
-    #         if growth_mean.size == 1:
-    #             # As `broadcast_to` returns a view,
-    #             # copying is necessary to obtain a mutable array
-    # growth_mean = np.broadcast_to(growth_mean,
-    #                               (self.spectrum.nf, 1)).copy()
-    #         if growth_std is None:
-    #             growth_std = (
-    #                 2 * np.pi / self.ocean.wavenumbers[self.spectrum._amps.argmax()]
-    #             )
-    #     self.__growth_mean = growth_mean
-    #     self.__growth_std = growth_std
-
-    # @property
-    # def floes(self) -> SortedList[FloeCoupled]:
-    #     return self.__floes
-
-    # @property
-    # def gravity(self) -> float:
-    #     return self.__gravity
-
-    # @property
-    # def ices(self) -> dict[Ice, IceCoupled]:
-    #     return self.__ices
-
-    # @property
-    # def ocean(self) -> OceanCoupled:
-    #     return self.__ocean
-
-    # @property
-    # def spectrum(self) -> DiscreteSpectrum:
-    #     return self.__frozen_spectrum
-
-    # @property
-    # def growth_mean(self):
-    #     return self.__growth_mean
-
-    # @growth_mean.setter
-    # def growth_mean(self, value: np.ndarray):
-    #     self.__growth_mean = value
-
-    # @property
-    # def growth_std(self):
-    #     return self.__growth_std
-
-    # def _pack_growth(self, floe):
-    #     if self.growth_mean is None:
-    #         return None
-    #     return self.growth_mean - floe.left_edge, self.growth_std
-
-    # def _couple_ice(self, ice):
-    #     self.ices[ice] = IceCoupled(
-    #         ice,
-    #         self.ocean,
-    #         self.spectrum,
-    #         None,
-    #         self.gravity,
-    #     )
-
     def _compute_wui(self, ice: Ice):
         if ice not in self.cached_wuis:
             self.cached_wuis[ice] = WavesUnderIce.from_ocean(
@@ -509,8 +431,6 @@ class Domain:
             WavesUnderFloe(self._compute_wui(floe.ice), floe, edge_amplitudes)
             for floe, edge_amplitudes in zip(floes, complex_amplitudes)
         ]
-        # self.floes.update(c_floes)
-        # self._set_phases()
 
     def iterate(self, delta_time: float):
         # NOTE: delta_time is likely to not change between calls. The computed
@@ -527,11 +447,6 @@ class Domain:
         # edges, coerce them to a np.array, apply the product with
         # complex_shifts, and then iterate a second time to build the objects.
         # See Propagation_tests.ipynb/DNE06-26
-        # new_wufs = [
-        #     WavesUnderFloe(wuf.wui, wuf.floe, wuf.edge_amplitudes * complex_shifts)
-        #     for wuf in self.subdomains
-        # ]
-        # self.subdomains = SortedList(new_wufs)
         for i in range(len(self.subdomains)):
             self.subdomains[i].edge_amplitudes *= complex_shifts
         if self.growth_params is not None:
@@ -569,7 +484,6 @@ class Domain:
         kw_dis=None,
         kw_sur=None,
     ):
-        # TODO moved to Experiment
         plot_displacement(
             resolution, self, left_bound, ax, an_sol, add_surface, base, kw_dis, kw_sur
         )
