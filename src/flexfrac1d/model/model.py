@@ -143,10 +143,6 @@ class WavesUnderIce:
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
 
-    @wavenumbers.default
-    def _dummy_array_factory(self):
-        return np.full(1, np.nan)
-
     @classmethod
     def from_floating(
         cls, ice: FloatingIce, spectrum: DiscreteSpectrum, gravity: float
