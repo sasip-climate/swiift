@@ -3,23 +3,22 @@
 from __future__ import annotations
 
 import attrs
-from collections import namedtuple
+
+# from collections import namedtuple
 from collections.abc import Sequence
 import functools
 import itertools
 from numbers import Real
 import numpy as np
-
-import scipy.optimize as optimize
-import scipy.signal as signal
 from sortedcontainers import SortedList
 
 # from .lib.displacement import displacement
 # from .lib.curvature import curvature
 from .lib import dr
+from .lib import physics as ph
 
 # from .lib.energy import energy
-from .lib.numerical import free_surface
+# from .lib.numerical import free_surface
 from .lib.graphics import plot_displacement
 from .lib.constants import PI_2, SQR2
 
@@ -264,201 +263,201 @@ class WavesUnderFloe:
                 raise NotImplementedError
 
 
-class FloeCoupled(Floe):
-    def __init__(
-        self,
-        floe: Floe,
-        ice: IceCoupled,
-        phases: np.ndarray | list[float] | float,
-        amp_coefficients: np.ndarray | list[float] | float,
-        gen: int = 0,
-        dispersion=None,
-    ):
-        super().__init__(floe.left_edge, floe.length, ice, dispersion)
-        self.phases = np.asarray(phases)  # no dunder: uses the setter method
-        self.__amp_coefficients = amp_coefficients
-        self.__gen = gen
+# class FloeCoupled(Floe):
+#     def __init__(
+#         self,
+#         floe: Floe,
+#         ice: IceCoupled,
+#         phases: np.ndarray | list[float] | float,
+#         amp_coefficients: np.ndarray | list[float] | float,
+#         gen: int = 0,
+#         dispersion=None,
+#     ):
+#         super().__init__(floe.left_edge, floe.length, ice, dispersion)
+#         self.phases = np.asarray(phases)  # no dunder: uses the setter method
+#         self.__amp_coefficients = amp_coefficients
+#         self.__gen = gen
 
-    @property
-    def phases(self) -> np.ndarray:
-        return self.__phases
+#     @property
+#     def phases(self) -> np.ndarray:
+#         return self.__phases
 
-    @phases.setter
-    def phases(self, value):
-        self.__phases = np.asarray(value) % PI_2
+#     @phases.setter
+#     def phases(self, value):
+#         self.__phases = np.asarray(value) % PI_2
 
-    @property
-    def amp_coefficients(self):
-        return self.__amp_coefficients
+#     @property
+#     def amp_coefficients(self):
+#         return self.__amp_coefficients
 
-    @property
-    def gen(self) -> int:
-        return self.__gen
+#     @property
+#     def gen(self) -> int:
+#         return self.__gen
 
-    @property
-    def ice(self) -> IceCoupled:
-        return self._Floe__ice
+#     @property
+#     def ice(self) -> IceCoupled:
+#         return self._Floe__ice
 
-    @functools.cached_property
-    def _adim(self):
-        return self.length * self.ice._red_elastic_number
+#     @functools.cached_property
+#     def _adim(self):
+#         return self.length * self.ice._red_elastic_number
 
-    def _pack(
-        self, spectrum: DiscreteSpectrum
-    ) -> tuple[tuple[float], tuple[np.ndarray]]:
-        return (self.ice._red_elastic_number, self.length), (
-            self.amp_coefficients * spectrum._amps,
-            self.ice._c_wavenumbers,
-            self.phases,
-        )
+#     def _pack(
+#         self, spectrum: DiscreteSpectrum
+#     ) -> tuple[tuple[float], tuple[np.ndarray]]:
+#         return (self.ice._red_elastic_number, self.length), (
+#             self.amp_coefficients * spectrum._amps,
+#             self.ice._c_wavenumbers,
+#             self.phases,
+#         )
 
-    def forcing(self, x, spectrum, growth_params):
-        return free_surface(x, self._pack(spectrum)[1], growth_params)
+#     def forcing(self, x, spectrum, growth_params):
+#         return free_surface(x, self._pack(spectrum)[1], growth_params)
 
-    def displacement(self, x, spectrum, growth_params, an_sol, num_params):
-        """Complete solution of the displacement ODE
+#     def displacement(self, x, spectrum, growth_params, an_sol, num_params):
+#         """Complete solution of the displacement ODE
 
-        `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
-        """
-        return displacement(x, *self._pack(spectrum), growth_params, an_sol, num_params)
+#         `x` is expected to be relative to the floe, i.e. to be bounded by 0, L
+#         """
+#         return displacement(x, *self._pack(spectrum), growth_params, an_sol, num_params)
 
-    def curvature(self, x, spectrum, growth_params, an_sol, num_params):
-        """Curvature of the floe, i.e. second derivative of the vertical displacement"""
-        return curvature(x, *self._pack(spectrum), growth_params, an_sol, num_params)
+#     def curvature(self, x, spectrum, growth_params, an_sol, num_params):
+#         """Curvature of the floe, i.e. second derivative of the vertical displacement"""
+#         return curvature(x, *self._pack(spectrum), growth_params, an_sol, num_params)
 
-    def energy(self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params):
-        factor = self.ice.flex_rigidity / (2 * self.ice.thickness)
-        unit_energy = energy(*self._pack(spectrum), growth_params, an_sol, num_params)
-        return factor * unit_energy
-        # In case of a numerical solution, the result is the output of
-        # integrate.quad, that is a (solution, bound on error) tuple.
-        # We do not do anything with the latter at the moment.
-        # return factor * unit_energy[0]
+#     def energy(self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params):
+#         factor = self.ice.flex_rigidity / (2 * self.ice.thickness)
+#         unit_energy = energy(*self._pack(spectrum), growth_params, an_sol, num_params)
+#         return factor * unit_energy
+#         # In case of a numerical solution, the result is the output of
+#         # integrate.quad, that is a (solution, bound on error) tuple.
+#         # We do not do anything with the latter at the moment.
+#         # return factor * unit_energy[0]
 
-    def search_fracture(
-        self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params
-    ):
-        return self.binary_fracture(spectrum, growth_params, an_sol, num_params)
+#     def search_fracture(
+#         self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params
+#     ):
+#         return self.binary_fracture(spectrum, growth_params, an_sol, num_params)
 
-    def binary_fracture(
-        self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params
-    ) -> float | None:
-        coef_nd = 4
-        base_energy = self.energy(spectrum, growth_params, an_sol, num_params)
-        # No fracture if the elastic energy is below the threshold
-        if base_energy < self.ice.frac_energy_rate:
-            return None
-        else:
-            nd = (
-                np.ceil(
-                    4 * self.length * self.ice.wavenumbers.max() / (2 * np.pi)
-                ).astype(int)
-                + 2
-            )
-            lengths = np.linspace(0, self.length, nd * coef_nd)[1:-1]
-            ener = np.full(lengths.shape, np.nan)
-            for i, length in enumerate(lengths):
-                ener[i] = self._ener_min(
-                    length, spectrum, growth_params, an_sol, num_params
-                )
+#     def binary_fracture(
+#         self, spectrum: DiscreteSpectrum, growth_params, an_sol, num_params
+#     ) -> float | None:
+#         coef_nd = 4
+#         base_energy = self.energy(spectrum, growth_params, an_sol, num_params)
+#         # No fracture if the elastic energy is below the threshold
+#         if base_energy < self.ice.frac_energy_rate:
+#             return None
+#         else:
+#             nd = (
+#                 np.ceil(
+#                     4 * self.length * self.ice.wavenumbers.max() / (2 * np.pi)
+#                 ).astype(int)
+#                 + 2
+#             )
+#             lengths = np.linspace(0, self.length, nd * coef_nd)[1:-1]
+#             ener = np.full(lengths.shape, np.nan)
+#             for i, length in enumerate(lengths):
+#                 ener[i] = self._ener_min(
+#                     length, spectrum, growth_params, an_sol, num_params
+#                 )
 
-            peak_idxs = np.hstack(
-                (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
-            )
+#             peak_idxs = np.hstack(
+#                 (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
+#             )
 
-            local_ener_cost = functools.partial(
-                self._ener_min,
-                spectrum=spectrum,
-                growth_params=growth_params,
-                an_sol=an_sol,
-                num_params=num_params,
-            )
-            opts = [
-                optimize.minimize_scalar(
-                    local_ener_cost,
-                    bounds=lengths[peak_idxs[[i, i + 1]]],
-                )
-                for i in range(len(peak_idxs) - 1)
-            ]
-            opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
-            # Minimisation is done on the log of energy
-            if np.exp(opt.fun) + self.ice.frac_energy_rate < base_energy:
-                return opt.x
-            else:
-                return None
+#             local_ener_cost = functools.partial(
+#                 self._ener_min,
+#                 spectrum=spectrum,
+#                 growth_params=growth_params,
+#                 an_sol=an_sol,
+#                 num_params=num_params,
+#             )
+#             opts = [
+#                 optimize.minimize_scalar(
+#                     local_ener_cost,
+#                     bounds=lengths[peak_idxs[[i, i + 1]]],
+#                 )
+#                 for i in range(len(peak_idxs) - 1)
+#             ]
+#             opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
+#             # Minimisation is done on the log of energy
+#             if np.exp(opt.fun) + self.ice.frac_energy_rate < base_energy:
+#                 return opt.x
+#             else:
+#                 return None
 
-    def _fracture_diagnostic(
-        self, spectrum, res=0.1, growth_params=None, an_sol=False, num_params=None
-    ):
-        lengths = np.linspace(
-            0, self.length, np.ceil(self.length / res).astype(int) + 1
-        )[1:-1]
-        energies = np.full((lengths.size, 2), np.nan)
-        for i, length in enumerate(lengths):
-            energies[i, :] = [
-                _f.energy(spectrum, growth_params, an_sol, num_params)
-                for _f in self._binary_split(length)
-            ]
-        frac_diag = namedtuple("FractureDiagnostic", ("length", "energy"))
-        return frac_diag(lengths, energies)
+#     def _fracture_diagnostic(
+#         self, spectrum, res=0.1, growth_params=None, an_sol=False, num_params=None
+#     ):
+#         lengths = np.linspace(
+#             0, self.length, np.ceil(self.length / res).astype(int) + 1
+#         )[1:-1]
+#         energies = np.full((lengths.size, 2), np.nan)
+#         for i, length in enumerate(lengths):
+#             energies[i, :] = [
+#                 _f.energy(spectrum, growth_params, an_sol, num_params)
+#                 for _f in self._binary_split(length)
+#             ]
+#         frac_diag = namedtuple("FractureDiagnostic", ("length", "energy"))
+#         return frac_diag(lengths, energies)
 
-    def _binary_split(self, length) -> tuple[FloeCoupled]:
-        floe_l = Floe(left_edge=self.left_edge, length=length)
-        cf_l = FloeCoupled(floe_l, self.ice, self.phases, self.amp_coefficients)
+#     def _binary_split(self, length) -> tuple[FloeCoupled]:
+#         floe_l = Floe(left_edge=self.left_edge, length=length)
+#         cf_l = FloeCoupled(floe_l, self.ice, self.phases, self.amp_coefficients)
 
-        floe_r = Floe(left_edge=self.left_edge + length, length=self.length - length)
-        phases_r = cf_l.phases + self.ice.wavenumbers * floe_l.length
-        cf_r = FloeCoupled(
-            floe_r,
-            self.ice,
-            phases_r,
-            self.amp_coefficients * np.exp(-self.ice.attenuations * cf_l.length),
-        )
-        return cf_l, cf_r
+#         floe_r = Floe(left_edge=self.left_edge + length, length=self.length - length)
+#         phases_r = cf_l.phases + self.ice.wavenumbers * floe_l.length
+#         cf_r = FloeCoupled(
+#             floe_r,
+#             self.ice,
+#             phases_r,
+#             self.amp_coefficients * np.exp(-self.ice.attenuations * cf_l.length),
+#         )
+#         return cf_l, cf_r
 
-    def _ener_min(self, length, spectrum, growth_params, an_sol, num_params) -> float:
-        """Objective function to minimise for energy-based fracture"""
-        cf_l, cf_r = self._binary_split(length)
-        growth_params_r = (
-            (growth_params[0] - length, growth_params[1])
-            if growth_params is not None
-            else None
-        )
+#     def _ener_min(self, length, spectrum, growth_params, an_sol, num_params) -> float:
+#         """Objective function to minimise for energy-based fracture"""
+#         cf_l, cf_r = self._binary_split(length)
+#         growth_params_r = (
+#             (growth_params[0] - length, growth_params[1])
+#             if growth_params is not None
+#             else None
+#         )
 
-        en_l, en_r = (
-            _f.energy(spectrum, _gp, an_sol, num_params)
-            for _f, _gp in zip((cf_l, cf_r), (growth_params, growth_params_r))
-        )
-        return np.log(en_l + en_r)
+#         en_l, en_r = (
+#             _f.energy(spectrum, _gp, an_sol, num_params)
+#             for _f, _gp in zip((cf_l, cf_r), (growth_params, growth_params_r))
+#         )
+#         return np.log(en_l + en_r)
 
-    def fracture(
-        self, xfs: np.ndarray | float
-    ) -> tuple[FloeCoupled, list[FloeCoupled]]:
-        xfs = np.asarray(xfs) + self.left_edge  # domain reference frame
-        left_edges = np.hstack((self.left_edge, xfs))
-        right_edges = np.hstack((xfs, self.right_edge))
-        lengths = right_edges - left_edges
-        phases = np.vstack(
-            (self.phases, self.ice.wavenumbers * lengths[:-1, None])
-        ).cumsum(axis=0)
-        amp_coefficients = np.exp(
-            np.vstack(
-                (
-                    np.log(self.amp_coefficients),
-                    -self.ice.attenuations * lengths[:-1, None],
-                )
-            ).cumsum(axis=0)
-        )
+#     def fracture(
+#         self, xfs: np.ndarray | float
+#     ) -> tuple[FloeCoupled, list[FloeCoupled]]:
+#         xfs = np.asarray(xfs) + self.left_edge  # domain reference frame
+#         left_edges = np.hstack((self.left_edge, xfs))
+#         right_edges = np.hstack((xfs, self.right_edge))
+#         lengths = right_edges - left_edges
+#         phases = np.vstack(
+#             (self.phases, self.ice.wavenumbers * lengths[:-1, None])
+#         ).cumsum(axis=0)
+#         amp_coefficients = np.exp(
+#             np.vstack(
+#                 (
+#                     np.log(self.amp_coefficients),
+#                     -self.ice.attenuations * lengths[:-1, None],
+#                 )
+#             ).cumsum(axis=0)
+#         )
 
-        # TODO instead of instantiating FloeCoupled objects, return iterators
-        # on the parameters, so that the phases can be altered before
-        # instantiation and the need for a setter can be removed
-        return self, [
-            FloeCoupled(Floe(left_edge, length), self.ice, phases_, coefs_, gen_)
-            for left_edge, length, phases_, coefs_, gen_ in zip(
-                left_edges, lengths, phases, amp_coefficients, (self.gen + 1, self.gen)
-            )
-        ]
+#         # TODO instead of instantiating FloeCoupled objects, return iterators
+#         # on the parameters, so that the phases can be altered before
+#         # instantiation and the need for a setter can be removed
+#         return self, [
+#             FloeCoupled(Floe(left_edge, length), self.ice, phases_, coefs_, gen_)
+#             for left_edge, length, phases_, coefs_, gen_ in zip(
+#                 left_edges, lengths, phases, amp_coefficients, (self.gen + 1, self.gen)
+#             )
+#         ]
 
 
 class DiscreteSpectrum:
@@ -623,15 +622,21 @@ class Domain:
     #         return None
     #     return self.growth_mean - floe.left_edge, self.growth_std
 
-    def _couple_ice(self, ice):
-        self.ices[ice] = IceCoupled(ice, self.ocean, self.spectrum, None, self.gravity)
+    # def _couple_ice(self, ice):
+    #     self.ices[ice] = IceCoupled(
+    #         ice,
+    #         self.ocean,
+    #         self.spectrum,
+    #         None,
+    #         self.gravity,
+    #     )
 
     def _compute_wui(self, ice: Ice):
-        if ice not in cached_wuis:
-            self._cached_wuis[ice] = WavesUnderIce.from_ocean(
+        if ice not in self.cached_wuis:
+            self.cached_wuis[ice] = WavesUnderIce.from_ocean(
                 ice, self.fsw.ocean, self.spectrum, self.gravity
             )
-        return self._cached_wuis[ice]
+        return self.cached_wuis[ice]
 
     def _shift_phases(self, phases: np.ndarray):
         for i in range(len(self.floes)):
@@ -650,7 +655,9 @@ class Domain:
                 phases[~mask[:, 0]] / self.subdomains[0].wui.wavenumbers[~mask[:, 0]]
             )
 
-    def add_floes(self, floes: Floe | Sequence[Floe]): ...
+    def add_floes(self, floes: Floe | Sequence[Floe]):
+        subdomains = self._init_subdomains(floes)
+        self._add_c_floes(subdomains)
 
     @staticmethod
     def _promote_floe(floes: Floe | Sequence[Floe]):
@@ -665,65 +672,48 @@ class Domain:
                 )
 
     def _check_overlap(self, floes: Sequence[Floe]):
-        # TODO: look for already existing floes
         l_edges, r_edges = map(
             np.array, zip(*((floe.left_edge, floe.right_edge) for floe in floes))
         )
         if not (r_edges[:-1] <= l_edges[1:]).all():
             raise ValueError("Floe overlap")  # TODO: dedicated exception
 
-    # TODO: extract from class
-    def _init_phases(
-        self,
-        floes: Sequence[Floe],
-    ):
-        phases0 = self.spectrum._phases
-        phases = [np.full(phases0.shape, np.nan) for _ in range(len(floes))]
-        phases[0] = phases0 + floes[0].left_edge * self.fsw.wavenumbers
+    def _init_phases(self, floes: Sequence[Floe]) -> np.ndarray:
+        phases = np.full((len(floes), self.spectrum.nf), np.nan)
+        phases[0] = self.spectrum._phases + floes[0].left_edge * self.fsw.wavenumbers
         for i, floe in enumerate(floes[1:], 1):
-            wui = self._compute_wui(floe)
+            wui = self._compute_wui(floe.ice)
             prev = floes[i - 1]
-            phases[i] = (
+            phases[i:,] = (
                 phases[i - 1]
                 + floe.length * wui.wavenumbers
                 + (prev.right_edge - floe.left_edge) * self.fsw.wavenumbers
             )
-            phases[i] %= PI_2
+        return phases % PI_2
 
-        return phases
-
-    def _init_amplitudes(self, floes):
-        amplitudes0 = self.spectrum._amps
-
-    def _init_floes(self, floes: Sequence[Floe]) -> list[FloeCoupled]:
-        self._check_overlap(floes)
-        floes = self.__class__._promote_floe(floes)
-        wuis = (self.domain._compute_wui(floe) for floe in floes)
-        phases = self._init_phases(floes)
-
-        # If `len(floes) == 1`, the following expression evaluates to an empty
-        # array. If the forcing is polychromatic, this empty array could not be
-        # v-stacked with the existing, 1D-coefficients of the first floe. To
-        # circumvent this, we treat the first floe separately, and use
-        # `itertools.chain` when building the final list of floes. It is barely
-        # more expensive than a test, and cheaper than `np.vstack`.
-        coef_amps = np.exp(
-            np.cumsum(
-                [-self.ices[floe.ice].attenuations * floe.length for floe in floes[1:]],
-                axis=0,
+    def _init_amplitudes(self, floes: Sequence[Floe]) -> np.ndarray:
+        amplitudes = np.full((len(floes), self.spectrum.nf), np.nan)
+        amplitudes[0, :] = self.spectrum._amps
+        for i, floe in enumerate(floes[1:], 1):
+            amplitudes[i, :] = amplitudes[i - 1, :] * np.exp(
+                -self._compute_wui(floe.ice).attenuations * floe.length
             )
+        return amplitudes
+
+    def _init_subdomains(self, floes: Sequence[Floe]) -> list[WavesUnderFloe]:
+        # TODO: look for already existing floes. In the present state, only
+        # valid for starting from scratch, not for adding floes to a domain
+        # that already has some.
+        floes = self.__class__._promote_floe(floes)
+        self._check_overlap(floes)
+        complex_amplitudes = self._init_amplitudes(floes) * np.exp(
+            1j * self._init_phases(floes)
         )
 
-        c_floes = [
-            FloeCoupled(floe, self.domain.ices[floe.ice], _phs, coefs, 0)
-            for floe, _phs, coefs in zip(
-                floes,
-                phases,
-                itertools.chain(np.ones((1, self.domain.spectrum.nf)), coef_amps),
-            )
+        return [
+            WavesUnderFloe(self._compute_wui(floe.ice), floe, edge_amplitudes)
+            for floe, edge_amplitudes in zip(floes, complex_amplitudes)
         ]
-        return c_floes
-
         # self.floes.update(c_floes)
         # self._set_phases()
 
@@ -742,22 +732,24 @@ class Domain:
         # edges, coerce them to a np.array, apply the product with
         # complex_shifts, and then iterate a second time to build the objects.
         # See Propagation_tests.ipynb/DNE06-26
-        new_wufs = [
-            WavesUnderFloe(wuf.wui, wuf.floe, wuf.edge_amplitudes * complex_shifts)
-            for wuf in self.subdomains
-        ]
-        self.subdomains = SortedList(new_wufs)
+        # new_wufs = [
+        #     WavesUnderFloe(wuf.wui, wuf.floe, wuf.edge_amplitudes * complex_shifts)
+        #     for wuf in self.subdomains
+        # ]
+        # self.subdomains = SortedList(new_wufs)
+        for i in range(len(self.subdomains)):
+            self.subdomains[i].edge_amplitudes *= complex_shifts
         if self.growth_params is not None:
             # Phases are only modulo'd in the setter
             self._shift_growth_means(phase_shifts)
 
     def _pop_c_floe(self, wuf: WavesUnderFloe):
-        self.floes.remove(wuf)
+        self.subdomains.remove(wuf)
 
-    def _add_c_floes(self, wuf: tuple[WavesUnderFloe]):
+    def _add_c_floes(self, wuf: Sequence[WavesUnderFloe]):
         # It is assume no overlap will occur, and phases have been properly
         # set, as these method should only be called after a fracture event
-        self.floes.update(wuf)
+        self.subdomains.update(wuf)
 
     def breakup(self, fracture_handler, an_sol=None, num_params=None):
         dct = {}
@@ -793,6 +785,7 @@ class Experiment:
     time: float
     domain: Domain
     history: dict = attrs.field(init=False, factory=dict)
+    fracture_handler: ph.BinaryFracture = attrs.field(default=ph.BinaryFracture)
 
     # def __init__(self, domain: Domain, floes: Floe | Sequence[Floe]):
     #     self.__time = 0
@@ -820,10 +813,13 @@ class Experiment:
         spectrum: DiscreteSpectrum,
         ocean: Ocean,
         growth_params: tuple,
+        fracture_handler: ph.BinaryFracture = None,
     ):
-        return cls.from_domain(
-            0, Domain.from_discrete(gravity, spectrum, ocean, growth_params)
-        )
+
+        domain = Domain.from_discrete(gravity, spectrum, ocean, growth_params)
+        if fracture_handler is None:
+            return cls(0, domain)
+        return cls(0, domain, fracture_handler)
 
     def add_floes(self, floes: Floe | Sequence[Floe]):
         self.domain.add_floes(floes)
@@ -851,12 +847,19 @@ class Experiment:
 
     def save_step(self):
         self.history[self.time] = (
-            self.domain.subdomains,
-            (self.domain.growth_params[0].copy(), self.domain.growth_params[1]),
+            tuple(
+                WavesUnderFloe(wuf.wui, wuf.floe, wuf.edge_amplitudes)
+                for wuf in self.domain.subdomains
+            ),
+            (
+                (self.domain.growth_params[0].copy(), self.domain.growth_params[1])
+                if self.domain.growth_params is not None
+                else None
+            ),
         )
 
     def step(self, delta_time: float, an_sol=None, num_params=None):
-        self.domain.breakup(an_sol, num_params)
+        self.domain.breakup(self.fracture_handler, an_sol, num_params)
         self.domain.iterate(delta_time)
         self.time += delta_time
         self.save_step()
