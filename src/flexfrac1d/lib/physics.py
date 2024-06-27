@@ -8,6 +8,10 @@ from .displacement import displacement
 from .energy import energy
 from ..model import model
 
+# TODO: add a handler for that former FloeCoupled method
+#     def forcing(self, x, spectrum, growth_params):
+#         return free_surface(x, self._pack(spectrum)[1], growth_params)
+
 
 def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
     floe_params = wuf.wui.ice._red_elastic_number, wuf.floe.length

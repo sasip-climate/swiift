@@ -313,6 +313,11 @@ class DiscreteSpectrum:
         return len(self.waves)
 
 
+# FIX: WavesUnderFloe has a Floe field, which as a Ice field; and a
+# WavesUnderIce field, which has a WavesUnderIce field, which extends Ice. The
+# wuf.floe.ice is made redondant by the wuf.wui.ice.
+# WavesUnderFloe could be renamed subdomain, and the floe field dropped for
+# left_edge end length fields.
 @attrs.define
 class Domain:
     gravity: float
