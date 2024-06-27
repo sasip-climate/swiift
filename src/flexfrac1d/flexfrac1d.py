@@ -814,12 +814,6 @@ class Experiment:
         self.save_step()
 
     @classmethod
-    def from_domain(cls, domain: Domain):
-        wuf_list = cls._init_floes(cls._promote_floe(floes))
-        domain.floes.update(wuf_list)
-        return cls(0, domain)
-
-    @classmethod
     def from_discrete(
         cls,
         gravity: float,
