@@ -530,7 +530,7 @@ class Domain:
     fsw: FreeSurfaceWaves
     growth_params: list[np.array, float] | None = None
     subdomains: SortedList = attrs.field(init=False, factory=SortedList)
-    _cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(factory=dict, init=False)
+    cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(init=False, factory=dict)
 
     @classmethod
     def from_discrete(cls, gravity, spectrum, ocean, growth_params):
