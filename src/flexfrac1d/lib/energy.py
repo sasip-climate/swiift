@@ -37,7 +37,7 @@ def _egy_hom(floe_params, wave_params):
 
 def _egy_par_vals(red_num, wave_params):
     comp_amps = _dis_par_amps(red_num, wave_params)
-    _, c_wavenumbers, _ = wave_params
+    _, c_wavenumbers = wave_params
 
     comp_curvs = comp_amps * (1j * c_wavenumbers) ** 2
 
@@ -47,7 +47,7 @@ def _egy_par_vals(red_num, wave_params):
 def _egy_par_pow2(floe_params, wave_params):
     """Energy contribution from individual forcings"""
     red_num, length = floe_params
-    amplitudes, c_wavenumbers, phases = wave_params
+    _, c_wavenumbers = wave_params
     wavenumbers = np.real(c_wavenumbers)
     attenuations = np.imag(c_wavenumbers)
 
@@ -73,13 +73,13 @@ def _egy_par_pow2(floe_params, wave_params):
 def _egy_par_m(floe_params, wave_params):
     """Energy contribution from forcing interactions"""
     red_num, length = floe_params
-    amplitudes, c_wavenumbers, phases = wave_params
+    _, c_wavenumbers = wave_params
     wavenumbers = np.real(c_wavenumbers)
     attenuations = np.imag(c_wavenumbers)
     _, comp_curvs = _egy_par_vals(red_num, wave_params)
 
     # Binomial coefficients, much quicker than itertools
-    idx1, idx2 = np.triu_indices(amplitudes.size, 1)
+    idx1, idx2 = np.triu_indices(c_wavenumbers.size, 1)
 
     mean_attenuations = attenuations[idx1] + attenuations[idx2]
     comp_wns = (
@@ -122,7 +122,7 @@ def _egy_par(floe_params, wave_params):
 
 def _egy_m(floe_params, wave_params):
     red_num, length = floe_params
-    amplitudes, c_wavenumbers, phases = wave_params
+    _, c_wavenumbers = wave_params
     adim = red_num * length
     wavenumbers = np.real(c_wavenumbers)
     attenuations = np.imag(c_wavenumbers)

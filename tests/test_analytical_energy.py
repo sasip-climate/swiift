@@ -17,15 +17,14 @@ PATH_PLY = pathlib.Path("tests/target/poly_analytical/")
 def format_to_pack(
     red_num, length, wave_params_real
 ) -> tuple[tuple[float], tuple[np.ndarray]]:
-    # format raw floats to output of FloeCoupled._pack
+    # format raw floats to fields of Handlers
     floe_params = red_num, length
     wave_params = tuple(
         map(
             np.atleast_1d,
             (
-                wave_params_real[0],
+                wave_params_real[0] * np.exp(1j * wave_params_real[3]),
                 wave_params_real[1] + 1j * wave_params_real[2],
-                wave_params_real[3],
             ),
         )
     )

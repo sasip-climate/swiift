@@ -3,12 +3,10 @@
 import itertools
 import primefac
 import pytest
-from hypothesis import assume
 from hypothesis import given, strategies as st
 import hypothesis.extra.numpy as npst
-import numpy as np
 
-from flexfrac1d.flexfrac1d import DiscreteSpectrum
+from flexfrac1d.model.model import DiscreteSpectrum
 
 
 float_kw = {"allow_nan": False, "allow_infinity": False}
@@ -62,99 +60,88 @@ def broadcastable(draw):
     shape_st = comp_shapes(size)
     ds_kw = dict()
 
-    amplitudes = draw(get_number_or_array(shape_st, False, "non_neg"))
+    amplitudes = draw(get_number_or_array(shape_st, False, "pos"))
     frequencies = draw(get_number_or_array(shape_st, False, "pos"))
     opt = draw(get_optional_kwargs("phases", "shapes"))
     if "phases" in opt:
         ds_kw["phases"] = draw(get_number_or_array(shape_st, False))
-    if "betas" in opt:
-        ds_kw["betas"] = draw(get_number_or_array(shape_st, False, "non_neg"))
 
     return amplitudes, frequencies, ds_kw
 
 
 def get_number_or_array(shape, strict=False, constraints=None):
     if constraints == "non_neg":
-        st = npst.arrays(
+        strategy = npst.arrays(
             npst.floating_dtypes(),
             shape=shape,
             elements=non_neg_float_kw,
         )
         if not strict:
-            return non_negative_number | st
+            return non_negative_number | strategy
     elif constraints == "pos":
-        st = npst.arrays(
+        strategy = npst.arrays(
             npst.floating_dtypes(),
             shape=shape,
             elements=pos_float_kw,
         )
         if not strict:
-            return positive_number | st
+            return positive_number | strategy
     else:
-        st = npst.arrays(
+        strategy = npst.arrays(
             npst.floating_dtypes(),
             shape=shape,
             elements=float_kw,
         )
         if not strict:
-            return number | st
-    return st
+            return number | strategy
+    return strategy
 
 
 @st.composite
 def not_broadcastable(draw):
-    def inc_n_arr(arr):
-        return isinstance(arr, np.ndarray) and arr.size > 1
-
-    ds_kw = dict()
-    opt = draw(get_optional_kwargs("phases", "betas"))
-    nb_args = len(opt) + 2
-    n_arr = 0
-
+    # 1 is excluded as it will be compatible with anything, and we want to include 0
     sizes = draw(
         st.lists(
-            st.integers(min_value=0, max_value=255), min_size=nb_args, max_size=nb_args
-        ).filter(lambda lst: np.unique(lst).size > 1)
+            st.integers(min_value=0, max_value=255).filter(lambda n: n != 1),
+            min_size=2,
+            max_size=3,
+            unique=True,
+        )
     )
-    shape_st = [comp_shapes(size) for size in sizes]
-
-    # The assignation order is randomised, to give each argument a chance of
-    # having the option of being scalar
-    idxs = draw(st.permutations(range(nb_args)))
-
-    for i, idx in enumerate(idxs):
-        strict = n_arr + len(idxs) - i
-        if idx == 0:
-            amplitudes = draw(get_number_or_array(shape_st[i], strict, "non_neg"))
-            if inc_n_arr(amplitudes):
-                n_arr += 1
-        elif idx == 1:
-            frequencies = draw(get_number_or_array(shape_st[i], strict, "pos"))
-            if inc_n_arr(frequencies):
-                n_arr += 1
-        elif idx == 2:
-            if "phases" in opt:
-                ds_kw["phases"] = draw(get_number_or_array(shape_st[i], strict))
+    if len(sizes) == 2:
+        with_phase = draw(st.booleans())
+        if with_phase:
+            idx_scalar = draw(st.integers(min_value=0, max_value=2))
+            if idx_scalar == 0:
+                amplitudes = draw(get_number_or_array(1, constraints="pos"))
+                frequencies = draw(
+                    get_number_or_array(sizes[0], True, constraints="pos")
+                )
+                phases = draw(get_number_or_array(sizes[1], True))
+            elif idx_scalar == 1:
+                amplitudes = draw(
+                    get_number_or_array(sizes[0], True, constraints="pos")
+                )
+                frequencies = draw(get_number_or_array(1, constraints="pos"))
+                phases = draw(get_number_or_array(sizes[1], True))
             else:
-                ds_kw["betas"] = draw(
-                    get_number_or_array(shape_st[i], strict, "non_neg")
+                amplitudes = draw(
+                    get_number_or_array(sizes[0], True, constraints="pos")
                 )
+                frequencies = draw(
+                    get_number_or_array(sizes[1], True, constraints="pos")
+                )
+                phases = draw(get_number_or_array(1, False))
         else:
-            ds_kw["betas"] = draw(get_number_or_array(shape_st[i], strict, "non_neg"))
+            amplitudes = draw(get_number_or_array(sizes[0], True, constraints="pos"))
+            frequencies = draw(get_number_or_array(sizes[1], True, constraints="pos"))
+            phases = None
+    else:
+        amplitudes = draw(get_number_or_array(sizes[0], True, constraints="pos"))
+        frequencies = draw(get_number_or_array(sizes[1], True, constraints="pos"))
+        phases = draw(get_number_or_array(sizes[2], True))
 
-    # Should not be necessarry, here as a final "just in case" filter
-    assume(
-        np.unique(
-            list(
-                map(
-                    lambda arr: arr.size,
-                    map(np.ravel, [amplitudes, frequencies] + list(ds_kw.values())),
-                )
-            )
-        ).size
-        > 2
-    )
-    return amplitudes, frequencies, ds_kw
+    return amplitudes, frequencies, phases
 
 
 @given(args=broadcastable())
@@ -165,6 +152,9 @@ def test_sanitised(args):
 
 @given(args=not_broadcastable())
 def test_unsanitised(args):
-    amplitudes, frequencies, kwargs = args
+    amplitudes, frequencies, phases = args
     with pytest.raises(ValueError):
-        DiscreteSpectrum(amplitudes, frequencies, **kwargs)
+        if phases is None:
+            DiscreteSpectrum(amplitudes, frequencies)
+        else:
+            DiscreteSpectrum(amplitudes, frequencies, phases)

@@ -6,7 +6,7 @@ from . import numerical
 
 def _cur_wavefield(x, red_num: float, wave_params):
     """Second derivative of the interface"""
-    _, c_wavenumbers, _ = wave_params
+    _, c_wavenumbers = wave_params
 
     return -np.imag(
         (_dis_par_amps(red_num, wave_params) * c_wavenumbers**2)

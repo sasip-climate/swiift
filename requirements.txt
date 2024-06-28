@@ -1,6 +1,10 @@
+attrs~=23.2
 numpy~=1.26
 scipy~=1.11
 sortedcontainers~=2.4
+
+# plotting
+matplotlib~=3.8
 
 # testing
 hypothesis~=6.98

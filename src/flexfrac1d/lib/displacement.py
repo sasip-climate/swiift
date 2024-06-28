@@ -13,10 +13,8 @@ def _unit_wavefield(x, c_wavenumbers):
 
 def _dis_par_amps(red_num: float, wave_params: tuple[np.ndarray]):
     """Complex amplitudes of individual particular solutions"""
-    amplitudes, c_wavenumbers, phases = wave_params
-    return (
-        amplitudes * np.exp(1j * phases) / (1 + 0.25 * (c_wavenumbers / red_num) ** 4)
-    )
+    c_amplitudes, c_wavenumbers = wave_params
+    return c_amplitudes / (1 + 0.25 * (c_wavenumbers / red_num) ** 4)
 
 
 def _dis_hom_mat(red_num: float, length: float):
@@ -75,7 +73,7 @@ def _dis_hom_mat(red_num: float, length: float):
 def _dis_hom_rhs(floe_params: tuple[float], wave_params: tuple[np.ndarray]):
     """Vector onto which apply the matrix, to extract the coefficients"""
     red_num, length = floe_params
-    amplitudes, c_wavenumbers, phases = wave_params
+    _, c_wavenumbers = wave_params
     exp_arg = 1j * c_wavenumbers * length
 
     r1 = c_wavenumbers**2 * _dis_par_amps(red_num, wave_params)
@@ -98,7 +96,6 @@ def _dis_hom_coefs(
 def _dis_hom(x: np.ndarray, floe_params: tuple[float], wave_params: tuple[np.ndarray]):
     """Homogeneous solution to the displacement ODE"""
     red_num, length = floe_params
-    amplitudes, c_wavenumbers, phases = wave_params
     arr = red_num * x
     cosx, sinx = np.cos(arr), np.sin(arr)
     expx = np.exp(-red_num * (length - x))

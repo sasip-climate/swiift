@@ -1,10 +1,5 @@
-Libraries/__pycache__/
-LinAlgError.txt
-database/
-Figs/
 .venv_3.11/
-__pycache__/
 *png
 .hypothesis
 .coverage
-gen_end_to_end/specgen.py
+__pycache__

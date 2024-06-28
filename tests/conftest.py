@@ -2,7 +2,8 @@
 
 import numpy as np
 from hypothesis import strategies as st
-from flexfrac1d.flexfrac1d import Ocean, DiscreteSpectrum, Ice, Floe
+from flexfrac1d.model.model import Ocean, DiscreteSpectrum, Ice, Floe
+from flexfrac1d.lib.constants import PI_2
 
 # Generic float options
 float_kw = {
@@ -46,14 +47,15 @@ physical_strategies = {
         "density": st.floats(500, 5e3, **float_kw),
     },
     "ice": {
-        "frac_toughness": st.floats(**float_kw),
+        "frac_toughness": st.floats(1e3, 1e7, **float_kw),
         "poissons_ratio": st.floats(-1, 0.5, exclude_min=True, **float_kw),
         "youngs_modulus": st.floats(1e6, 100e9, **float_kw),
     },
     "wave": {
-        "wave_frequency": st.floats(min_value=1e-4, max_value=10, **float_kw),
-        "wave_phase": st.floats(-np.pi, np.pi, exclude_min=True, **float_kw),
-        "wave_amplitude": st.floats(1e-6, 1e3, **float_kw),
+        "amplitude": st.floats(1e-6, 1e3, **float_kw),
+        "period": st.floats(min_value=1e-1, max_value=1e4, **float_kw),
+        "frequency": st.floats(min_value=1e-4, max_value=10, **float_kw),
+        "phase": st.floats(0, PI_2, exclude_max=True, **float_kw),
     },
     "gravity": st.floats(0.1, 30, **float_kw),
 }
@@ -67,7 +69,7 @@ physical_strategies["ice"]["thickness"] = ice_thickness
 @st.composite
 def spec_mono(draw):
     return DiscreteSpectrum(
-        st.just(0.5), draw(physical_strategies["wave"]["wave_frequency"])
+        draw(st.just(0.5)), draw(physical_strategies["wave"]["frequency"])
     )
 
 
@@ -76,7 +78,7 @@ def spec_poly(draw):
     n = draw(st.integers(min_value=1, max_value=100))
     amplitudes = draw(
         st.lists(
-            physical_strategies["wave"]["wave_amplitude"],
+            physical_strategies["wave"]["amplitude"],
             min_size=n,
             max_size=n,
             unique=True,
@@ -84,7 +86,7 @@ def spec_poly(draw):
     )
     frequencies = draw(
         st.lists(
-            physical_strategies["wave"]["wave_frequency"],
+            physical_strategies["wave"]["frequency"],
             min_size=n,
             max_size=n,
             unique=True,
@@ -92,7 +94,7 @@ def spec_poly(draw):
     )
     # phases = draw(
     #     st.lists(
-    #         physical_strategies["wave"]["wave_phase"],
+    #         physical_strategies["wave"]["phase"],
     #         min_size=n,
     #         max_size=n,
     #         unique=True,
@@ -110,7 +112,7 @@ coupled_ocean_ice = {
     # "spec": st.builds(
     #     DiscreteSpectrum,
     #     st.just(1),
-    #     physical_strategies["wave"]["wave_frequency"],
+    #     physical_strategies["wave"]["frequency"],
     # ),
     "ice": st.shared(
         st.builds(
