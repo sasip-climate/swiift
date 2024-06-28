@@ -42,7 +42,6 @@ class Wave:
         """Wave angular frequency in rad s**-1."""
         return PI_2 / self.period
 
-    # TODO: rename to ..._pow2
     @functools.cached_property
     def angular_frequency_pow2(self) -> float:
         """Squared wave angular frequency, for convenience."""
