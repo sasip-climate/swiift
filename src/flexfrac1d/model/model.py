@@ -39,7 +39,7 @@ class Wave:
 
     # TODO: rename to ..._pow2
     @functools.cached_property
-    def angular_frequency2(self) -> float:
+    def angular_frequency_pow2(self) -> float:
         """Squared wave angular frequency, for convenience."""
         return self.angular_frequency**2
 
@@ -147,7 +147,7 @@ class WavesUnderIce:
     def from_floating(
         cls, ice: FloatingIce, spectrum: DiscreteSpectrum, gravity: float
     ):
-        alphas = spectrum._ang_freq2 / gravity
+        alphas = spectrum._ang_freqs_pow2 / gravity
         deg1 = 1 - alphas * ice.draft
         deg0 = -alphas * ice.elastic_length
         scaled_ratio = ice.dud / ice.elastic_length
@@ -180,7 +180,7 @@ class FreeSurfaceWaves:
 
     @classmethod
     def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
-        alphas = spectrum._ang_freq2 / gravity
+        alphas = spectrum._ang_freqs_pow2 / gravity
         solver = dr.FreeSurfaceSolver(alphas, ocean.depth)
         wavenumbers = solver.compute_wavenumbers()
         return cls(ocean, wavenumbers)
@@ -289,8 +289,8 @@ class DiscreteSpectrum:
         return self.__waves
 
     @functools.cached_property
-    def _ang_freq2(self):
-        return np.asarray([wave.angular_frequency2 for wave in self.waves])
+    def _ang_freqs_pow2(self):
+        return self._ang_freqs**2
 
     @functools.cached_property
     def _amps(self):
