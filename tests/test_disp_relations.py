@@ -3,8 +3,8 @@
 from hypothesis import given, settings, strategies as st
 import numpy as np
 
-from flexfrac1d.flexfrac1d import Ice, Ocean, DiscreteSpectrum
-from flexfrac1d.flexfrac1d import FreeSurfaceWaves, WavesUnderIce
+from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum
+from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderIce
 from flexfrac1d.lib.disprel import free_surface, elas_mass_surface
 
 from .conftest import physical_strategies
@@ -28,7 +28,7 @@ from .conftest import coupled_ocean_ice, spec_mono
     gravity=physical_strategies["gravity"],
 )
 def test_free_surface(ocean, spec, gravity):
-    angfreqs2 = np.array([wave.angular_frequency2 for wave in spec.waves])
+    angfreqs2 = spec._ang_freqs_pow2
     fsw = FreeSurfaceWaves.from_ocean(ocean, spec, gravity)
     x = free_surface(fsw.wavenumbers, ocean.depth)
     y = angfreqs2 / gravity
@@ -42,7 +42,7 @@ def test_elas_mass_loading(
 ):
     assert ocean.density > ice.density
     assert ocean.depth - ice.density / ocean.density * ice.thickness > 0
-    angfreqs2 = spec._ang_freq2
+    angfreqs2 = spec._ang_freqs_pow2
     # co = OceanCoupled(ocean, spec, gravity)
     # ci = IceCoupled(ice, co, spec, None, gravity)
     wui = WavesUnderIce.from_ocean(ice, ocean, spec, gravity)

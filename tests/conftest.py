@@ -2,7 +2,7 @@
 
 import numpy as np
 from hypothesis import strategies as st
-from flexfrac1d.flexfrac1d import Ocean, DiscreteSpectrum, Ice, Floe
+from flexfrac1d.model.model import Ocean, DiscreteSpectrum, Ice, Floe
 from flexfrac1d.lib.constants import PI_2
 
 # Generic float options

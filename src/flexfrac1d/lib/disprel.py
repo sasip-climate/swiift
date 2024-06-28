@@ -1,5 +1,6 @@
 import numpy as np
-from ..flexfrac1d import Ice, Ocean
+
+from ..model.model import Ice, Ocean
 
 
 def free_surface(wavenumber, depth):

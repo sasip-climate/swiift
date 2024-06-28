@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given, strategies as st
 import hypothesis.extra.numpy as npst
 
-from flexfrac1d.flexfrac1d import DiscreteSpectrum
+from flexfrac1d.model.model import DiscreteSpectrum
 
 
 float_kw = {"allow_nan": False, "allow_infinity": False}

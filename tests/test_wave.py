@@ -5,8 +5,8 @@ from hypothesis import given, strategies as st
 import numpy as np
 import pytest
 
-from flexfrac1d.flexfrac1d import Wave
 from flexfrac1d.lib.constants import PI_2
+from flexfrac1d.model.model import Wave
 
 from .conftest import physical_strategies
 
@@ -49,7 +49,7 @@ def test_cached_properties(amplitude, period):
     wave = Wave(amplitude, period=period)
     assert np.isclose(wave.frequency - 1 / period, 0)
     assert np.isclose(wave.period - PI_2 / wave.angular_frequency, 0)
-    assert wave.angular_frequency2 == wave.angular_frequency**2
+    assert wave.angular_frequency_pow2 == wave.angular_frequency**2
 
 
 @given(
