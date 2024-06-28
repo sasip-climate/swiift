@@ -9,10 +9,15 @@ import itertools
 from numbers import Real
 import numpy as np
 from sortedcontainers import SortedList
+import typing
 
 from ..lib.constants import PI_2, SQR2
 from ..lib import dr
 from ..lib.graphics import plot_displacement
+
+if typing.TYPE_CHECKING:
+    # Guard against circular imports
+    from . import frac_handlers as fh
 
 
 @attrs.define(frozen=True)
@@ -75,18 +80,18 @@ class Subdomain:
     left_edge: float
     length: float
 
-    def __eq__(self, other: Floe | Real) -> bool:
+    def __eq__(self, other: Subdomain | Real) -> bool:
         match other:
-            case Floe():
+            case Subdomain():
                 return self.left_edge == other.left_edge
             case Real():
                 return self.left_edge == other
             case _:
                 raise NotImplementedError
 
-    def __lt__(self, other: Floe | Real) -> bool:
+    def __lt__(self, other: Subdomain | Real) -> bool:
         match other:
-            case Floe():
+            case Subdomain():
                 return self.left_edge < other.left_edge
             case Real():
                 return self.left_edge < other
@@ -325,9 +330,13 @@ class Domain:
     spectrum: DiscreteSpectrum
     fsw: FreeSurfaceWaves
     growth_params: list[np.array, float] | None = None
-    subdomains: SortedList = attrs.field(init=False, factory=SortedList)
-    cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(init=False, factory=dict)
-    cached_phases: dict[float, np.ndarray] = attrs.field(init=False, factory=dict)
+    subdomains: SortedList = attrs.field(repr=False, init=False, factory=SortedList)
+    cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(
+        repr=False, init=False, factory=dict
+    )
+    cached_phases: dict[float, np.ndarray] = attrs.field(
+        repr=False, init=False, factory=dict
+    )
 
     @classmethod
     def from_discrete(cls, gravity, spectrum, ocean, growth_params):
@@ -370,7 +379,7 @@ class Domain:
     def _shift_growth_means(self, phases: np.ndarray):
         # TODO: refine to take into account subdomain transitions
         # and floes with variying properties
-        mask = self.growth_mean < self.floes[0].left_edge
+        mask = self.growth_params[0] < self.subdomains[0].left_edge
         if mask.any():
             self.growth_params[0][mask] += (
                 phases[mask[:, 0]] / self.fsw.wavenumbers[mask[:, 0]]
@@ -465,7 +474,9 @@ class Domain:
         # set, as these method should only be called after a fracture event
         self.subdomains.update(wuf)
 
-    def breakup(self, fracture_handler, an_sol=None, num_params=None):
+    def breakup(
+        self, fracture_handler: fh.FractureHandler, an_sol=None, num_params=None
+    ):
         dct = {}
         for i, wuf in enumerate(self.subdomains):
             xf = fracture_handler.search(wuf, self.growth_params, an_sol, num_params)

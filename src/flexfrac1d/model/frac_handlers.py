@@ -15,7 +15,9 @@ from ..lib import physics as ph
 
 
 class FractureHandler(abc.ABC):
-    pass
+    @abc.abstractmethod
+    def search(self, wuf: model.WavesUnderFloe, growth_params, an_sol, num_params):
+        raise NotImplementedError
 
 
 @attrs.define
@@ -25,15 +27,15 @@ class BinaryFracture:
     def split(self, wuf, length) -> tuple[model.WavesUnderFloe]:
         sub_left = model.WavesUnderFloe(
             left_edge=wuf.left_edge,
-            length=wuf.length,
+            length=length,
             wui=wuf.wui,
             edge_amplitudes=wuf.edge_amplitudes,
             generation=wuf.generation + 1,
         )
         sub_right = model.WavesUnderFloe(
-            wui=wuf.wui,
-            left_edge=wuf.left_edge + length,
+            left_edge=sub_left.right_edge,
             length=wuf.length - length,
+            wui=wuf.wui,
             edge_amplitudes=(
                 wuf.edge_amplitudes * np.exp(1j * wuf.wui._c_wavenumbers * length)
             ),
@@ -95,7 +97,7 @@ class BinaryFracture:
     def search(
         self, wuf: model.WavesUnderFloe, growth_params, an_sol, num_params
     ) -> float | None:
-        base_handler = ph.EnergyHandler.from_wuf(wuf)
+        base_handler = ph.EnergyHandler.from_wuf(wuf, growth_params)
         base_energy = base_handler.compute(an_sol, num_params)
 
         # No fracture if the elastic energy is below the threshold
