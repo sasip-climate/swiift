@@ -42,10 +42,7 @@ class Experiment:
 
     def save_step(self):
         self.history[self.time] = Step(
-            tuple(
-                md.WavesUnderFloe(wuf.wui, wuf.floe, wuf.edge_amplitudes)
-                for wuf in self.domain.subdomains
-            ),
+            tuple(wuf.copy() for wuf in self.domain.subdomains),
             (
                 (self.domain.growth_params[0].copy(), self.domain.growth_params[1])
                 if self.domain.growth_params is not None

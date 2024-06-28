@@ -24,16 +24,20 @@ class BinaryFracture:
 
     def split(self, wuf, length) -> tuple[model.WavesUnderFloe]:
         sub_left = model.WavesUnderFloe(
-            wuf.wui,
-            model.Floe(wuf.floe.left_edge, length, wuf.floe.ice),
-            wuf.edge_amplitudes,
+            left_edge=wuf.left_edge,
+            length=wuf.length,
+            wui=wuf.wui,
+            edge_amplitudes=wuf.edge_amplitudes,
+            generation=wuf.generation + 1,
         )
         sub_right = model.WavesUnderFloe(
-            wuf.wui,
-            model.Floe(
-                wuf.floe.left_edge + length, wuf.floe.length - length, wuf.floe.ice
+            wui=wuf.wui,
+            left_edge=wuf.left_edge + length,
+            length=wuf.length - length,
+            edge_amplitudes=(
+                wuf.edge_amplitudes * np.exp(1j * wuf.wui._c_wavenumbers * length)
             ),
-            wuf.edge_amplitudes * np.exp(1j * wuf.wui._c_wavenumbers * length),
+            generation=wuf.generation,
         )
         return sub_left, sub_right
 
@@ -62,7 +66,7 @@ class BinaryFracture:
         an_sol=False,
         num_params=None,
     ):
-        floe_length = wuf.floe.length
+        floe_length = wuf.length
         lengths = np.linspace(
             0, floe_length, np.ceil(floe_length / res).astype(int) + 1
         )[1:-1]
@@ -77,11 +81,8 @@ class BinaryFracture:
     def discrete_sweep(
         self, wuf, an_sol, growth_params, num_params
     ) -> Iterator[tuple[float]]:
-        nd = (
-            np.ceil(4 * wuf.floe.length * wuf.wui.wavenumbers.max() / PI_2).astype(int)
-            + 2
-        )
-        lengths = np.linspace(0, wuf.floe.length, nd * self.coef_nd)[1:-1]
+        nd = np.ceil(4 * wuf.length * wuf.wui.wavenumbers.max() / PI_2).astype(int) + 2
+        lengths = np.linspace(0, wuf.length, nd * self.coef_nd)[1:-1]
         ener = np.full(lengths.shape, np.nan)
         for i, length in enumerate(lengths):
             ener[i] = self._ener_min(length, wuf, growth_params, an_sol, num_params)
@@ -117,7 +118,7 @@ class BinaryFracture:
             ]
             opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
             # Minimisation is done on the log of energy
-            if np.exp(opt.fun) + wuf.floe.ice.frac_energy_rate < base_energy:
+            if np.exp(opt.fun) + wuf.wui.ice.frac_energy_rate < base_energy:
                 return opt.x
             else:
                 return None

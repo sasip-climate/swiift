@@ -14,10 +14,10 @@ from ..model import model
 
 
 def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
-    floe_params = wuf.wui.ice._red_elastic_number, wuf.floe.length
+    floe_params = wuf.wui.ice._red_elastic_number, wuf.length
     wave_params = wuf.edge_amplitudes, wuf.wui._c_wavenumbers
     if growth_params is not None:
-        growth_params = growth_params[0] - wuf.floe.left_edge, growth_params[1]
+        growth_params = growth_params[0] - wuf.left_edge, growth_params[1]
     return floe_params, wave_params, growth_params
 
 

@@ -70,6 +70,35 @@ class Ocean:
 
 
 @attrs.define(frozen=True)
+@functools.total_ordering
+class Subdomain:
+    left_edge: float
+    length: float
+
+    def __eq__(self, other: Floe | Real) -> bool:
+        match other:
+            case Floe():
+                return self.left_edge == other.left_edge
+            case Real():
+                return self.left_edge == other
+            case _:
+                raise NotImplementedError
+
+    def __lt__(self, other: Floe | Real) -> bool:
+        match other:
+            case Floe():
+                return self.left_edge < other.left_edge
+            case Real():
+                return self.left_edge < other
+            case _:
+                raise NotImplementedError
+
+    @functools.cached_property
+    def right_edge(self):
+        return self.left_edge + self.length
+
+
+@attrs.define(frozen=True)
 class Ice:
     density: float = 922.5
     frac_toughness: float = 1e5
@@ -191,64 +220,41 @@ class FreeSurfaceWaves:
         return PI_2 / self.wavenumbers
 
 
-@attrs.define(frozen=True)
-@functools.total_ordering
-class Floe:
-    left_edge: float
-    length: float
-    ice: FloatingIce
-    generation: int = 0
-
-    def __eq__(self, other: Floe | Real) -> bool:
-        match other:
-            case Floe():
-                return self.left_edge == other.left_edge
-            case Real():
-                return self.left_edge == other
-            case _:
-                raise NotImplementedError
-
-    def __lt__(self, other: Floe | Real) -> bool:
-        match other:
-            case Floe():
-                return self.left_edge < other.left_edge
-            case Real():
-                return self.left_edge < other
-            case _:
-                raise NotImplementedError
-
-    @functools.cached_property
-    def right_edge(self):
-        return self.left_edge + self.length
+@attrs.define(kw_only=True)
+class Floe(Subdomain):
+    ice: Ice
 
 
-@attrs.define
-class WavesUnderFloe:
+@attrs.define(kw_only=True)
+class WavesUnderFloe(Subdomain):
     wui: WavesUnderIce
-    floe: Floe
     edge_amplitudes: np.ndarray
+    generation: int = 0
 
     @functools.cached_property
     def _adim(self):
         return self.length * self.wui.ice._red_elastic_number
 
-    def __eq__(self, other: WavesUnderFloe | Real) -> bool:
-        match other:
-            case WavesUnderFloe():
-                return self.floe.left_edge == other.floe.left_edge
-            case Real():
-                return self.floe.left_edge == other
-            case _:
-                raise NotImplementedError
+    def copy(self):
+        return WavesUnderFloe(
+            left_edge=self.left_edge,
+            length=self.length,
+            wui=self.wui,
+            edge_amplitudes=self.edge_amplitudes.copy(),
+            generation=self.generation,
+        )
 
-    def __lt__(self, other: WavesUnderFloe | Real) -> bool:
-        match other:
-            case WavesUnderFloe():
-                return self.floe.left_edge < other.floe.left_edge
-            case Real():
-                return self.floe.left_edge < other
-            case _:
-                raise NotImplementedError
+    def shift(self, phase_shifts: np.ndarray, inplace=True):
+        shifted_amplitudes = self.edge_amplitudes * np.exp(-1j * phase_shifts)
+        if not inplace:
+            return WavesUnderFloe(
+                left_edge=self.left_edge,
+                length=self.length,
+                wui=self.wui,
+                edge_amplitudes=shifted_amplitudes,
+                generation=self.generation,
+            )
+        object.__setattr__(self, "edge_amplitudes", shifted_amplitudes)
 
 
 class DiscreteSpectrum:
@@ -313,11 +319,6 @@ class DiscreteSpectrum:
         return len(self.waves)
 
 
-# FIX: WavesUnderFloe has a Floe field, which as a Ice field; and a
-# WavesUnderIce field, which has a WavesUnderIce field, which extends Ice. The
-# wuf.floe.ice is made redondant by the wuf.wui.ice.
-# WavesUnderFloe could be renamed subdomain, and the floe field dropped for
-# left_edge end length fields.
 @attrs.define
 class Domain:
     gravity: float
@@ -326,6 +327,7 @@ class Domain:
     growth_params: list[np.array, float] | None = None
     subdomains: SortedList = attrs.field(init=False, factory=SortedList)
     cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(init=False, factory=dict)
+    cached_phases: dict[float, np.ndarray] = attrs.field(init=False, factory=dict)
 
     @classmethod
     def from_discrete(cls, gravity, spectrum, ocean, growth_params):
@@ -348,6 +350,11 @@ class Domain:
             if growth_std is None:
                 growth_std = self.fsw.wavelengths[self.spectrum._amps.argmax()]
             self.growth_params = [growth_mean, growth_std]
+
+    def _compute_phase_shifts(self, delta_time: float):
+        if delta_time not in self.cached_phases:
+            self.cached_phases[delta_time] = delta_time * self.spectrum._ang_freqs
+        return self.cached_phases[delta_time]
 
     def _compute_wui(self, ice: Ice):
         if ice not in self.cached_wuis:
@@ -429,27 +436,23 @@ class Domain:
         )
 
         return [
-            WavesUnderFloe(self._compute_wui(floe.ice), floe, edge_amplitudes)
+            WavesUnderFloe(
+                left_edge=floe.left_edge,
+                length=floe.length,
+                wui=self._compute_wui(floe.ice),
+                edge_amplitudes=edge_amplitudes,
+            )
             for floe, edge_amplitudes in zip(floes, complex_amplitudes)
         ]
 
     def iterate(self, delta_time: float):
-        # NOTE: delta_time is likely to not change between calls. The computed
-        # phases could be cached, but the cost of the computation seems
-        # independent of the size of the array up to about size := 100--500. It
-        # is not advisable to cache methods, and the array of angular
-        # frequencies would have to be cast to (for example) a tuple before
-        # being passed to a cached function, as arrays are not hashable. The
-        # cost of a back-and-forth cast is tenfold the cost of the product for
-        # size := 100; more than fiftyfold for size := 1000.
-        phase_shifts = delta_time * self.spectrum._ang_freqs
-        complex_shifts = np.exp(-1j * phase_shifts)
+        phase_shifts = self._compute_phase_shifts(delta_time)
         # TODO: can be optimised by iterating a first time to extract the
         # edges, coerce them to a np.array, apply the product with
         # complex_shifts, and then iterate a second time to build the objects.
         # See Propagation_tests.ipynb/DNE06-26
         for i in range(len(self.subdomains)):
-            self.subdomains[i].edge_amplitudes *= complex_shifts
+            self.subdomains[i].shift(phase_shifts)
         if self.growth_params is not None:
             # Phases are only modulo'd in the setter
             self._shift_growth_means(phase_shifts)
