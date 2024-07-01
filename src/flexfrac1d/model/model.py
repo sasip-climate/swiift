@@ -107,6 +107,7 @@ class Ice:
     density: float = 922.5
     frac_toughness: float = 1e5
     poissons_ratio: float = 0.3
+    strain_threshold: float = 3e-5
     thickness: float = 1.0
     youngs_modulus: float = 6e9
 

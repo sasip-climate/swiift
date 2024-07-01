@@ -3,7 +3,7 @@
 import abc
 import attrs
 from collections import namedtuple
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 import functools
 import numpy as np
 import scipy.optimize as optimize
@@ -14,17 +14,19 @@ from . import model
 from ..lib import physics as ph
 
 
+def _get_search_array(wuf: model.WavesUnderFloe, coef: int):
+    nd = np.ceil(4 * wuf.length * wuf.wui.wavenumbers.max() / PI_2).astype(int) + 2
+    return np.linspace(0, wuf.length, nd * coef)[1:-1]
+
+
+def _get_diagnose_array(wuf: model.WavesUnderFloe, res: float):
+    return np.linspace(0, wuf.length, np.ceil(wuf.length / res).astype(int) + 1)
+
+
 class FractureHandler(abc.ABC):
-    @abc.abstractmethod
-    def search(self, wuf: model.WavesUnderFloe, growth_params, an_sol, num_params):
-        raise NotImplementedError
-
-
-@attrs.define
-class BinaryFracture:
-    coef_nd: int = 4
-
-    def split(self, wuf, length) -> tuple[model.WavesUnderFloe]:
+    def split(
+        self, wuf: model.WavesUnderFloe, length: float
+    ) -> tuple[model.WavesUnderFloe]:
         sub_left = model.WavesUnderFloe(
             left_edge=wuf.left_edge,
             length=length,
@@ -43,8 +45,21 @@ class BinaryFracture:
         )
         return sub_left, sub_right
 
+    @abc.abstractmethod
+    def search(self, wuf: model.WavesUnderFloe, growth_params, an_sol, num_params):
+        raise NotImplementedError
+
+
+@attrs.define
+class BinaryFracture(FractureHandler):
+    coef_nd: int = 4
+
     def compute_energies(
-        self, wuf_collection, growth_params, an_sol, num_params
+        self,
+        wuf_collection: Sequence[model.WavesUnderFloe],
+        growth_params,
+        an_sol: bool,
+        num_params,
     ) -> tuple[float]:
         energies = np.full(len(wuf_collection), np.nan)
         for i, wuf in enumerate(wuf_collection):
@@ -68,10 +83,7 @@ class BinaryFracture:
         an_sol=False,
         num_params=None,
     ):
-        floe_length = wuf.length
-        lengths = np.linspace(
-            0, floe_length, np.ceil(floe_length / res).astype(int) + 1
-        )[1:-1]
+        lengths = _get_diagnose_array(wuf, res)[1:-1]
         energies = np.full((lengths.size, 2), np.nan)
         for i, length in enumerate(lengths):
             energies[i, :] = self.compute_energies(
@@ -83,8 +95,7 @@ class BinaryFracture:
     def discrete_sweep(
         self, wuf, an_sol, growth_params, num_params
     ) -> Iterator[tuple[float]]:
-        nd = np.ceil(4 * wuf.length * wuf.wui.wavenumbers.max() / PI_2).astype(int) + 2
-        lengths = np.linspace(0, wuf.length, nd * self.coef_nd)[1:-1]
+        lengths = _get_search_array(wuf, self.coef_nd)
         ener = np.full(lengths.shape, np.nan)
         for i, length in enumerate(lengths):
             ener[i] = self._ener_min(length, wuf, growth_params, an_sol, num_params)
@@ -122,5 +133,48 @@ class BinaryFracture:
             # Minimisation is done on the log of energy
             if np.exp(opt.fun) + wuf.wui.ice.frac_energy_rate < base_energy:
                 return opt.x
-            else:
-                return None
+            return None
+
+
+@attrs.define
+class BinaryStrainFracture(FractureHandler):
+    coef_nd: int = 4
+
+    def discrete_sweep(
+        self, strain_handler, wuf, growth_params, an_sol, num_params
+    ) -> Iterator[tuple[float]]:
+        x = _get_search_array(wuf, self.coef_nd)
+        strain = strain_handler.compute(x, an_sol, num_params)
+        peak_idxs = np.hstack((0, signal.find_peaks(-(strain**2))[0], x.size - 1))
+        return zip(x[peak_idxs[:-1]], x[peak_idxs[1:]])
+
+    def search(
+        self, wuf: model.WavesUnderFloe, growth_params, an_sol, num_params
+    ) -> float | None:
+        strain_handler = ph.StrainHandler.from_wuf(wuf, growth_params)
+        bounds_iterator = self.discrete_sweep(
+            strain_handler, wuf, growth_params, an_sol, num_params
+        )
+        opts = (
+            optimize.minimize_scalar(
+                lambda x: strain_handler.compute(x, an_sol, num_params), bounds=bounds
+            )
+            for bounds in bounds_iterator
+        )
+        opt = min(filter(lambda opt: opt.success, opts), key=lambda opt: opt.fun)
+        if (-opt.fun) ** 0.5 > wuf.wui.ice.strain_threshold:
+            return opt.x
+        return None
+
+    def diagnose(
+        self,
+        wuf: model.WavesUnderFloe,
+        res: float = 0.5,
+        growth_params=None,
+        an_sol: bool = False,
+        num_params=None,
+    ):
+        x = _get_diagnose_array(wuf, res)
+        strain_handler = ph.StrainHandler.from_wuf(wuf, growth_params)
+        strain_diag = namedtuple("StrainFractureDiagnostic", ("x", "strain"))
+        return strain_diag(x, strain_handler.compute(x, an_sol, num_params))

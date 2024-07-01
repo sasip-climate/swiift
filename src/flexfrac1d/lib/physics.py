@@ -64,6 +64,19 @@ class CurvatureHandler:
 
 
 @attrs.define
+class StrainHandler:
+    curv_handler: CurvatureHandler
+    thickness: float
+
+    @classmethod
+    def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
+        return cls(CurvatureHandler.from_wuf(wuf, growth_params), wuf.wui.ice.thickness)
+
+    def compute(self, x, an_sol, num_params):
+        return -self.thickness / 2 * self.curv_handler.compute(x, an_sol, num_params)
+
+
+@attrs.define
 class EnergyHandler:
     floe_params: tuple[float]
     wave_params: tuple[np.ndarray]
