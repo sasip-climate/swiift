@@ -40,6 +40,14 @@ def make_wuf(array, growth_params):
     return domain.subdomains[0]
 
 
+def test_abstract():
+    # Abstract classes, should not be instantiated
+    with pytest.raises(TypeError):
+        fh._FractureHandler()
+    with pytest.raises(TypeError):
+        fh._StrainFracture()
+
+
 @pytest.mark.slow
 def test_binary_energy_no_growth():
     growth_params = None
