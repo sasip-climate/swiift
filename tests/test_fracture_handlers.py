@@ -46,6 +46,22 @@ def test_binary_energy_no_growth():
     an_sol = True
     binary_handler = fh.BinaryFracture()
     target = np.loadtxt(PATH_BIN_EGY.joinpath("binary_fracture.ssv"))
+
+    for row in target:
+        wuf = make_wuf(row[:-1], growth_params)
+        xf = binary_handler.search(wuf, growth_params, an_sol, None)
+        if xf is not None:
+            assert np.allclose(row[-1] - xf, 0)
+        else:
+            assert np.isnan(row[-1])
+
+
+def test_binary_strain_no_growth():
+    growth_params = None
+    an_sol = True
+    binary_handler = fh.BinaryStrainFracture()
+    target = np.loadtxt(PATH_BIN_EGY.joinpath("binary_strain_fracture.ssv"))
+
     for row in target:
         wuf = make_wuf(row[:-1], growth_params)
         xf = binary_handler.search(wuf, growth_params, an_sol, None)
