@@ -148,6 +148,7 @@ class FloatingIce(Ice):
             density=ice.density,
             frac_toughness=ice.frac_toughness,
             poissons_ratio=ice.poissons_ratio,
+            strain_threshold=ice.strain_threshold,
             thickness=ice.thickness,
             youngs_modulus=ice.youngs_modulus,
             draft=draft,
