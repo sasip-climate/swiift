@@ -17,7 +17,7 @@ class Experiment:
     time: float
     domain: md.Domain
     history: dict = attrs.field(init=False, factory=dict)
-    fracture_handler: fh.FractureHandler = attrs.field(default=fh.BinaryFracture())
+    fracture_handler: fh._FractureHandler = attrs.field(default=fh.BinaryFracture())
 
     @classmethod
     def from_discrete(
