@@ -475,7 +475,7 @@ class Domain:
         self.subdomains.update(wuf)
 
     def breakup(
-        self, fracture_handler: fh.FractureHandler, an_sol=None, num_params=None
+        self, fracture_handler: fh._FractureHandler, an_sol=None, num_params=None
     ):
         dct = {}
         for i, wuf in enumerate(self.subdomains):

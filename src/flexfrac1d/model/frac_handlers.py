@@ -39,7 +39,7 @@ class _FractureDiag:
 
 
 @attrs.define
-class FractureHandler(abc.ABC):
+class _FractureHandler(abc.ABC):
     coef_nd: int = 4
 
     def split(
@@ -69,8 +69,8 @@ class FractureHandler(abc.ABC):
         raise NotImplementedError
 
 
-@attrs.define
-class BinaryFracture(FractureHandler):
+@attrs.define(frozen=True)
+class BinaryFracture(_FractureHandler):
     def compute_energies(
         self,
         wuf_collection: Sequence[model.WavesUnderFloe],
@@ -154,7 +154,7 @@ class BinaryFracture(FractureHandler):
 
 
 @attrs.define
-class StrainFracture(FractureHandler):
+class _StrainFracture(_FractureHandler):
     def discrete_sweep(
         self, strain_handler, wuf, growth_params, an_sol, num_params
     ) -> Iterator[tuple[float]]:
@@ -203,8 +203,8 @@ class StrainFracture(FractureHandler):
         )
 
 
-@attrs.define
-class BinaryStrainFracture(StrainFracture):
+@attrs.define(frozen=True)
+class BinaryStrainFracture(_StrainFracture):
     def search(
         self,
         wuf: model.WavesUnderFloe,
@@ -219,8 +219,8 @@ class BinaryStrainFracture(StrainFracture):
         return None
 
 
-@attrs.define
-class MultipleStrainFracture(StrainFracture):
+@attrs.define(frozen=True)
+class MultipleStrainFracture(_StrainFracture):
     def search(
         self,
         wuf: model.WavesUnderFloe,
@@ -238,12 +238,3 @@ class MultipleStrainFracture(StrainFracture):
         if len(xfs) > 0:
             return xfs
         return None
-
-    def diagnose(
-        self,
-        wuf: model.WavesUnderFloe,
-        res: float = 0.5,
-        growth_params=None,
-        an_sol: bool = False,
-        num_params=None,
-    ): ...
