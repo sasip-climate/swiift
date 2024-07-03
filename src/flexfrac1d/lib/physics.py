@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import attrs
+import functools
 import numpy as np
 
 from .curvature import curvature
@@ -21,6 +22,17 @@ def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
     return floe_params, wave_params, growth_params
 
 
+def _demote_to_scalar(f):
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        res = f(self, *args, **kwargs)
+        if len(res) == 1:
+            return res.item()
+        return res
+
+    return wrapper
+
+
 @attrs.define
 class DisplacementHandler:
     floe_params: tuple[float]
@@ -31,6 +43,7 @@ class DisplacementHandler:
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(*_package_wuf(wuf, growth_params))
 
+    @_demote_to_scalar
     def compute(self, x, an_sol, num_params):
         return displacement(
             x,
@@ -52,6 +65,7 @@ class CurvatureHandler:
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(*_package_wuf(wuf, growth_params))
 
+    @_demote_to_scalar
     def compute(self, x, an_sol, num_params):
         return curvature(
             x,
@@ -72,6 +86,8 @@ class StrainHandler:
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(CurvatureHandler.from_wuf(wuf, growth_params), wuf.wui.ice.thickness)
 
+    # Doesn't need to be decorated, as relies on CurvatureHandler.compute,
+    # which already is
     def compute(self, x, an_sol, num_params):
         return -self.thickness / 2 * self.curv_handler.compute(x, an_sol, num_params)
 
