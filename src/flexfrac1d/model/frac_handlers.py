@@ -2,7 +2,6 @@
 
 import abc
 import attrs
-from collections import namedtuple
 from collections.abc import Iterator, Sequence
 import functools
 from numbers import Real
@@ -106,8 +105,7 @@ class BinaryFracture(_FractureHandler):
             energies[i, :] = self.compute_energies(
                 self.split(wuf, length), growth_params, an_sol, num_params
             )
-        frac_diag = namedtuple("FractureDiagnostic", ("length", "energy"))
-        return frac_diag(lengths, energies)
+        return _FractureDiag(lengths, energies)
 
     def discrete_sweep(
         self, wuf, an_sol, growth_params, num_params
