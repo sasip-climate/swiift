@@ -116,7 +116,7 @@ class BinaryFracture(_FractureHandler):
             ener[i] = self._ener_min(length, wuf, growth_params, an_sol, num_params)
 
         peak_idxs = np.hstack(
-            (0, signal.find_peaks(np.log(ener), distance=2)[0], ener.size - 1)
+            (0, signal.find_peaks(ener, distance=2)[0], ener.size - 1)
         )
         return zip(lengths[peak_idxs[:-1]], lengths[peak_idxs[1:]])
 
