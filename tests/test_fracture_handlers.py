@@ -1,5 +1,6 @@
 import numpy as np
 import pathlib
+import pytest
 
 
 from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum, Floe, Domain
@@ -39,6 +40,7 @@ def make_wuf(array, growth_params):
     return domain.subdomains[0]
 
 
+@pytest.mark.slow
 def test_binary_energy_no_growth():
     growth_params = None
     an_sol = True
