@@ -7,3 +7,13 @@ wave amplitude attenuation number (alpha),
 wave phase at the floe left edge (phi).
 The file `energy_mono.ssv` has, in column order, these same variables, followed
 by the integrated squared curvature (not including any prefactor).
+
+The content of the files fracture/binary_*.ssv are identified with headers. The
+first 11 columns allow for building a WaveUnderFloes object, on which
+FractureHandler objects can be applied. The 12th column give the result (single
+abscissa) of such fracture searches. The archive
+fracture/multi_strain_fracture.npz has a file params, whith 11 columns,
+identical in order to the first 11 columns aforementioned. All the other files
+are identified with a number corresponding to the row, in params, that allow
+for building the WaveUnderFloes object on which the multi fracture handler is
+applied.
