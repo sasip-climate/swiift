@@ -77,3 +77,19 @@ def test_binary_strain_no_growth():
             assert np.allclose(row[-1] - xf, 0)
         else:
             assert np.isnan(row[-1])
+
+
+def test_multi_strain_no_growth():
+    growth_params = None
+    an_sol = True
+    handler = fh.MultipleStrainFracture()
+    archive = np.load(PATH_BIN_EGY.joinpath("multi_strain_fracture.npz"))
+
+    for i, row in enumerate(archive["params"]):
+        wuf = make_wuf(row, growth_params)
+        target = archive[f"res{i:02d}"]
+        xfs = handler.search(wuf, growth_params, an_sol, None)
+        if xfs is not None:
+            assert np.allclose(target - xfs, 0)
+        else:
+            assert np.isnan(target)
