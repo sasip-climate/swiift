@@ -22,10 +22,12 @@ def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
     return floe_params, wave_params, growth_params
 
 
+# Can be used to decorate functions to make them return a scalar instead of a
+# 1d array of length 1
 def _demote_to_scalar(f):
     @functools.wraps(f)
-    def wrapper(self, *args, **kwargs):
-        res = f(self, *args, **kwargs)
+    def wrapper(*args, **kwargs):
+        res = f(*args, **kwargs)
         if len(res) == 1:
             return res.item()
         return res
