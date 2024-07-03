@@ -96,6 +96,8 @@ def _use_an_sol(
     return an_sol
 
 
+# TODO: généraliser ces deux fonctions en prennant l'indice comme paramètre,
+# dans le but d'avoir également accès à la dérivée de la courbure
 def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
     return interpolate.PPoly(sol.c[:, :, 0], sol.x, extrapolate=False)
 
