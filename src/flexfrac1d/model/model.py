@@ -247,7 +247,24 @@ class FloatingIce(Ice):
     elastic_length_pow4: float
 
     @classmethod
-    def from_ice_ocean(cls, ice: Ice, ocean: Ocean, gravity: float):
+    def from_ice_ocean(cls, ice: Ice, ocean: Ocean, gravity: float) -> FloatingIce:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        ice : Ice
+            An `Ice` instance
+        ocean : Ocean
+           An `Ocean` instance
+        gravity : float
+           Strengh of the local gravitational field in m s^-2
+
+        Returns
+        -------
+        FloatingIce
+            A class instance
+
+        """
         draft = ice.density / ocean.density * ice.thickness
         dud = ocean.depth - draft
         # NOTE: as the 4th power of the elastic length scale arises naturally,
