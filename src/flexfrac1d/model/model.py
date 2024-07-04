@@ -160,6 +160,43 @@ class _Subdomain:
 
 @attrs.define(frozen=True)
 class Ice:
+    """A container for ice mechanical properties.
+
+    Ice is modelled as an elastic thin plate, with prescribed density,
+    thickness, Poisson's ratio and Young's modulus. Its fracture under bending
+    is considered either through the lens of Griffith's fracture mechanics, or
+    through the framework of strain failure commonly used in the sea ice
+    modelling community. The fracture toughness is relevant to the former,
+    while the strain threshold is relevant to the latter. Ice is considered
+    translationally invariant in one horizontal direction, so that its
+    quadratic moment of area is given per unit length in that direction.
+
+    Parameters
+    ----------
+    density : float
+        Density in kg m^-3
+    frac_toughness : float
+        Fracture toughness in Pa m^-1/2
+    poissons_ratio : float
+        Poisson's ratio
+    strain_threshold : float
+        Critical flexural strain in m m^-1
+    thickness : float
+        Ice thickness in m
+    youngs_modulus : float
+        Scalar Young's modulus in Pa
+
+    Attributes
+    ----------
+    quad_moment : float
+        Quadratic moment of area in m^3
+    flex_rigidity : float
+        Flexural rigidity in
+    frac_energy_rate : float
+        Fracture energy release rate in J m^-2
+
+    """
+
     density: float = 922.5
     frac_toughness: float = 1e5
     poissons_ratio: float = 0.3
