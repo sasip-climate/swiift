@@ -94,22 +94,18 @@ class Wave:
 
 @attrs.define(frozen=True)
 class Ocean:
-    """Represents the fluid bearing the floes.
+    """Represent the fluid bearing the floes.
 
-    Encapsulates the properties of an incompressible ocean of finite,
+    This class encapsulates the properties of an incompressible ocean of
     constant depth and given density.
 
     Parameters
     ----------
     depth : float
-        Ocean constant and finite depth in m.
+        Ocean depth in m
     density : float
-        Ocean constant density in kg m**-3.
+        Ocean density in kg m^-3
 
-    Attributes
-    ----------
-    density : float
-    depth : float
 
     """
 
