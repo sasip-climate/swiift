@@ -43,8 +43,18 @@ class Wave:
         return PI_2 / self.period
 
     @functools.cached_property
-    def angular_frequency_pow2(self) -> float:
-        """Squared wave angular frequency, for convenience."""
+    def _angular_frequency_pow2(self) -> float:
+        """Return the squared angular frequency.
+
+        This is a convenience method, this quantity appearing frequently in
+        computations.
+
+        Returns
+        -------
+        float
+
+
+        """
         return self.angular_frequency**2
 
 

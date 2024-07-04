@@ -49,7 +49,7 @@ def test_cached_properties(amplitude, period):
     wave = Wave(amplitude, period=period)
     assert np.isclose(wave.frequency - 1 / period, 0)
     assert np.isclose(wave.period - PI_2 / wave.angular_frequency, 0)
-    assert wave.angular_frequency_pow2 == wave.angular_frequency**2
+    assert wave._angular_frequency_pow2 == wave.angular_frequency**2
 
 
 @given(
