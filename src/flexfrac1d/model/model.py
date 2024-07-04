@@ -62,8 +62,6 @@ class Wave:
         Returns
         -------
         Wave
-            A class instance.
-
 
         """
         return cls(amplitude, 1 / frequency, phase)
@@ -105,7 +103,6 @@ class Ocean:
         Ocean depth in m
     density : float
         Ocean density in kg m^-3
-
 
     """
 
@@ -239,7 +236,6 @@ class FloatingIce(Ice):
     freeboard : float
         Emerged ice thickness at rest in m
 
-
     """
 
     draft: float
@@ -253,16 +249,13 @@ class FloatingIce(Ice):
         Parameters
         ----------
         ice : Ice
-            An `Ice` instance
         ocean : Ocean
-           An `Ocean` instance
         gravity : float
            Strengh of the local gravitational field in m s^-2
 
         Returns
         -------
         FloatingIce
-            A class instance
 
         """
         draft = ice.density / ocean.density * ice.thickness
@@ -302,7 +295,6 @@ class FloatingIce(Ice):
         float
             Elastic number in m^-1
 
-
         """
         return 1 / self.elastic_length
 
@@ -315,20 +307,53 @@ class FloatingIce(Ice):
         float
             Reduced elastic number in m^-1
 
-
         """
         return 1 / (SQR2 * self.elastic_length)
 
 
 @attrs.define(frozen=True)
 class WavesUnderIce:
+    """A non-localised zone characetrised by wave action under floating ice.
+
+    The spatial behaviour of waves (wavelength) is linked to their temporal
+    behaviour (period) through a dispersion relation. In the case of waves
+    propagating underneath floating ice, this dispersion relation depends on
+    the properties of the ice as encapsulated by the `FloatingIce` class.
+
+    Parameters
+    ----------
+    ice : FloatingIce
+    wavenumbers : 1d array_like of float
+        Propagating wavenumbers in rad m^-1
+
+    Attributes
+    ----------
+    attenuations : 1d array_like of float
+        Parametrised wave attenuation due to the ice cover in m^-1
+
+    """
+
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
 
     @classmethod
     def from_floating(
         cls, ice: FloatingIce, spectrum: DiscreteSpectrum, gravity: float
-    ):
+    ) -> WavesUnderIce:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        ice : FloatingIce
+        spectrum : DiscreteSpectrum
+        gravity : float
+           Strengh of the local gravitational field in m s^-2
+
+        Returns
+        -------
+        WavesUnderIce
+
+        """
         alphas = spectrum._ang_freqs_pow2 / gravity
         deg1 = 1 - alphas * ice.draft
         deg0 = -alphas * ice.elastic_length
@@ -342,17 +367,43 @@ class WavesUnderIce:
     @classmethod
     def from_ocean(
         cls, ice: Ice, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float
-    ):
+    ) -> WavesUnderIce:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        ice : Ice
+        ocean : Ocean
+        spectrum : DiscreteSpectrum
+        gravity : float
+           Strengh of the local gravitational field in m s^-2
+
+        Returns
+        -------
+        WavesUnderIce
+
+        """
         floating_ice = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         return cls.from_floating(floating_ice, spectrum, gravity)
 
     @functools.cached_property
-    def _c_wavenumbers(self):
-        return self.wavenumbers + 1j * self.attenuations
+    def attenuations(self) -> np.ndarray:
+        return self.wavenumbers**2 * self.ice.thickness / 4
 
     @functools.cached_property
-    def attenuations(self):
-        return self.wavenumbers**2 * self.ice.thickness / 4
+    def _c_wavenumbers(self) -> np.ndarray:
+        """Complex wavenumbers.
+
+        Their real part correspond to the propagating wavenumber, while their
+        imaginary part correspond to the attenuation rate.
+
+        Returns
+        -------
+        1d np.ndarray of complex
+            The complex wavenumbers in m^-1
+
+        """
+        return self.wavenumbers + 1j * self.attenuations
 
 
 @attrs.define(frozen=True)
