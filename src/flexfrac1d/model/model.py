@@ -116,6 +116,22 @@ class Ocean:
 @attrs.define(frozen=True)
 @functools.total_ordering
 class _Subdomain:
+    """
+
+    Parameters
+    ----------
+    left_edge : float
+       Coordinate of the left edge of the domain in m
+    length : float
+        Length of the domain in m
+
+    Attributes
+    ----------
+    right_edge : float
+        Coordinate of the right edge of the domain in m
+
+    """
+
     left_edge: float
     length: float
 
