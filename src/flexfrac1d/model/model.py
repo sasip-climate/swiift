@@ -22,7 +22,7 @@ if typing.TYPE_CHECKING:
 
 @attrs.define(frozen=True)
 class Wave:
-    """Represent a monochromatic wave.
+    """A monochromatic wave.
 
     Parameters
     ----------
@@ -94,7 +94,7 @@ class Wave:
 
 @attrs.define(frozen=True)
 class Ocean:
-    """Represent the fluid bearing the floes.
+    """The fluid bearing ice floes.
 
     This class encapsulates the properties of an incompressible ocean of
     constant depth and given density.
@@ -116,7 +116,7 @@ class Ocean:
 @attrs.define(frozen=True)
 @functools.total_ordering
 class _Subdomain:
-    """
+    """A segment localised in space.
 
     Parameters
     ----------
@@ -205,22 +205,15 @@ class Ice:
     youngs_modulus: float = 6e9
 
     @functools.cached_property
-    def quad_moment(self):
+    def quad_moment(self) -> float:
         return self.thickness**3 / (12 * (1 - self.poissons_ratio**2))
 
     @functools.cached_property
-    def flex_rigidity(self):
+    def flex_rigidity(self) -> float:
         return self.quad_moment * self.youngs_modulus
 
     @functools.cached_property
     def frac_energy_rate(self) -> float:
-        """Ice fracture energy release rate in J m**-2
-
-        Returns
-        -------
-        frac_energy_rate: float
-
-        """
         return (
             (1 - self.poissons_ratio**2) * self.frac_toughness**2 / self.youngs_modulus
         )
