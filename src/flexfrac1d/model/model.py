@@ -22,7 +22,25 @@ if typing.TYPE_CHECKING:
 
 @attrs.define(frozen=True)
 class Wave:
-    """Represents a monochromatic wave."""
+    """Represent a monochromatic wave.
+
+    Parameters
+    ----------
+    amplitude : float
+        Wave amplitude in m
+    period : float
+        Wave period in s
+    phase :
+        Wave phase in rad
+
+    Attributes
+    ----------
+    frequency : float
+        Wave frequency in Hz
+    angular_frequency: float
+        Wave angular frequency in rad s^-1
+
+    """
 
     amplitude: float
     period: float
@@ -30,16 +48,32 @@ class Wave:
 
     @classmethod
     def from_frequency(cls, amplitude, frequency, phase=0):
+        """Build a wave from frequency instead of period.
+
+        Parameters
+        ----------
+        amplitude : float
+           The wave amplitude in m
+        frequency : float
+           The wave frequency in Hz
+        phase :
+           The wave phase in rad
+
+        Returns
+        -------
+        Wave
+            A class instance.
+
+
+        """
         return cls(amplitude, 1 / frequency, phase)
 
     @functools.cached_property
     def frequency(self) -> float:
-        """Wave frequency in Hz."""
         return 1 / self.period
 
     @functools.cached_property
     def angular_frequency(self) -> float:
-        """Wave angular frequency in rad s**-1."""
         return PI_2 / self.period
 
     @functools.cached_property
