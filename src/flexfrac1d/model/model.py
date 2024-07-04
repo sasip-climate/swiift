@@ -221,6 +221,27 @@ class Ice:
 
 @attrs.define(kw_only=True, frozen=True)
 class FloatingIce(Ice):
+    """An extension of `Ice` to represent properties due to buyoancy.
+
+    Parameters
+    ----------
+    draft : float
+       Immersed ice thickness at rest in m
+    dud : float
+        Height of the water column underneath the ice at rest in m
+    elastic_length_pow4 : float
+        Characteristic elastic length scale, raised to the 4th power, in m^4
+
+    Attributes
+    ----------
+    elastic_length : float
+        Characteristic elastic length scale in m
+    freeboard : float
+        Emerged ice thickness at rest in m
+
+
+    """
+
     draft: float
     dud: float
     elastic_length_pow4: float
@@ -229,6 +250,11 @@ class FloatingIce(Ice):
     def from_ice_ocean(cls, ice: Ice, ocean: Ocean, gravity: float):
         draft = ice.density / ocean.density * ice.thickness
         dud = ocean.depth - draft
+        # NOTE: as the 4th power of the elastic length scale arises naturally,
+        # we prefer using it to instantiate the class and computing the length
+        # scale when needed, over using the length scale for instantiation and
+        # recomputing the fourth power from it, as the latter approach can lead
+        # to substantial numerical imprecision.
         el_lgth_pow4 = ice.flex_rigidity / (ocean.density * gravity)
         return cls(
             density=ice.density,
@@ -251,11 +277,29 @@ class FloatingIce(Ice):
         return self.thickness - self.draft
 
     @functools.cached_property
-    def _elastic_number(self):
+    def _elastic_number(self) -> float:
+        """Reciprocal of the Characteristic elastic length scale.
+
+        Returns
+        -------
+        float
+            Elastic number in m^-1
+
+
+        """
         return 1 / self.elastic_length
 
     @functools.cached_property
-    def _red_elastic_number(self):
+    def _red_elastic_number(self) -> float:
+        """Characteristic elastic number scaled by 1/sqrt(2).
+
+        Returns
+        -------
+        float
+            Reduced elastic number in m^-1
+
+
+        """
         return 1 / (SQR2 * self.elastic_length)
 
 
