@@ -115,22 +115,22 @@ class Ocean:
 
 @attrs.define(frozen=True)
 @functools.total_ordering
-class Subdomain:
+class _Subdomain:
     left_edge: float
     length: float
 
-    def __eq__(self, other: Subdomain | Real) -> bool:
+    def __eq__(self, other: _Subdomain | Real) -> bool:
         match other:
-            case Subdomain():
+            case _Subdomain():
                 return self.left_edge == other.left_edge
             case Real():
                 return self.left_edge == other
             case _:
                 raise NotImplementedError
 
-    def __lt__(self, other: Subdomain | Real) -> bool:
+    def __lt__(self, other: _Subdomain | Real) -> bool:
         match other:
-            case Subdomain():
+            case _Subdomain():
                 return self.left_edge < other.left_edge
             case Real():
                 return self.left_edge < other
@@ -267,12 +267,12 @@ class FreeSurfaceWaves:
 
 
 @attrs.define(kw_only=True)
-class Floe(Subdomain):
+class Floe(_Subdomain):
     ice: Ice
 
 
 @attrs.define(kw_only=True)
-class WavesUnderFloe(Subdomain):
+class WavesUnderFloe(_Subdomain):
     wui: WavesUnderIce
     edge_amplitudes: np.ndarray
     generation: int = 0
