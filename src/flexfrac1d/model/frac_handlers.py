@@ -47,7 +47,9 @@ class _FractureHandler(abc.ABC):
         xf = np.hstack((0, xf))
         lengths = np.ediff1d(np.hstack((xf, wuf.length)))
         edges = wuf.left_edge + xf
-        edge_amplitudes = np.exp(1j * wuf.wui._c_wavenumbers * xf[:, None])
+        edge_amplitudes = wuf.edge_amplitudes * np.exp(
+            1j * wuf.wui._c_wavenumbers * xf[:, None]
+        )
         gens = wuf.generation * np.ones(xf.size)
         gens[:-1] += 1
         return [
