@@ -3,9 +3,7 @@
 from collections.abc import Callable
 import pathlib
 import numpy as np
-from flexfrac1d.lib.displacement import displacement
-from flexfrac1d.lib.curvature import curvature
-from flexfrac1d.lib.energy import energy
+import flexfrac1d.lib.physics as ph
 
 # Test configurations visually examined against solution from scipy.solve_bvp
 PATH_DIS = pathlib.Path("tests/target/displacement")
@@ -47,18 +45,19 @@ def _test_analytical(root_dir: pathlib.Path, func: Callable):
         # loaded[0]: along-floe space variable x
         # loaded[1]: reference values for func(x)
         floe_params, wave_params = format_to_pack(*read_header(handle))
+        handler = func(floe_params, wave_params)
 
         # test func(x) against existing displacement
-        assert np.allclose(loaded[1] - func(loaded[0], floe_params, wave_params), 0)
+        assert np.allclose(loaded[1] - handler.compute(loaded[0]), 0)
     assert sentinel > 0
 
 
 def test_displacement():
-    _test_analytical(PATH_DIS, displacement)
+    _test_analytical(PATH_DIS, ph.DisplacementHandler)
 
 
 def test_curvature():
-    _test_analytical(PATH_CUR, curvature)
+    _test_analytical(PATH_CUR, ph.CurvatureHandler)
 
 
 def test_dce_poly():
@@ -72,6 +71,9 @@ def test_dce_poly():
         wave_params_real = np.loadtxt(handle.joinpath("wave_params.ssv"))
         assert len(wave_params_real.shape) == 2
         floe_params, wave_params = format_to_pack(*floe_params, wave_params_real)
+        displacement = ph.DisplacementHandler(floe_params, wave_params).compute
+        curvature = ph.CurvatureHandler(floe_params, wave_params).compute
+        energy = ph.EnergyHandler(floe_params, wave_params).compute
 
         _test_poly(dis, displacement, x, floe_params, wave_params)
         _test_poly(cur, curvature, x, floe_params, wave_params)
@@ -88,4 +90,5 @@ def test_energy():
     for vars in loaded.T:
         red_num, length, *wave_params_real = vars[:-1]
         floe_params, wave_params = format_to_pack(red_num, length, wave_params_real)
-        assert np.isclose(vars[-1] - energy(floe_params, wave_params), 0)
+        handler = ph.EnergyHandler(floe_params, wave_params)
+        assert np.isclose(vars[-1] - handler.compute(), 0)

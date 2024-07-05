@@ -3,7 +3,8 @@ import numpy as np
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 import warnings
-from . import displacement as an_dis
+
+from ._ph_utils import _unit_wavefield
 
 
 def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
@@ -19,7 +20,7 @@ def free_surface(
     growth_params: tuple[np.ndarray, Real] | None,
 ) -> np.ndarray:
     c_amplitudes, c_wavenumbers = wave_params
-    wave_shape = an_dis._unit_wavefield(x, c_wavenumbers)
+    wave_shape = _unit_wavefield(x, c_wavenumbers)
     if growth_params is not None:
         kern = _growth_kernel(x, *growth_params)
         wave_shape *= kern
