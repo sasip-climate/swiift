@@ -13,6 +13,7 @@ import typing
 
 from ..lib.constants import PI_2, SQR2
 from ..lib import dr
+from ..lib import physics as ph
 from ..lib.graphics import plot_displacement
 
 if typing.TYPE_CHECKING:
@@ -459,6 +460,11 @@ class WavesUnderFloe(_Subdomain):
                 generation=self.generation,
             )
         object.__setattr__(self, "edge_amplitudes", shifted_amplitudes)
+
+    def energy(self, growth_params=None, an_sol: bool = False, num_params=None):
+        return ph.EnergyHandler.from_wuf(self, growth_params).compute(
+            an_sol, num_params
+        )
 
 
 class DiscreteSpectrum:

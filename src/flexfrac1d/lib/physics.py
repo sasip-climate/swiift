@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import attrs
 import functools
 import numpy as np
+import typing
 
 from .constants import SQR2, PI_D4
 from ._ph_utils import _wavefield
 from . import numerical
-from ..model import model
+
+if typing.TYPE_CHECKING:
+    from ..model import model
 
 # TODO: add a handler for that former FloeCoupled method
 #     def forcing(self, x, spectrum, growth_params):
