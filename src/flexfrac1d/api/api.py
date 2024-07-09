@@ -42,7 +42,7 @@ class Experiment:
 
     def save_step(self):
         self.history[self.time] = Step(
-            tuple(wuf.copy() for wuf in self.domain.subdomains),
+            tuple(wuf.make_copy() for wuf in self.domain.subdomains),
             (
                 (self.domain.growth_params[0].copy(), self.domain.growth_params[1])
                 if self.domain.growth_params is not None

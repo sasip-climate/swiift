@@ -446,22 +446,52 @@ class FreeSurfaceWaves:
         return PI_2 / self.wavenumbers
 
 
+# TODO: docstring inheritance
 @attrs.define(kw_only=True)
 class Floe(_Subdomain):
+    """An ice floe localised in space.
+
+    Parameters
+    ----------
+    ice : Ice
+        The mechanical properties of the floe
+
+    """
+
     ice: Ice
 
 
 @attrs.define(kw_only=True)
 class WavesUnderFloe(_Subdomain):
+    """A localised zone characetrised by wave action under floating ice.
+
+    Parameters
+    ----------
+    wui : WavesUnderIce
+    edge_amplitudes : 1d np.ndarray of complex
+        The wave complex amplitude at the left edge of the floe in m
+    generation : int
+        The number of fractures that led to the existence of this floe
+
+    """
+
     wui: WavesUnderIce
     edge_amplitudes: np.ndarray
     generation: int = 0
 
     @functools.cached_property
-    def _adim(self):
+    def _adim(self) -> float:
+        """A non-dimentional number characetrising the floe.
+
+        Returns
+        -------
+        float
+
+        """
         return self.length * self.wui.ice._red_elastic_number
 
-    def copy(self):
+    # TODO: typing.Self?
+    def make_copy(self) -> WavesUnderFloe:
         return WavesUnderFloe(
             left_edge=self.left_edge,
             length=self.length,
@@ -470,7 +500,17 @@ class WavesUnderFloe(_Subdomain):
             generation=self.generation,
         )
 
-    def shift(self, phase_shifts: np.ndarray, inplace=True):
+    @typing.overload
+    def shift_waves(self, phase_shifts: np.ndarray, inplace: typing.Literal[True]): ...
+
+    # TODO: typing.Self
+    @typing.overload
+    def shift_waves(
+        self, phase_shifts: np.ndarray, inplace: typing.Literal[False]
+    ) -> WavesUnderFloe: ...
+
+    # TODO: docstring
+    def shift_waves(self, phase_shifts: np.ndarray, inplace: bool = True):
         shifted_amplitudes = self.edge_amplitudes * np.exp(-1j * phase_shifts)
         if not inplace:
             return WavesUnderFloe(
@@ -687,7 +727,7 @@ class Domain:
         # complex_shifts, and then iterate a second time to build the objects.
         # See Propagation_tests.ipynb/DNE06-26
         for i in range(len(self.subdomains)):
-            self.subdomains[i].shift(phase_shifts)
+            self.subdomains[i].shift_waves(phase_shifts)
         if self.growth_params is not None:
             # Phases are only modulo'd in the setter
             self._shift_growth_means(phase_shifts)
