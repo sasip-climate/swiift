@@ -16,7 +16,7 @@ Step = namedtuple("Step", ["subdomains", "growth_params"])
 class Experiment:
     time: float
     domain: md.Domain
-    history: dict[float, Step] = attrs.field(init=False, factory=dict)
+    history: dict[float, Step] = attrs.field(init=False, factory=dict, repr=False)
     fracture_handler: fh._FractureHandler = attrs.field(default=fh.BinaryFracture())
 
     @classmethod
