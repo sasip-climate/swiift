@@ -409,11 +409,33 @@ class WavesUnderIce:
 
 @attrs.define(frozen=True)
 class FreeSurfaceWaves:
+    """The wave state in the absence of ice.
+
+    The spatial behaviour of waves (wavelength) is linked to their temporal
+    behaviour (period) through a dispersion relation. In the case of free
+    surface waves, propagating underneath floating ice, this dispersion
+    relation depends on the properties of the ocean as encapsulated in the
+    `Ocean` class.
+
+    Parameters
+    ----------
+    ocean : Ocean
+    wavenumbers : array_like
+        Propagating wavenumbers in rad m^-1
+
+    Attributes
+    ----------
+    wavelengths : 1d np.ndarray of float
+        Propagating wavelengths in m
+
+    """
+
     ocean: Ocean
     wavenumbers: np.ndarray
 
     @classmethod
     def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
+        """Build an instance by combining properties of existing objects."""
         alphas = spectrum._ang_freqs_pow2 / gravity
         solver = dr.FreeSurfaceSolver(alphas, ocean.depth)
         wavenumbers = solver.compute_wavenumbers()
@@ -421,7 +443,6 @@ class FreeSurfaceWaves:
 
     @functools.cached_property
     def wavelengths(self) -> np.ndarray:
-        """Wavelengths in m"""
         return PI_2 / self.wavenumbers
 
 
