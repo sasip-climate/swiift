@@ -590,8 +590,26 @@ class DiscreteSpectrum:
         return len(self.waves)
 
 
+# TODO: docstrings
 @attrs.define
 class Domain:
+    """A spatial domain forced by waves.
+
+    This represents the state of a MIZ at a given time.
+
+
+    Attributes
+    ----------
+    gravity : float
+    spectrum : DiscreteSpectrum
+    fsw : FreeSurfaceWaves
+    growth_params : list
+    subdomains : SortedList of WavesUnderFloe
+    cached_wuis :
+    cached_phases :
+
+    """
+
     gravity: float
     spectrum: DiscreteSpectrum
     fsw: FreeSurfaceWaves
