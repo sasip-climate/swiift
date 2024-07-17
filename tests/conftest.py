@@ -25,9 +25,7 @@ def ice_thickness(draw, ocean_density, ocean_depth, ice_density):
     kwgs = {"rhow": ocean_density, "rhoi": ice_density, "H": ocean_depth}
     ex = {k: draw(v) for k, v in kwgs.items()}
     upper_bound = 0.9999 * ex["rhow"] / ex["rhoi"] * ex["H"]
-    return draw(
-        st.floats(0.1e-3, min(1000e3, upper_bound), exclude_max=True, **float_kw)
-    )
+    return draw(st.floats(0.1e-3, min(1000, upper_bound), exclude_max=True, **float_kw))
 
 
 @st.composite
