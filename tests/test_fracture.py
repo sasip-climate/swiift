@@ -6,7 +6,7 @@ import pytest
 from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum, Floe, Domain
 import flexfrac1d.model.frac_handlers as fh
 
-PATH_BIN_EGY = pathlib.Path("tests/target/fracture")
+PATH_FRACTURE_TARGETS = pathlib.Path("tests/target/fracture")
 
 
 def make_wuf(array, growth_params):
@@ -53,7 +53,7 @@ def test_binary_energy_no_growth():
     growth_params = None
     an_sol = True
     binary_handler = fh.BinaryFracture()
-    target = np.loadtxt(PATH_BIN_EGY.joinpath("binary_fracture.ssv"))
+    target = np.loadtxt(PATH_FRACTURE_TARGETS.joinpath("binary_fracture.ssv"))
 
     for row in target:
         wuf = make_wuf(row[:-1], growth_params)
@@ -68,7 +68,7 @@ def test_binary_strain_no_growth():
     growth_params = None
     an_sol = True
     binary_handler = fh.BinaryStrainFracture()
-    target = np.loadtxt(PATH_BIN_EGY.joinpath("binary_strain_fracture.ssv"))
+    target = np.loadtxt(PATH_FRACTURE_TARGETS.joinpath("binary_strain_fracture.ssv"))
 
     for row in target:
         wuf = make_wuf(row[:-1], growth_params)
@@ -83,7 +83,7 @@ def test_multi_strain_no_growth():
     growth_params = None
     an_sol = True
     handler = fh.MultipleStrainFracture()
-    archive = np.load(PATH_BIN_EGY.joinpath("multi_strain_fracture.npz"))
+    archive = np.load(PATH_FRACTURE_TARGETS.joinpath("multi_strain_fracture.npz"))
 
     for i, row in enumerate(archive["params"]):
         wuf = make_wuf(row, growth_params)
