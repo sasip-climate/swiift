@@ -22,7 +22,7 @@ def free_surface(
     c_amplitudes, c_wavenumbers = wave_params
     wave_shape = _unit_wavefield(x, c_wavenumbers)
     if growth_params is not None:
-        kern = _growth_kernel(x, *growth_params)
+        kern = _growth_kernel(np.asarray(x), *growth_params)
         wave_shape *= kern
     eta = np.imag(c_amplitudes @ wave_shape)
     return eta
@@ -99,12 +99,17 @@ def _use_an_sol(
 
 # TODO: généraliser ces deux fonctions en prennant l'indice comme paramètre,
 # dans le but d'avoir également accès à la dérivée de la courbure
+# TODO: test
+def _extract_from_poly(sol: interpolate.PPoly, n: int) -> interpolate.PPoly:
+    return interpolate.PPoly(sol.c[:, :, n], sol.x, extrapolate=False)
+
+
 def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
-    return interpolate.PPoly(sol.c[:, :, 0], sol.x, extrapolate=False)
+    return _extract_from_poly(sol, 0)
 
 
 def _extract_cur_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
-    return interpolate.PPoly(sol.c[:, :, 2], sol.x, extrapolate=False)
+    return _extract_from_poly(sol, 2)
 
 
 def displacement(x, floe_params, wave_params, growth_params, num_params):

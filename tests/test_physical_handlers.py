@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+from hypothesis import given, strategies as st
+import numpy as np
+import pytest
+
+from flexfrac1d.lib.constants import PI_2
+from flexfrac1d.model.model import Wave
+import flexfrac1d.lib.physics as ph
+
+from .conftest import physical_strategies
+
+floe_params = (0.36, 7.8)
+wave_params = (
+    (
+        np.array([0.00950574 + 0.13669057j]),
+        np.array([0.02660581 + 0.02685434j]),
+    ),  # monochromatic
+    (
+        (
+            np.array([0.00950574 + 0.13669057j, 0.02660581 + 0.0265434j]),
+            np.array([0.03552382 + 0.05215654j, 0.06214718 + 0.1250975j]),
+        )  # polychromatic
+    ),
+)
+growth_params = (None, True)
+
+handlers = [
+    ph.FreeSurfaceHandler,
+    ph.DisplacementHandler,
+    ph.CurvatureHandler,
+    ph.StrainHandler,
+]
+x_as_real = (0, 1, 1.0, 3.18, np.array(1.8))
+x_as_list_or_tuple = (
+    (0, 1),
+    [0, 1],
+    (0.3, 1.8),
+    [0.3, 1.8],
+    (2.5,),
+    [2.5],
+)
+x_as_array = [np.asarray(_x) for _x in x_as_list_or_tuple[1::2]]
+thickness = 0.5
+
+
+@pytest.mark.parametrize("wave_params", wave_params)
+@pytest.mark.parametrize("growth_params", growth_params)
+@pytest.mark.parametrize("x", x_as_real)
+@pytest.mark.parametrize("handler", handlers)
+def test_shape_real(wave_params, growth_params, x, handler):
+    if growth_params is not None:
+        one_and_maybe_two = np.linspace(1, 2, len(wave_params[0]))
+        # Set arbitrary growth kernel with correct shape. Setting the mean to a
+        # negative number ensures a numerical solution is used.
+        growth_params = (-3 * one_and_maybe_two[:, None], 20)
+
+    if handler == ph.FreeSurfaceHandler:
+        handler_instance = handler(wave_params, growth_params)
+    elif handler == ph.StrainHandler:
+        handler_instance = handler(
+            ph.CurvatureHandler(floe_params, wave_params, growth_params), thickness
+        )
+    else:
+        handler_instance = handler(floe_params, wave_params, growth_params)
+
+    res = handler_instance.compute(x)
+    with pytest.raises(TypeError):
+        len(res)

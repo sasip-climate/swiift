@@ -14,10 +14,6 @@ from . import numerical
 if typing.TYPE_CHECKING:
     from ..model import model
 
-# TODO: add a handler for that former FloeCoupled method
-#     def forcing(self, x, spectrum, growth_params):
-#         return free_surface(x, self._pack(spectrum)[1], growth_params)
-
 
 def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
     floe_params = wuf.wui.ice._red_elastic_number, wuf.length
@@ -120,6 +116,21 @@ def _demote_to_scalar(f):
         return res
 
     return wrapper
+
+
+@attrs.define
+class FreeSurfaceHandler:
+    wave_params: tuple[np.ndarray]
+    growth_params: list[np.ndarray, float] | None = None
+
+    @classmethod
+    def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
+        return cls(*(_package_wuf(wuf, growth_params)[1:]))
+
+    # TODO: test, et est-ce que _demote_to_scalar doit etre applique?
+    @_demote_to_scalar
+    def compute(self, x):
+        return numerical.free_surface(x, self.wave_params, self.growth_params)
 
 
 @attrs.define
@@ -231,7 +242,7 @@ class StrainHandler:
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(CurvatureHandler.from_wuf(wuf, growth_params), wuf.wui.ice.thickness)
 
-    def compute(self, x, an_sol, num_params):
+    def compute(self, x, an_sol: bool | None = None, num_params: dict | None = None):
         return -self.thickness / 2 * self.curv_handler.compute(x, an_sol, num_params)
 
 
