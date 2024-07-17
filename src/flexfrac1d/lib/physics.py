@@ -124,13 +124,23 @@ def _demote_to_scalar(f):
 
 
 @attrs.define
-class FreeSurfaceHandler:
+class FluidSurfaceHandler:
     wave_params: tuple[np.ndarray]
     growth_params: list[np.ndarray, float] | None = None
 
     @classmethod
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(*(_package_wuf(wuf, growth_params)[1:]))
+
+    @classmethod
+    def from_domain(cls, domain: model.Domain, growth_params: list | None = None):
+        return cls(
+            (
+                domain.spectrum._amps * np.exp(1j * domain.spectrum._phases),
+                domain.fsw.wavenumbers,
+            ),
+            growth_params,
+        )
 
     @_demote_to_scalar
     def compute(self, x, /):

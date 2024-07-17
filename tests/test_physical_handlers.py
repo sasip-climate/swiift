@@ -22,7 +22,7 @@ wave_params = (
 growth_params = (None, True)
 
 handlers = [
-    ph.FreeSurfaceHandler,
+    ph.FluidSurfaceHandler,
     ph.DisplacementHandler,
     ph.CurvatureHandler,
     ph.StrainHandler,
@@ -47,7 +47,7 @@ def prepare_instance(growth_params, handler, wave_params):
         # negative number ensures a numerical solution is used.
         growth_params = (-3 * one_and_maybe_two[:, None], 20)
 
-    if handler == ph.FreeSurfaceHandler:
+    if handler == ph.FluidSurfaceHandler:
         handler_instance = handler(wave_params, growth_params)
     elif handler == ph.StrainHandler:
         handler_instance = handler(
