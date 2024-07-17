@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
-from hypothesis import given, strategies as st
 import numpy as np
 import pytest
 
-from flexfrac1d.lib.constants import PI_2
-from flexfrac1d.model.model import Wave
 import flexfrac1d.lib.physics as ph
 
-from .conftest import physical_strategies
 
 floe_params = (0.36, 7.8)
 wave_params = (
@@ -40,15 +36,11 @@ x_as_list_or_tuple = (
     (2.5,),
     [2.5],
 )
-x_as_array = [np.asarray(_x) for _x in x_as_list_or_tuple[1::2]]
+x_as_array = tuple([np.asarray(_x) for _x in x_as_list_or_tuple[1::2]])
 thickness = 0.5
 
 
-@pytest.mark.parametrize("wave_params", wave_params)
-@pytest.mark.parametrize("growth_params", growth_params)
-@pytest.mark.parametrize("x", x_as_real)
-@pytest.mark.parametrize("handler", handlers)
-def test_shape_real(wave_params, growth_params, x, handler):
+def prepare_instance(growth_params, handler, wave_params):
     if growth_params is not None:
         one_and_maybe_two = np.linspace(1, 2, len(wave_params[0]))
         # Set arbitrary growth kernel with correct shape. Setting the mean to a
@@ -63,7 +55,25 @@ def test_shape_real(wave_params, growth_params, x, handler):
         )
     else:
         handler_instance = handler(floe_params, wave_params, growth_params)
+    return handler_instance
 
+
+@pytest.mark.parametrize("wave_params", wave_params)
+@pytest.mark.parametrize("growth_params", growth_params)
+@pytest.mark.parametrize("x", x_as_real)
+@pytest.mark.parametrize("handler", handlers)
+def test_shape_real(wave_params, growth_params, x, handler):
+    handler_instance = prepare_instance(growth_params, handler, wave_params)
     res = handler_instance.compute(x)
     with pytest.raises(TypeError):
         len(res)
+
+
+@pytest.mark.parametrize("wave_params", wave_params)
+@pytest.mark.parametrize("growth_params", growth_params)
+@pytest.mark.parametrize("x", x_as_list_or_tuple + x_as_array)
+@pytest.mark.parametrize("handler", handlers)
+def test_shape_array(wave_params, growth_params, x, handler):
+    handler_instance = prepare_instance(growth_params, handler, wave_params)
+    res = handler_instance.compute(x)
+    assert len(x) == res.size

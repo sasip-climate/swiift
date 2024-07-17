@@ -105,13 +105,18 @@ def _dis_hom_rhs(floe_params: tuple[float], wave_params: tuple[np.ndarray]):
     return np.array((r1, r2, r3, r4))
 
 
-# Can be used to decorate functions to make them return a scalar instead of a
-# 1d array of length 1
+# Can be used to decorate methods to make them return a scalar instead of
+# a 1d-array of length 1, if the argument is a scalar OR a 0d array (that is, a
+# scalar). If the argument is a tuple or a list or a 1d array of length 1,
+# a 1d-array of length 1 is returned.
+# This emulate the behaviour of standard numpy ufuncs.
 def _demote_to_scalar(f):
     @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        res = f(*args, **kwargs)
-        if len(res) == 1:
+    def wrapper(*args):
+        instance, x = args
+        x = np.asarray(x)
+        res = f(instance, x)
+        if len(res) == 1 and x.ndim == 0:
             return res.item()
         return res
 
@@ -127,9 +132,8 @@ class FreeSurfaceHandler:
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(*(_package_wuf(wuf, growth_params)[1:]))
 
-    # TODO: test, et est-ce que _demote_to_scalar doit etre applique?
     @_demote_to_scalar
-    def compute(self, x):
+    def compute(self, x, /):
         return numerical.free_surface(x, self.wave_params, self.growth_params)
 
 
@@ -161,7 +165,7 @@ class DisplacementHandler:
         )
 
     @_demote_to_scalar
-    def _dis(self, x):
+    def _dis(self, x, /):
         return self._dis_hom(x) + self._dis_par(x)
 
     def compute(
@@ -171,7 +175,7 @@ class DisplacementHandler:
         num_params: dict | None = None,
     ):
         if numerical._use_an_sol(an_sol, self.floe_params[1], self.growth_params):
-            return self._dis(x)
+            return self._dis(np.asarray(x))
         return numerical.displacement(
             x, self.floe_params, self.wave_params, self.growth_params, num_params
         )
@@ -216,7 +220,7 @@ class CurvatureHandler:
         return self._cur_wavefield(x)
 
     @_demote_to_scalar
-    def _cur(self, x):
+    def _cur(self, x, /):
         return self._cur_hom(x) + self._cur_par(x)
 
     def compute(
