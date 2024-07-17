@@ -46,8 +46,12 @@ physical_strategies = {
     },
     "ice": {
         "frac_toughness": st.floats(1e3, 1e7, **float_kw),
-        "poissons_ratio": st.floats(-1, 0.5, exclude_min=True, **float_kw),
+        "poissons_ratio": st.floats(-0.999, 0.5, **float_kw),
+        "strain_threshold": st.floats(1e-7, 1e-3, **float_kw),
         "youngs_modulus": st.floats(1e6, 100e9, **float_kw),
+        "elastic_length": st.floats(
+            5e-4, 3e4, **float_kw
+        ),  # derived from the bounds on its constituents
     },
     "wave": {
         "amplitude": st.floats(1e-6, 1e3, **float_kw),
