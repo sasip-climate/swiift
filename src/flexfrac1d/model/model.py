@@ -12,6 +12,7 @@ from sortedcontainers import SortedList
 import typing
 
 from ..lib.constants import PI_2, SQR2
+from ..lib import att
 from ..lib import dr
 from ..lib import physics as ph
 from ..lib.graphics import plot_displacement
@@ -326,9 +327,6 @@ class WavesUnderIce:
     ice : FloatingIce
     wavenumbers : 1d array_like of float
         Propagating wavenumbers in rad m^-1
-
-    Attributes
-    ----------
     attenuations : 1d array_like of float
         Parametrised wave attenuation due to the ice cover in m^-1
 
@@ -336,10 +334,18 @@ class WavesUnderIce:
 
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
+    attenuations: np.ndarray | Real = attrs.field(repr=False)
 
     @classmethod
     def from_floating(
-        cls, ice: FloatingIce, spectrum: DiscreteSpectrum, gravity: float
+        cls,
+        ice: FloatingIce,
+        spectrum: DiscreteSpectrum,
+        gravity: float,
+        attenuation_handler: (
+            typing.Type[att._AttenuationParameterisation] | None
+        ) = None,
+        attenuation_kwgs: dict[str : typing.Any] | None = None,
     ) -> WavesUnderIce:
         """Build an instance by combining properties of existing objects.
 
@@ -363,11 +369,28 @@ class WavesUnderIce:
         solver = dr.ElasticMassLoadingSolver(alphas, deg1, deg0, scaled_ratio)
         wavenumbers = solver.compute_wavenumbers() / ice.elastic_length
 
-        return cls(ice, wavenumbers)
+        if attenuation_handler is None:
+            attenuation_handler = att.AttenuationParametrisation01
+        if attenuation_kwgs is None:
+            attenuation_kwgs = dict()
+        attenuations = attenuation_handler(
+            ice=ice,
+            wavenumbers=wavenumbers,
+            **attenuation_kwgs,
+        ).compute()
+        return cls(ice, wavenumbers, attenuations)
 
     @classmethod
     def from_ocean(
-        cls, ice: Ice, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float
+        cls,
+        ice: Ice,
+        ocean: Ocean,
+        spectrum: DiscreteSpectrum,
+        gravity: float,
+        attenuation_handler: (
+            typing.Type[att._AttenuationParameterisation] | None
+        ) = None,
+        attenuation_kwgs: dict[str : typing.Any] | None = None,
     ) -> WavesUnderIce:
         """Build an instance by combining properties of existing objects.
 
@@ -385,11 +408,9 @@ class WavesUnderIce:
 
         """
         floating_ice = FloatingIce.from_ice_ocean(ice, ocean, gravity)
-        return cls.from_floating(floating_ice, spectrum, gravity)
-
-    @functools.cached_property
-    def attenuations(self) -> np.ndarray:
-        return self.wavenumbers**2 * self.ice.thickness / 4
+        return cls.from_floating(
+            floating_ice, spectrum, gravity, attenuation_handler, attenuation_kwgs
+        )
 
     @functools.cached_property
     def _c_wavenumbers(self) -> np.ndarray:
