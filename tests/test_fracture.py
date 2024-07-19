@@ -47,7 +47,7 @@ def make_wuf(array, growth_params):
     spectrum = DiscreteSpectrum(
         amplitudes=amplitude, frequencies=frequency, phases=phase
     )
-    domain = Domain.from_discrete(gravity, spectrum, ocean, growth_params)
+    domain = Domain.from_discrete(gravity, spectrum, ocean, None, growth_params)
     floe = Floe(left_edge=left_edge, length=length, ice=ice)
     domain.add_floes(floe)
     return domain.subdomains[0]

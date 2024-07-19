@@ -764,10 +764,17 @@ class Domain:
 
     @classmethod
     def from_discrete(
-        cls, gravity, spectrum, ocean, growth_params, attenuation: att.Attenuation
+        cls,
+        gravity,
+        spectrum,
+        ocean,
+        attenuation: att.Attenuation | None = None,
+        growth_params: tuple | None = None,
     ):
         fsw = FreeSurfaceWaves.from_ocean(ocean, spectrum, gravity)
-        return cls(gravity, spectrum, fsw, growth_params, attenuation)
+        if attenuation is None:
+            attenuation = att.AttenuationParameterisation(1)
+        return cls(gravity, spectrum, fsw, attenuation, growth_params)
 
     def __attrs_post_init__(self):
         if self.growth_params is not None:

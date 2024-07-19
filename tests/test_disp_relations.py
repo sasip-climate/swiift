@@ -4,7 +4,7 @@ from hypothesis import given, settings, strategies as st
 import numpy as np
 
 from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum
-from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderIce
+from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderElasticPlate
 
 from .conftest import physical_strategies
 from .conftest import coupled_ocean_ice, spec_mono
@@ -59,7 +59,7 @@ def test_elas_mass_loading(
     angfreqs2 = spec._ang_freqs_pow2
     # co = OceanCoupled(ocean, spec, gravity)
     # ci = IceCoupled(ice, co, spec, None, gravity)
-    wui = WavesUnderIce.from_ocean(ice, ocean, spec, gravity)
+    wui = WavesUnderElasticPlate.from_ocean(ice, ocean, spec, gravity)
     x = elas_mass_surface(wui.wavenumbers, ice, ocean, gravity)
     # x = elas_mass_surface(ci.wavenumbers, ice, ocean, gravity)
     y = angfreqs2 / gravity
