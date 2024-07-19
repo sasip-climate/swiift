@@ -342,9 +342,7 @@ class WavesUnderIce:
         ice: FloatingIce,
         spectrum: DiscreteSpectrum,
         gravity: float,
-        attenuation_handler: (
-            typing.Type[att._AttenuationParameterisation] | None
-        ) = None,
+        attenuation_handler: typing.Type[att.AttenuationParameterisation] | None = None,
         attenuation_kwgs: dict[str : typing.Any] | None = None,
     ) -> WavesUnderIce:
         """Build an instance by combining properties of existing objects.
@@ -387,9 +385,7 @@ class WavesUnderIce:
         ocean: Ocean,
         spectrum: DiscreteSpectrum,
         gravity: float,
-        attenuation_handler: (
-            typing.Type[att._AttenuationParameterisation] | None
-        ) = None,
+        attenuation_handler: typing.Type[att.AttenuationParameterisation] | None = None,
         attenuation_kwgs: dict[str : typing.Any] | None = None,
     ) -> WavesUnderIce:
         """Build an instance by combining properties of existing objects.
