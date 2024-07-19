@@ -8,6 +8,7 @@ import functools
 import itertools
 from numbers import Real
 import numpy as np
+import operator
 from sortedcontainers import SortedList
 import typing
 
@@ -314,27 +315,25 @@ class FloatingIce(Ice):
 
 
 @attrs.define(frozen=True)
-class WavesUnderIce:
-    """A non-localised zone characetrised by wave action under floating ice.
+class WavesUnderElasticPlate:
+    """A non-localised zone characterised by wave action.
 
     The spatial behaviour of waves (wavelength) is linked to their temporal
     behaviour (period) through a dispersion relation. In the case of waves
-    propagating underneath floating ice, this dispersion relation depends on
-    the properties of the ice as encapsulated by the `FloatingIce` class.
+    propagating underneath floating ice, considered as an elastic plate, this
+    dispersion relation depends on the properties of the ice as encapsulated by
+    the `FloatingIce` class.
 
     Parameters
     ----------
     ice : FloatingIce
     wavenumbers : 1d array_like of float
-        Propagating wavenumbers in rad m^-1
-    attenuations : 1d array_like of float
-        Parametrised wave attenuation due to the ice cover in m^-1
+        Propagating wavenumbers, in rad m^-1
 
     """
 
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
-    attenuations: np.ndarray | Real = attrs.field(repr=False)
 
     @classmethod
     def from_floating(
@@ -342,9 +341,7 @@ class WavesUnderIce:
         ice: FloatingIce,
         spectrum: DiscreteSpectrum,
         gravity: float,
-        attenuation_handler: typing.Type[att.AttenuationParameterisation] | None = None,
-        attenuation_kwgs: dict[str : typing.Any] | None = None,
-    ) -> WavesUnderIce:
+    ) -> typing.Self:
         """Build an instance by combining properties of existing objects.
 
         Parameters
@@ -356,7 +353,7 @@ class WavesUnderIce:
 
         Returns
         -------
-        WavesUnderIce
+        WavesUnderElasticPlate
 
         """
         alphas = spectrum._ang_freqs_pow2 / gravity
@@ -365,18 +362,10 @@ class WavesUnderIce:
         scaled_ratio = ice.dud / ice.elastic_length
 
         solver = dr.ElasticMassLoadingSolver(alphas, deg1, deg0, scaled_ratio)
+        # NOTE: `solver` returns non-dimensional wavenumbers
         wavenumbers = solver.compute_wavenumbers() / ice.elastic_length
 
-        if attenuation_handler is None:
-            attenuation_handler = att.AttenuationParametrisation01
-        if attenuation_kwgs is None:
-            attenuation_kwgs = dict()
-        attenuations = attenuation_handler(
-            ice=ice,
-            wavenumbers=wavenumbers,
-            **attenuation_kwgs,
-        ).compute()
-        return cls(ice, wavenumbers, attenuations)
+        return cls(ice, wavenumbers)
 
     @classmethod
     def from_ocean(
@@ -385,9 +374,7 @@ class WavesUnderIce:
         ocean: Ocean,
         spectrum: DiscreteSpectrum,
         gravity: float,
-        attenuation_handler: typing.Type[att.AttenuationParameterisation] | None = None,
-        attenuation_kwgs: dict[str : typing.Any] | None = None,
-    ) -> WavesUnderIce:
+    ) -> typing.Self:
         """Build an instance by combining properties of existing objects.
 
         Parameters
@@ -400,12 +387,145 @@ class WavesUnderIce:
 
         Returns
         -------
-        WavesUnderIce
+        WavesUnderElasticPlate
 
         """
         floating_ice = FloatingIce.from_ice_ocean(ice, ocean, gravity)
-        return cls.from_floating(
-            floating_ice, spectrum, gravity, attenuation_handler, attenuation_kwgs
+        return cls.from_floating(floating_ice, spectrum, gravity)
+
+
+# TODO: check docstring
+@attrs.define(frozen=True)
+class WavesUnderIce:
+    """A non-localised zone characetrised by wave action under floating ice.
+
+    This class extends the behaviour of `WavesUnderElasticPlate` by adding an
+    `attenuations` attribute, that parametrises the observed exponential decay
+    of waves underneath floating ice.
+
+    Parameters
+    ----------
+    ice : FloatingIce
+    wavenumbers : 1d array_like of float
+        Propagating wavenumbers, in rad m^-1
+    attenuations : 1d array_like of float
+        Parametrised wave amplitude attenuation rate, in m^-1
+
+    """
+
+    ice: FloatingIce
+    wavenumbers: np.ndarray = attrs.field(repr=False)
+    attenuations: np.ndarray | Real = attrs.field(repr=False)
+
+    @classmethod
+    def from_ep_no_attenuation(
+        cls, waves_under_ep: WavesUnderElasticPlate
+    ) -> typing.Self:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        waves_under_ep : WavesUnderElasticPlate
+            An object instance
+
+        Returns
+        -------
+        WavesUnderIce
+
+        See Also
+        -----
+        lib.att.no_attenuation
+
+        """
+        return cls(
+            waves_under_ep.ice,
+            waves_under_ep.wavenumbers,
+            att.no_attenuation(),
+        )
+
+    @classmethod
+    def from_ep_attenuation_param_01(
+        cls, waves_under_ep: WavesUnderElasticPlate
+    ) -> typing.Self:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        waves_under_ep : WavesUnderElasticPlate
+            An object instance
+
+        Returns
+        -------
+        WavesUnderIce
+
+        See Also
+        -----
+        lib.att.parameterisation_01
+
+        """
+        return cls(
+            waves_under_ep.ice,
+            waves_under_ep.wavenumbers,
+            att.parameterisation_01(
+                waves_under_ep.ice.thickness, waves_under_ep.wavenumbers
+            ),
+        )
+
+    @classmethod
+    def from_ep_generic_attenuation_param(
+        cls,
+        waves_under_ep: WavesUnderElasticPlate,
+        parameterisation: typing.Callable,
+        args: str | None = None,
+        **kwargs,
+    ):
+        """[TODO:description]
+
+        Parameters
+        ----------
+        waves_under_ep : WavesUnderElasticPlate
+            An object instance.
+        parameterisation : typing.Callable
+            Function defining attenuation.
+            Must return a type broadcastable to `waves_under_ep.wavenumbers`.
+        args : str | None
+            A string of attributes of `waves_under_ep`, separated by
+            whitespace, to be passed as parameters to `parameterisation`.
+            All parameters will be passed as a mapping between the stem of the
+            attribute and its value.
+        **kwargs : dict
+            Additional parameters to pass to `parameterisation`.
+
+        Returns
+        -------
+        WavesUnderFloe
+
+        Examples
+        --------
+        Assuming an existing `wue` instance of `WavesUnderElasticPlate`, the
+        three following objects are identical, setting the attenuation egal to
+        the ice density for all wave modes.
+
+        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+            wue,
+            lambda density: density,
+            "ice.density"
+        )
+        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+            wue,
+            lambda density: density,
+            {"density": wue.ice.density},
+        )
+        >>> WavesUnderIce(wue.ice, wue.wavenumbers, wue.ice.density)
+
+        """
+        if args is not None:
+            kwargs |= {
+                arg.split(".")[-1]: operator.attrgetter(arg)(waves_under_ep)
+                for arg in args.split()
+            }
+        return cls(
+            waves_under_ep.ice, waves_under_ep.wavenumbers, parameterisation(**kwargs)
         )
 
     @functools.cached_property
@@ -537,6 +657,8 @@ class WavesUnderFloe(_Subdomain):
                 edge_amplitudes=shifted_amplitudes,
                 generation=self.generation,
             )
+        # HACK: instantiating an new object is cheap, resorting a whole list of
+        # subdomains is not, so we mutate the amplitude/phase instead
         object.__setattr__(self, "edge_amplitudes", shifted_amplitudes)
 
     def energy(self, growth_params=None, an_sol: bool = False, num_params=None):
