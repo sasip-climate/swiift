@@ -157,36 +157,3 @@ coupled_floe = {
         ice=st.shared(coupled_ocean_ice["ice"], key="ice"),
     )
 } | coupled_ocean_ice
-
-# coupled_ocean_ice2 = {
-#     "ocean": st.builds(
-#         Ocean,
-#         depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
-#         density=st.shared(physical_strategies["ocean"]["density"], key="rhow"),
-#     ),
-#     "ice": st.builds(
-#         Ice,
-#         density=st.shared(
-#             physical_strategies["ice"]["density"](
-#                 st.shared(physical_strategies["ocean"]["density"], key="rhow")
-#             ),
-#             key="rhoi",
-#         ),
-#         frac_energy=physical_strategies["ice"]["frac_energy"],
-#         poissons_ratio=physical_strategies["ice"]["poissons_ratio"],
-#         thickness=physical_strategies["ice"]["thickness"](
-#             ocean_depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
-#             ocean_density=st.shared(
-#                 physical_strategies["ocean"]["density"], key="rhow"
-#             ),
-#             ice_density=st.shared(
-#                 physical_strategies["ice"]["density"](
-#                     st.shared(physical_strategies["ocean"]["density"], key="rhow")
-#                 ),
-#                 key="rhoi",
-#             ),
-#         ),
-#         youngs_modulus=physical_strategies["ice"]["youngs_modulus"],
-#     ),
-#     "gravity": physical_strategies["gravity"],
-# }
