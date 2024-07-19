@@ -1,5 +1,8 @@
 """Attenuation parameterisations."""
 
+import attrs
+import enum
+import typing
 import numpy as np
 
 
@@ -51,3 +54,18 @@ def parameterisation_01(thickness: float, wavenumbers: np.ndarray) -> np.ndarray
 
     """
     return wavenumbers**2 * thickness / 4
+
+
+class AttenuationParameterisation(enum.Enum):
+    NO = 0
+    PARAM_01 = 1
+
+
+@attrs.frozen
+class AttenuationSpecification:
+    function: typing.Callable
+    args: str | None = None
+    kwargs: dict[str, typing.Any] = attrs.field(factory=dict)
+
+
+Attenuation: typing.TypeAlias = AttenuationParameterisation | AttenuationSpecification

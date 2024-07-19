@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from ..model import model as md
 from ..model import frac_handlers as fh
+from ..lib import att
 
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
@@ -25,10 +26,15 @@ class Experiment:
         gravity: float,
         spectrum: md.DiscreteSpectrum,
         ocean: md.Ocean,
-        growth_params: tuple,
-        fracture_handler: fh.BinaryFracture = None,
+        growth_params: tuple | None = None,
+        fracture_handler: fh._FractureHandler | None = None,
+        attenuation_spec: att.Attenuation | None = None,
     ):
-        domain = md.Domain.from_discrete(gravity, spectrum, ocean, growth_params)
+        if attenuation_spec is None:
+            attenuation_spec = att.AttenuationParameterisation(1)
+        domain = md.Domain.from_discrete(
+            gravity, spectrum, ocean, attenuation_spec, growth_params
+        )
         if fracture_handler is None:
             return cls(0, domain)
         return cls(0, domain, fracture_handler)

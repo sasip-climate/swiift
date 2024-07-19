@@ -752,6 +752,7 @@ class Domain:
     gravity: float
     spectrum: DiscreteSpectrum
     fsw: FreeSurfaceWaves
+    attenuation: att.Attenuation = attrs.field(repr=False)
     growth_params: list[np.array, float] | None = None
     subdomains: SortedList = attrs.field(repr=False, init=False, factory=SortedList)
     cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(
@@ -762,9 +763,11 @@ class Domain:
     )
 
     @classmethod
-    def from_discrete(cls, gravity, spectrum, ocean, growth_params):
+    def from_discrete(
+        cls, gravity, spectrum, ocean, growth_params, attenuation: att.Attenuation
+    ):
         fsw = FreeSurfaceWaves.from_ocean(ocean, spectrum, gravity)
-        return cls(gravity, spectrum, fsw, growth_params)
+        return cls(gravity, spectrum, fsw, growth_params, attenuation)
 
     def __attrs_post_init__(self):
         if self.growth_params is not None:
@@ -790,9 +793,24 @@ class Domain:
 
     def _compute_wui(self, ice: Ice):
         if ice not in self.cached_wuis:
-            self.cached_wuis[ice] = WavesUnderIce.from_ocean(
+            wup = WavesUnderElasticPlate.from_ocean(
                 ice, self.fsw.ocean, self.spectrum, self.gravity
             )
+            if isinstance(self.attenuation, att.AttenuationParameterisation):
+                if self.attenuation == att.AttenuationParameterisation.NO:
+                    wui = WavesUnderIce.from_ep_no_attenuation(wup)
+                elif self.attenuation == att.AttenuationParameterisation.PARAM_01:
+                    wui = WavesUnderIce.from_ep_attenuation_param_01(wup)
+                else:
+                    raise ValueError
+            else:
+                wui = WavesUnderIce.from_ep_generic_attenuation_param(
+                    wup,
+                    self.attenuation.function,
+                    self.attenuation.args,
+                    **self.attenuation.kwargs,
+                )
+            self.cached_wuis[ice] = wui
         return self.cached_wuis[ice]
 
     def _shift_phases(self, phases: np.ndarray):
