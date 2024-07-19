@@ -111,11 +111,6 @@ coupled_ocean_ice = {
         depth=st.shared(physical_strategies["ocean"]["depth"], key="H"),
         density=st.shared(physical_strategies["ocean"]["density"], key="rhow"),
     ),
-    # "spec": st.builds(
-    #     DiscreteSpectrum,
-    #     st.just(1),
-    #     physical_strategies["wave"]["frequency"],
-    # ),
     "ice": st.shared(
         st.builds(
             Ice,
