@@ -8,11 +8,14 @@ import functools
 import itertools
 from numbers import Real
 import numpy as np
+import operator
 from sortedcontainers import SortedList
 import typing
 
 from ..lib.constants import PI_2, SQR2
+from ..lib import att
 from ..lib import dr
+from ..lib import physics as ph
 from ..lib.graphics import plot_displacement
 
 if typing.TYPE_CHECKING:
@@ -22,7 +25,25 @@ if typing.TYPE_CHECKING:
 
 @attrs.define(frozen=True)
 class Wave:
-    """Represents a monochromatic wave."""
+    """A monochromatic wave.
+
+    Parameters
+    ----------
+    amplitude : float
+        Wave amplitude in m
+    period : float
+        Wave period in s
+    phase :
+        Wave phase in rad
+
+    Attributes
+    ----------
+    frequency : float
+        Wave frequency in Hz
+    angular_frequency: float
+        Wave angular frequency in rad s^-1
+
+    """
 
     amplitude: float
     period: float
@@ -30,42 +51,61 @@ class Wave:
 
     @classmethod
     def from_frequency(cls, amplitude, frequency, phase=0):
+        """Build a wave from frequency instead of period.
+
+        Parameters
+        ----------
+        amplitude : float
+           The wave amplitude in m
+        frequency : float
+           The wave frequency in Hz
+        phase :
+           The wave phase in rad
+
+        Returns
+        -------
+        Wave
+
+        """
         return cls(amplitude, 1 / frequency, phase)
 
     @functools.cached_property
     def frequency(self) -> float:
-        """Wave frequency in Hz."""
         return 1 / self.period
 
     @functools.cached_property
     def angular_frequency(self) -> float:
-        """Wave angular frequency in rad s**-1."""
         return PI_2 / self.period
 
     @functools.cached_property
-    def angular_frequency_pow2(self) -> float:
-        """Squared wave angular frequency, for convenience."""
+    def _angular_frequency_pow2(self) -> float:
+        """Return the squared angular frequency.
+
+        This is a convenience method, this quantity appearing frequently in
+        computations.
+
+        Returns
+        -------
+        float
+
+
+        """
         return self.angular_frequency**2
 
 
 @attrs.define(frozen=True)
 class Ocean:
-    """Represents the fluid bearing the floes.
+    """The fluid bearing ice floes.
 
-    Encapsulates the properties of an incompressible ocean of finite,
+    This class encapsulates the properties of an incompressible ocean of
     constant depth and given density.
 
     Parameters
     ----------
     depth : float
-        Ocean constant and finite depth in m.
+        Ocean depth in m
     density : float
-        Ocean constant density in kg m**-3.
-
-    Attributes
-    ----------
-    density : float
-    depth : float
+        Ocean density in kg m^-3
 
     """
 
@@ -75,22 +115,38 @@ class Ocean:
 
 @attrs.define(frozen=True)
 @functools.total_ordering
-class Subdomain:
+class _Subdomain:
+    """A segment localised in space.
+
+    Parameters
+    ----------
+    left_edge : float
+       Coordinate of the left edge of the domain in m
+    length : float
+        Length of the domain in m
+
+    Attributes
+    ----------
+    right_edge : float
+        Coordinate of the right edge of the domain in m
+
+    """
+
     left_edge: float
     length: float
 
-    def __eq__(self, other: Subdomain | Real) -> bool:
+    def __eq__(self, other: _Subdomain | Real) -> bool:
         match other:
-            case Subdomain():
+            case _Subdomain():
                 return self.left_edge == other.left_edge
             case Real():
                 return self.left_edge == other
             case _:
                 raise NotImplementedError
 
-    def __lt__(self, other: Subdomain | Real) -> bool:
+    def __lt__(self, other: _Subdomain | Real) -> bool:
         match other:
-            case Subdomain():
+            case _Subdomain():
                 return self.left_edge < other.left_edge
             case Real():
                 return self.left_edge < other
@@ -104,29 +160,60 @@ class Subdomain:
 
 @attrs.define(frozen=True)
 class Ice:
+    """A container for ice mechanical properties.
+
+    Ice is modelled as an elastic thin plate, with prescribed density,
+    thickness, Poisson's ratio and Young's modulus. Its fracture under bending
+    is considered either through the lens of Griffith's fracture mechanics, or
+    through the framework of strain failure commonly used in the sea ice
+    modelling community. The fracture toughness is relevant to the former,
+    while the strain threshold is relevant to the latter. Ice is considered
+    translationally invariant in one horizontal direction, so that its
+    quadratic moment of area is given per unit length in that direction.
+
+    Parameters
+    ----------
+    density : float
+        Density in kg m^-3
+    frac_toughness : float
+        Fracture toughness in Pa m^-1/2
+    poissons_ratio : float
+        Poisson's ratio
+    strain_threshold : float
+        Critical flexural strain in m m^-1
+    thickness : float
+        Ice thickness in m
+    youngs_modulus : float
+        Scalar Young's modulus in Pa
+
+    Attributes
+    ----------
+    quad_moment : float
+        Quadratic moment of area in m^3
+    flex_rigidity : float
+        Flexural rigidity in
+    frac_energy_rate : float
+        Fracture energy release rate in J m^-2
+
+    """
+
     density: float = 922.5
     frac_toughness: float = 1e5
     poissons_ratio: float = 0.3
+    strain_threshold: float = 3e-5
     thickness: float = 1.0
     youngs_modulus: float = 6e9
 
     @functools.cached_property
-    def quad_moment(self):
+    def quad_moment(self) -> float:
         return self.thickness**3 / (12 * (1 - self.poissons_ratio**2))
 
     @functools.cached_property
-    def flex_rigidity(self):
+    def flex_rigidity(self) -> float:
         return self.quad_moment * self.youngs_modulus
 
     @functools.cached_property
     def frac_energy_rate(self) -> float:
-        """Ice fracture energy release rate in J m**-2
-
-        Returns
-        -------
-        frac_energy_rate: float
-
-        """
         return (
             (1 - self.poissons_ratio**2) * self.frac_toughness**2 / self.youngs_modulus
         )
@@ -134,19 +221,59 @@ class Ice:
 
 @attrs.define(kw_only=True, frozen=True)
 class FloatingIce(Ice):
+    """An extension of `Ice` to represent properties due to buyoancy.
+
+    Parameters
+    ----------
+    draft : float
+       Immersed ice thickness at rest in m
+    dud : float
+        Height of the water column underneath the ice at rest in m
+    elastic_length_pow4 : float
+        Characteristic elastic length scale, raised to the 4th power, in m^4
+
+    Attributes
+    ----------
+    elastic_length : float
+        Characteristic elastic length scale in m
+    freeboard : float
+        Emerged ice thickness at rest in m
+
+    """
+
     draft: float
     dud: float
     elastic_length_pow4: float
 
     @classmethod
-    def from_ice_ocean(cls, ice: Ice, ocean: Ocean, gravity: float):
+    def from_ice_ocean(cls, ice: Ice, ocean: Ocean, gravity: float) -> FloatingIce:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        ice : Ice
+        ocean : Ocean
+        gravity : float
+           Strengh of the local gravitational field in m s^-2
+
+        Returns
+        -------
+        FloatingIce
+
+        """
         draft = ice.density / ocean.density * ice.thickness
         dud = ocean.depth - draft
+        # NOTE: as the 4th power of the elastic length scale arises naturally,
+        # we prefer using it to instantiate the class and computing the length
+        # scale when needed, over using the length scale for instantiation and
+        # recomputing the fourth power from it, as the latter approach can lead
+        # to substantial numerical imprecision.
         el_lgth_pow4 = ice.flex_rigidity / (ocean.density * gravity)
         return cls(
             density=ice.density,
             frac_toughness=ice.frac_toughness,
             poissons_ratio=ice.poissons_ratio,
+            strain_threshold=ice.strain_threshold,
             thickness=ice.thickness,
             youngs_modulus=ice.youngs_modulus,
             draft=draft,
@@ -163,56 +290,289 @@ class FloatingIce(Ice):
         return self.thickness - self.draft
 
     @functools.cached_property
-    def _elastic_number(self):
+    def _elastic_number(self) -> float:
+        """Reciprocal of the Characteristic elastic length scale.
+
+        Returns
+        -------
+        float
+            Elastic number in m^-1
+
+        """
         return 1 / self.elastic_length
 
     @functools.cached_property
-    def _red_elastic_number(self):
+    def _red_elastic_number(self) -> float:
+        """Characteristic elastic number scaled by 1/sqrt(2).
+
+        Returns
+        -------
+        float
+            Reduced elastic number in m^-1
+
+        """
         return 1 / (SQR2 * self.elastic_length)
 
 
 @attrs.define(frozen=True)
-class WavesUnderIce:
+class WavesUnderElasticPlate:
+    """A non-localised zone characterised by wave action.
+
+    The spatial behaviour of waves (wavelength) is linked to their temporal
+    behaviour (period) through a dispersion relation. In the case of waves
+    propagating underneath floating ice, considered as an elastic plate, this
+    dispersion relation depends on the properties of the ice as encapsulated by
+    the `FloatingIce` class.
+
+    Parameters
+    ----------
+    ice : FloatingIce
+    wavenumbers : 1d array_like of float
+        Propagating wavenumbers, in rad m^-1
+
+    """
+
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
 
     @classmethod
     def from_floating(
-        cls, ice: FloatingIce, spectrum: DiscreteSpectrum, gravity: float
-    ):
+        cls,
+        ice: FloatingIce,
+        spectrum: DiscreteSpectrum,
+        gravity: float,
+    ) -> typing.Self:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        ice : FloatingIce
+        spectrum : DiscreteSpectrum
+        gravity : float
+           Strengh of the local gravitational field in m s^-2
+
+        Returns
+        -------
+        WavesUnderElasticPlate
+
+        """
         alphas = spectrum._ang_freqs_pow2 / gravity
         deg1 = 1 - alphas * ice.draft
         deg0 = -alphas * ice.elastic_length
         scaled_ratio = ice.dud / ice.elastic_length
 
         solver = dr.ElasticMassLoadingSolver(alphas, deg1, deg0, scaled_ratio)
+        # NOTE: `solver` returns non-dimensional wavenumbers
         wavenumbers = solver.compute_wavenumbers() / ice.elastic_length
 
         return cls(ice, wavenumbers)
 
     @classmethod
     def from_ocean(
-        cls, ice: Ice, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float
-    ):
+        cls,
+        ice: Ice,
+        ocean: Ocean,
+        spectrum: DiscreteSpectrum,
+        gravity: float,
+    ) -> typing.Self:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        ice : Ice
+        ocean : Ocean
+        spectrum : DiscreteSpectrum
+        gravity : float
+           Strengh of the local gravitational field in m s^-2
+
+        Returns
+        -------
+        WavesUnderElasticPlate
+
+        """
         floating_ice = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         return cls.from_floating(floating_ice, spectrum, gravity)
 
-    @functools.cached_property
-    def _c_wavenumbers(self):
-        return self.wavenumbers + 1j * self.attenuations
+
+# TODO: check docstring
+@attrs.define(frozen=True)
+class WavesUnderIce:
+    """A non-localised zone characetrised by wave action under floating ice.
+
+    This class extends the behaviour of `WavesUnderElasticPlate` by adding an
+    `attenuations` attribute, that parametrises the observed exponential decay
+    of waves underneath floating ice.
+
+    Parameters
+    ----------
+    ice : FloatingIce
+    wavenumbers : 1d array_like of float
+        Propagating wavenumbers, in rad m^-1
+    attenuations : 1d array_like of float
+        Parametrised wave amplitude attenuation rate, in m^-1
+
+    """
+
+    ice: FloatingIce
+    wavenumbers: np.ndarray = attrs.field(repr=False)
+    attenuations: np.ndarray | Real = attrs.field(repr=False)
+
+    @classmethod
+    def from_ep_no_attenuation(
+        cls, waves_under_ep: WavesUnderElasticPlate
+    ) -> typing.Self:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        waves_under_ep : WavesUnderElasticPlate
+            An object instance
+
+        Returns
+        -------
+        WavesUnderIce
+
+        See Also
+        -----
+        lib.att.no_attenuation
+
+        """
+        return cls(
+            waves_under_ep.ice,
+            waves_under_ep.wavenumbers,
+            att.no_attenuation(),
+        )
+
+    @classmethod
+    def from_ep_attenuation_param_01(
+        cls, waves_under_ep: WavesUnderElasticPlate
+    ) -> typing.Self:
+        """Build an instance by combining properties of existing objects.
+
+        Parameters
+        ----------
+        waves_under_ep : WavesUnderElasticPlate
+            An object instance
+
+        Returns
+        -------
+        WavesUnderIce
+
+        See Also
+        -----
+        lib.att.parameterisation_01
+
+        """
+        return cls(
+            waves_under_ep.ice,
+            waves_under_ep.wavenumbers,
+            att.parameterisation_01(
+                waves_under_ep.ice.thickness, waves_under_ep.wavenumbers
+            ),
+        )
+
+    @classmethod
+    def from_ep_generic_attenuation_param(
+        cls,
+        waves_under_ep: WavesUnderElasticPlate,
+        parameterisation: typing.Callable,
+        args: str | None = None,
+        **kwargs,
+    ):
+        """[TODO:description]
+
+        Parameters
+        ----------
+        waves_under_ep : WavesUnderElasticPlate
+            An object instance.
+        parameterisation : typing.Callable
+            Function defining attenuation.
+            Must return a type broadcastable to `waves_under_ep.wavenumbers`.
+        args : str | None
+            A string of attributes of `waves_under_ep`, separated by
+            whitespace, to be passed as parameters to `parameterisation`.
+            All parameters will be passed as a mapping between the stem of the
+            attribute and its value.
+        **kwargs : dict
+            Additional parameters to pass to `parameterisation`.
+
+        Returns
+        -------
+        WavesUnderFloe
+
+        Examples
+        --------
+        Assuming an existing `wue` instance of `WavesUnderElasticPlate`, the
+        three following objects are identical, setting the attenuation egal to
+        the ice density for all wave modes.
+
+        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+            wue,
+            lambda density: density,
+            "ice.density"
+        )
+        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+            wue,
+            lambda density: density,
+            {"density": wue.ice.density},
+        )
+        >>> WavesUnderIce(wue.ice, wue.wavenumbers, wue.ice.density)
+
+        """
+        if args is not None:
+            kwargs |= {
+                arg.split(".")[-1]: operator.attrgetter(arg)(waves_under_ep)
+                for arg in args.split()
+            }
+        return cls(
+            waves_under_ep.ice, waves_under_ep.wavenumbers, parameterisation(**kwargs)
+        )
 
     @functools.cached_property
-    def attenuations(self):
-        return self.wavenumbers**2 * self.ice.thickness / 4
+    def _c_wavenumbers(self) -> np.ndarray:
+        """Complex wavenumbers.
+
+        Their real part correspond to the propagating wavenumber, while their
+        imaginary part correspond to the attenuation rate.
+
+        Returns
+        -------
+        1d np.ndarray of complex
+            The complex wavenumbers in m^-1
+
+        """
+        return self.wavenumbers + 1j * self.attenuations
 
 
 @attrs.define(frozen=True)
 class FreeSurfaceWaves:
+    """The wave state in the absence of ice.
+
+    The spatial behaviour of waves (wavelength) is linked to their temporal
+    behaviour (period) through a dispersion relation. In the case of free
+    surface waves, propagating underneath floating ice, this dispersion
+    relation depends on the properties of the ocean as encapsulated in the
+    `Ocean` class.
+
+    Parameters
+    ----------
+    ocean : Ocean
+    wavenumbers : array_like
+        Propagating wavenumbers in rad m^-1
+
+    Attributes
+    ----------
+    wavelengths : 1d np.ndarray of float
+        Propagating wavelengths in m
+
+    """
+
     ocean: Ocean
     wavenumbers: np.ndarray
 
     @classmethod
     def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
+        """Build an instance by combining properties of existing objects."""
         alphas = spectrum._ang_freqs_pow2 / gravity
         solver = dr.FreeSurfaceSolver(alphas, ocean.depth)
         wavenumbers = solver.compute_wavenumbers()
@@ -220,26 +580,55 @@ class FreeSurfaceWaves:
 
     @functools.cached_property
     def wavelengths(self) -> np.ndarray:
-        """Wavelengths in m"""
         return PI_2 / self.wavenumbers
 
 
+# TODO: docstring inheritance
 @attrs.define(kw_only=True)
-class Floe(Subdomain):
+class Floe(_Subdomain):
+    """An ice floe localised in space.
+
+    Parameters
+    ----------
+    ice : Ice
+        The mechanical properties of the floe
+
+    """
+
     ice: Ice
 
 
 @attrs.define(kw_only=True)
-class WavesUnderFloe(Subdomain):
+class WavesUnderFloe(_Subdomain):
+    """A localised zone characetrised by wave action under floating ice.
+
+    Parameters
+    ----------
+    wui : WavesUnderIce
+    edge_amplitudes : 1d np.ndarray of complex
+        The wave complex amplitude at the left edge of the floe in m
+    generation : int
+        The number of fractures that led to the existence of this floe
+
+    """
+
     wui: WavesUnderIce
     edge_amplitudes: np.ndarray
     generation: int = 0
 
     @functools.cached_property
-    def _adim(self):
+    def _adim(self) -> float:
+        """A non-dimentional number characetrising the floe.
+
+        Returns
+        -------
+        float
+
+        """
         return self.length * self.wui.ice._red_elastic_number
 
-    def copy(self):
+    # TODO: typing.Self?
+    def make_copy(self) -> WavesUnderFloe:
         return WavesUnderFloe(
             left_edge=self.left_edge,
             length=self.length,
@@ -248,7 +637,17 @@ class WavesUnderFloe(Subdomain):
             generation=self.generation,
         )
 
-    def shift(self, phase_shifts: np.ndarray, inplace=True):
+    @typing.overload
+    def shift_waves(self, phase_shifts: np.ndarray, inplace: typing.Literal[True]): ...
+
+    # TODO: typing.Self
+    @typing.overload
+    def shift_waves(
+        self, phase_shifts: np.ndarray, inplace: typing.Literal[False]
+    ) -> WavesUnderFloe: ...
+
+    # TODO: docstring
+    def shift_waves(self, phase_shifts: np.ndarray, inplace: bool = True):
         shifted_amplitudes = self.edge_amplitudes * np.exp(-1j * phase_shifts)
         if not inplace:
             return WavesUnderFloe(
@@ -258,7 +657,14 @@ class WavesUnderFloe(Subdomain):
                 edge_amplitudes=shifted_amplitudes,
                 generation=self.generation,
             )
+        # HACK: instantiating an new object is cheap, resorting a whole list of
+        # subdomains is not, so we mutate the amplitude/phase instead
         object.__setattr__(self, "edge_amplitudes", shifted_amplitudes)
+
+    def energy(self, growth_params=None, an_sol: bool = False, num_params=None):
+        return ph.EnergyHandler.from_wuf(self, growth_params).compute(
+            an_sol, num_params
+        )
 
 
 class DiscreteSpectrum:
@@ -323,11 +729,30 @@ class DiscreteSpectrum:
         return len(self.waves)
 
 
+# TODO: docstrings
 @attrs.define
 class Domain:
+    """A spatial domain forced by waves.
+
+    This represents the state of a MIZ at a given time.
+
+
+    Attributes
+    ----------
+    gravity : float
+    spectrum : DiscreteSpectrum
+    fsw : FreeSurfaceWaves
+    growth_params : list
+    subdomains : SortedList of WavesUnderFloe
+    cached_wuis :
+    cached_phases :
+
+    """
+
     gravity: float
     spectrum: DiscreteSpectrum
     fsw: FreeSurfaceWaves
+    attenuation: att.Attenuation = attrs.field(repr=False)
     growth_params: list[np.array, float] | None = None
     subdomains: SortedList = attrs.field(repr=False, init=False, factory=SortedList)
     cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(
@@ -338,9 +763,18 @@ class Domain:
     )
 
     @classmethod
-    def from_discrete(cls, gravity, spectrum, ocean, growth_params):
+    def from_discrete(
+        cls,
+        gravity,
+        spectrum,
+        ocean,
+        attenuation: att.Attenuation | None = None,
+        growth_params: tuple | None = None,
+    ):
         fsw = FreeSurfaceWaves.from_ocean(ocean, spectrum, gravity)
-        return cls(gravity, spectrum, fsw, growth_params)
+        if attenuation is None:
+            attenuation = att.AttenuationParameterisation(1)
+        return cls(gravity, spectrum, fsw, attenuation, growth_params)
 
     def __attrs_post_init__(self):
         if self.growth_params is not None:
@@ -366,9 +800,24 @@ class Domain:
 
     def _compute_wui(self, ice: Ice):
         if ice not in self.cached_wuis:
-            self.cached_wuis[ice] = WavesUnderIce.from_ocean(
+            wup = WavesUnderElasticPlate.from_ocean(
                 ice, self.fsw.ocean, self.spectrum, self.gravity
             )
+            if isinstance(self.attenuation, att.AttenuationParameterisation):
+                if self.attenuation == att.AttenuationParameterisation.NO:
+                    wui = WavesUnderIce.from_ep_no_attenuation(wup)
+                elif self.attenuation == att.AttenuationParameterisation.PARAM_01:
+                    wui = WavesUnderIce.from_ep_attenuation_param_01(wup)
+                else:
+                    raise ValueError
+            else:
+                wui = WavesUnderIce.from_ep_generic_attenuation_param(
+                    wup,
+                    self.attenuation.function,
+                    self.attenuation.args,
+                    **self.attenuation.kwargs,
+                )
+            self.cached_wuis[ice] = wui
         return self.cached_wuis[ice]
 
     def _shift_phases(self, phases: np.ndarray):
@@ -460,7 +909,7 @@ class Domain:
         # complex_shifts, and then iterate a second time to build the objects.
         # See Propagation_tests.ipynb/DNE06-26
         for i in range(len(self.subdomains)):
-            self.subdomains[i].shift(phase_shifts)
+            self.subdomains[i].shift_waves(phase_shifts)
         if self.growth_params is not None:
             # Phases are only modulo'd in the setter
             self._shift_growth_means(phase_shifts)
@@ -474,7 +923,7 @@ class Domain:
         self.subdomains.update(wuf)
 
     def breakup(
-        self, fracture_handler: fh.FractureHandler, an_sol=None, num_params=None
+        self, fracture_handler: fh._FractureHandler, an_sol=None, num_params=None
     ):
         dct = {}
         for i, wuf in enumerate(self.subdomains):

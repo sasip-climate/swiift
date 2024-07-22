@@ -3,7 +3,8 @@ import numpy as np
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 import warnings
-from . import displacement as an_dis
+
+from ._ph_utils import _unit_wavefield
 
 
 def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
@@ -19,9 +20,9 @@ def free_surface(
     growth_params: tuple[np.ndarray, Real] | None,
 ) -> np.ndarray:
     c_amplitudes, c_wavenumbers = wave_params
-    wave_shape = an_dis._unit_wavefield(x, c_wavenumbers)
+    wave_shape = _unit_wavefield(x, c_wavenumbers)
     if growth_params is not None:
-        kern = _growth_kernel(x, *growth_params)
+        kern = _growth_kernel(np.asarray(x), *growth_params)
         wave_shape *= kern
     eta = np.imag(c_amplitudes @ wave_shape)
     return eta
@@ -96,12 +97,16 @@ def _use_an_sol(
     return an_sol
 
 
+def _extract_from_poly(sol: interpolate.PPoly, n: int) -> interpolate.PPoly:
+    return interpolate.PPoly(sol.c[:, :, n], sol.x, extrapolate=False)
+
+
 def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
-    return interpolate.PPoly(sol.c[:, :, 0], sol.x, extrapolate=False)
+    return _extract_from_poly(sol, 0)
 
 
 def _extract_cur_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
-    return interpolate.PPoly(sol.c[:, :, 2], sol.x, extrapolate=False)
+    return _extract_from_poly(sol, 2)
 
 
 def displacement(x, floe_params, wave_params, growth_params, num_params):

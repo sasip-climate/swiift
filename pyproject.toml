@@ -4,11 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "flexfrac1d"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">= 3.10"
 
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
     "--ignore-glob=tests/test_e2e_unit*.py",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+branch = true
+source = [
+    "src",
+    "tests",
 ]

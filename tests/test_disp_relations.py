@@ -4,11 +4,25 @@ from hypothesis import given, settings, strategies as st
 import numpy as np
 
 from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum
-from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderIce
-from flexfrac1d.lib.disprel import free_surface, elas_mass_surface
+from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderElasticPlate
 
 from .conftest import physical_strategies
 from .conftest import coupled_ocean_ice, spec_mono
+
+
+def free_surface(wavenumber, depth):
+    return wavenumber * np.tanh(wavenumber * depth)
+
+
+def elas_mass_surface(
+    wavenumbers: np.ndarray, ice: Ice, ocean: Ocean, gravity: float
+) -> np.ndarray:
+    l4 = ice.flex_rigidity / (ocean.density * gravity)
+    draft = ice.density / ocean.density * ice.thickness
+    dud = ocean.depth - draft
+    k_tanh_kdud = wavenumbers * np.tanh(wavenumbers * dud)
+
+    return (l4 * wavenumbers**4 + 1) / (1 + draft * k_tanh_kdud) * k_tanh_kdud
 
 
 # Use a monochromatic spectrum, which sould not be limiting as
@@ -45,7 +59,7 @@ def test_elas_mass_loading(
     angfreqs2 = spec._ang_freqs_pow2
     # co = OceanCoupled(ocean, spec, gravity)
     # ci = IceCoupled(ice, co, spec, None, gravity)
-    wui = WavesUnderIce.from_ocean(ice, ocean, spec, gravity)
+    wui = WavesUnderElasticPlate.from_ocean(ice, ocean, spec, gravity)
     x = elas_mass_surface(wui.wavenumbers, ice, ocean, gravity)
     # x = elas_mass_surface(ci.wavenumbers, ice, ocean, gravity)
     y = angfreqs2 / gravity

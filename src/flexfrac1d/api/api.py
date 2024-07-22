@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from ..model import model as md
 from ..model import frac_handlers as fh
+from ..lib import att
 
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
@@ -16,8 +17,8 @@ Step = namedtuple("Step", ["subdomains", "growth_params"])
 class Experiment:
     time: float
     domain: md.Domain
-    history: dict = attrs.field(init=False, factory=dict)
-    fracture_handler: fh.FractureHandler = attrs.field(default=fh.BinaryFracture())
+    history: dict[float, Step] = attrs.field(init=False, factory=dict, repr=False)
+    fracture_handler: fh._FractureHandler = attrs.field(default=fh.BinaryFracture())
 
     @classmethod
     def from_discrete(
@@ -25,10 +26,15 @@ class Experiment:
         gravity: float,
         spectrum: md.DiscreteSpectrum,
         ocean: md.Ocean,
-        growth_params: tuple,
-        fracture_handler: fh.BinaryFracture = None,
+        growth_params: tuple | None = None,
+        fracture_handler: fh._FractureHandler | None = None,
+        attenuation_spec: att.Attenuation | None = None,
     ):
-        domain = md.Domain.from_discrete(gravity, spectrum, ocean, growth_params)
+        if attenuation_spec is None:
+            attenuation_spec = att.AttenuationParameterisation(1)
+        domain = md.Domain.from_discrete(
+            gravity, spectrum, ocean, attenuation_spec, growth_params
+        )
         if fracture_handler is None:
             return cls(0, domain)
         return cls(0, domain, fracture_handler)
@@ -42,7 +48,7 @@ class Experiment:
 
     def save_step(self):
         self.history[self.time] = Step(
-            tuple(wuf.copy() for wuf in self.domain.subdomains),
+            tuple(wuf.make_copy() for wuf in self.domain.subdomains),
             (
                 (self.domain.growth_params[0].copy(), self.domain.growth_params[1])
                 if self.domain.growth_params is not None
