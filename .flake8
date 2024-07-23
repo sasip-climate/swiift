@@ -2,4 +2,4 @@
 max-line-length = 80
 select = C, E, F, W, B, B950
 extend-ignore = E203, E501, E704, W503
-exclude = .venv*, .git, .hypothesis, __pycache__, .pytest_cache, database, Figs
+exclude = .venv*, .git, .hypothesis, __pycache__, .pytest_cache
