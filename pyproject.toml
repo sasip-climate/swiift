@@ -4,21 +4,38 @@ build-backend = "hatchling.build"
 
 [project]
 name = "flexfrac1d"
-version = "0.3.0"
+dynamic = ["version"]
+description = "A numerical model to study wave-induced fracture of sea ice floes."
+readme = "README.md"
 requires-python = ">= 3.10"
+license = "Apache-2.0"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Oceanography",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.optional-dependencies]
+test = ["pytest~=7.4", "hypothesis~=6.98", "primefac~=2.0"]
+
+[tool.hatch.version]
+path = "src/flexfrac1d/__about__.py"
 
 [tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
-    "--ignore-glob=tests/test_e2e_unit*.py",
-]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-]
+addopts = ["--import-mode=importlib"]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
 [tool.coverage.run]
 branch = true
-source = [
-    "src",
-    "tests",
-]
+source = ["src", "tests"]
