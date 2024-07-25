@@ -57,10 +57,7 @@ def test_elas_mass_loading(
     assert ocean.density > ice.density
     assert ocean.depth - ice.density / ocean.density * ice.thickness > 0
     angfreqs2 = spec._ang_freqs_pow2
-    # co = OceanCoupled(ocean, spec, gravity)
-    # ci = IceCoupled(ice, co, spec, None, gravity)
     wui = WavesUnderElasticPlate.from_ocean(ice, ocean, spec, gravity)
     x = elas_mass_surface(wui.wavenumbers, ice, ocean, gravity)
-    # x = elas_mass_surface(ci.wavenumbers, ice, ocean, gravity)
     y = angfreqs2 / gravity
     assert np.allclose(x, y)
