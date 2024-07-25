@@ -107,6 +107,20 @@ def spec_poly(draw):
     return DiscreteSpectrum(amplitudes, frequencies)
 
 
+ocean_and_mono_spectrum = {
+    "ocean": st.builds(
+        Ocean,
+        depth=physical_strategies["ocean"]["depth"],
+        density=physical_strategies["ocean"]["density"],
+    ),
+    "spectrum": st.builds(
+        DiscreteSpectrum,
+        st.just(1),
+        physical_strategies["wave"]["frequency"],
+    ),
+    "gravity": physical_strategies["gravity"],
+}
+
 coupled_ocean_ice = {
     "ocean": st.builds(
         Ocean,
