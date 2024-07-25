@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import attrs
 import functools
 import numpy as np
