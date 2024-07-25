@@ -139,6 +139,11 @@ class _Subdomain:
 
     """
 
+    # TODO: total_ordering and SortedList are nice and all, but the surprise
+    # element of `==` not behaving as expected is not. Maybe consider a
+    # rewrite/perf comparison, doing without, and reinstatiating a list in
+    # order after breakup events, à la swisib.
+
     left_edge: float
     length: float
 
