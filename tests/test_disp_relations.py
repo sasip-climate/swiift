@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
 import numpy as np
 
 from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum
 from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderElasticPlate
 
-from .conftest import physical_strategies
-from .conftest import coupled_ocean_ice, spec_mono
+from .conftest import coupled_ocean_ice, spec_mono, ocean_and_mono_spectrum
 
 
 def free_surface(wavenumber, depth):
@@ -28,22 +27,10 @@ def elas_mass_surface(
 # Use a monochromatic spectrum, which sould not be limiting as
 # polychromatic DiscreteSpectrum objects are just collections
 # of independent Wave objects
-@given(
-    ocean=st.builds(
-        Ocean,
-        depth=physical_strategies["ocean"]["depth"],
-        density=physical_strategies["ocean"]["density"],
-    ),
-    spec=st.builds(
-        DiscreteSpectrum,
-        st.just(1),
-        physical_strategies["wave"]["frequency"],
-    ),
-    gravity=physical_strategies["gravity"],
-)
-def test_free_surface(ocean, spec, gravity):
-    angfreqs2 = spec._ang_freqs_pow2
-    fsw = FreeSurfaceWaves.from_ocean(ocean, spec, gravity)
+@given(**ocean_and_mono_spectrum)
+def test_free_surface(ocean, spectrum, gravity):
+    angfreqs2 = spectrum._ang_freqs_pow2
+    fsw = FreeSurfaceWaves.from_ocean(ocean, spectrum, gravity)
     x = free_surface(fsw.wavenumbers, ocean.depth)
     y = angfreqs2 / gravity
     assert np.allclose(x * ocean.depth, y * ocean.depth)
