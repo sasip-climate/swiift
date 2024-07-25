@@ -742,6 +742,7 @@ class Domain:
     gravity : float
     spectrum : DiscreteSpectrum
     fsw : FreeSurfaceWaves
+    attenuation: flexrac1d.lib.att.Attenuation
     growth_params : list
     subdomains : SortedList of WavesUnderFloe
     cached_wuis :
