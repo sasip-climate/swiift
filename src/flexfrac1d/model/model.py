@@ -113,7 +113,7 @@ class Ocean:
     density: float = 1025
 
 
-@attrs.define(frozen=True)
+@attrs.define(frozen=True, eq=False)
 @functools.total_ordering
 class _Subdomain:
     """A segment localised in space.
@@ -130,6 +130,15 @@ class _Subdomain:
     right_edge : float
         Coordinate of the right edge of the domain in m
 
+    Notes
+    -----
+    To be used within sorted collections, instances of `_Subdomain` and its
+    subclasses need to be sortable. The order is defined with respect to the
+    left edge. Therefore, an equality test between two instances of
+    `_Subdomain` with the same `left_edge` attribute, and differing `length`
+    attributes, would hold. This unfortunately differs from the behaviour of
+    all other `attrs`-defined class, and can be surprising.
+
     """
 
     left_edge: float
@@ -142,7 +151,9 @@ class _Subdomain:
             case Real():
                 return self.left_edge == other
             case _:
-                raise NotImplementedError
+                raise TypeError(
+                    f"Comparison not supported between instance of {type(self)} and {type(other)}"
+                )
 
     def __lt__(self, other: _Subdomain | Real) -> bool:
         match other:
@@ -151,7 +162,9 @@ class _Subdomain:
             case Real():
                 return self.left_edge < other
             case _:
-                raise NotImplementedError
+                raise TypeError(
+                    f"Comparison not supported between instance of {type(self)} and {type(other)}"
+                )
 
     @functools.cached_property
     def right_edge(self):
@@ -584,7 +597,7 @@ class FreeSurfaceWaves:
 
 
 # TODO: docstring inheritance
-@attrs.define(kw_only=True)
+@attrs.define(kw_only=True, eq=False)
 class Floe(_Subdomain):
     """An ice floe localised in space.
 
@@ -598,7 +611,7 @@ class Floe(_Subdomain):
     ice: Ice
 
 
-@attrs.define(kw_only=True)
+@attrs.define(kw_only=True, eq=False)
 class WavesUnderFloe(_Subdomain):
     """A localised zone characetrised by wave action under floating ice.
 
