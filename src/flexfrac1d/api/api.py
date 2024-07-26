@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from ..model import model as md
 from ..model import frac_handlers as fh
 from ..lib import att
+from ..lib import phase_shift as ps
 
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
@@ -16,7 +17,10 @@ class Experiment:
     time: float
     domain: md.Domain
     history: dict[float, Step] = attrs.field(init=False, factory=dict, repr=False)
-    fracture_handler: fh._FractureHandler = attrs.field(default=fh.BinaryFracture())
+    fracture_handler: fh._FractureHandler = attrs.field(factory=fh.BinaryFracture)
+    scattering_handler: ps.ScatteringHandler = attrs.field(
+        factory=ps.ContinuousScatteringHandler
+    )
 
     @classmethod
     def from_discrete(
@@ -27,6 +31,7 @@ class Experiment:
         growth_params: tuple | None = None,
         fracture_handler: fh._FractureHandler | None = None,
         attenuation_spec: att.Attenuation | None = None,
+        scattering_spec: None = None,
     ):
         if attenuation_spec is None:
             attenuation_spec = att.AttenuationParameterisation(1)

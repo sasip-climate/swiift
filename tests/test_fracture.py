@@ -77,7 +77,11 @@ def test_binary_energy_no_growth(row):
             assert np.allclose(row[-1] - xf, 0)
         except AssertionError:
             assert np.allclose(row[-1] - xf, 0, atol=1e-5)
-            warnings.warn("Absolute error greater than 1e-8", stacklevel=2)
+            warnings.warn(
+                f"Absolute error greater than 1e-8: target {row[-1]}, computed {xf}, "
+                f"diff is {row[-1] - xf}",
+                stacklevel=2,
+            )
     else:
         assert np.isnan(row[-1])
 
