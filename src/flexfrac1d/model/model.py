@@ -434,9 +434,7 @@ class WavesUnderIce:
     attenuations: np.ndarray | Real = attrs.field(repr=False)
 
     @classmethod
-    def from_ep_no_attenuation(
-        cls, waves_under_ep: WavesUnderElasticPlate
-    ) -> typing.Self:
+    def without_attenuation(cls, waves_under_ep: WavesUnderElasticPlate) -> typing.Self:
         """Build an instance by combining properties of existing objects.
 
         Parameters
@@ -460,9 +458,7 @@ class WavesUnderIce:
         )
 
     @classmethod
-    def from_ep_attenuation_param_01(
-        cls, waves_under_ep: WavesUnderElasticPlate
-    ) -> typing.Self:
+    def with_attenuation_01(cls, waves_under_ep: WavesUnderElasticPlate) -> typing.Self:
         """Build an instance by combining properties of existing objects.
 
         Parameters
@@ -488,14 +484,14 @@ class WavesUnderIce:
         )
 
     @classmethod
-    def from_ep_generic_attenuation_param(
+    def with_generic_attenuation(
         cls,
         waves_under_ep: WavesUnderElasticPlate,
         parameterisation: typing.Callable,
         args: str | None = None,
         **kwargs,
-    ):
-        """[TODO:description]
+    ) -> typing.Self:
+        """Instantiate a `WavesUnderFloe` with custom attenuation.
 
         Parameters
         ----------
@@ -522,12 +518,12 @@ class WavesUnderIce:
         three following objects are identical, setting the attenuation egal to
         the ice density for all wave modes.
 
-        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+        >>> WavesUnderIce.with_generic_attenuation_param(
             wue,
             lambda density: density,
             "ice.density"
         )
-        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+        >>> WavesUnderIce.with_generic_attenuation_param(
             wue,
             lambda density: density,
             {"density": wue.ice.density},
@@ -822,13 +818,13 @@ class Domain:
             )
             if isinstance(self.attenuation, att.AttenuationParameterisation):
                 if self.attenuation == att.AttenuationParameterisation.NO:
-                    wui = WavesUnderIce.from_ep_no_attenuation(wup)
+                    wui = WavesUnderIce.without_attenuation(wup)
                 elif self.attenuation == att.AttenuationParameterisation.PARAM_01:
-                    wui = WavesUnderIce.from_ep_attenuation_param_01(wup)
+                    wui = WavesUnderIce.with_attenuation_01(wup)
                 else:
                     raise ValueError
             else:
-                wui = WavesUnderIce.from_ep_generic_attenuation_param(
+                wui = WavesUnderIce.with_generic_attenuation(
                     wup,
                     self.attenuation.function,
                     self.attenuation.args,

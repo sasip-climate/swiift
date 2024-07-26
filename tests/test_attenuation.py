@@ -22,7 +22,7 @@ class TestNoAttenuation:
     def test_integrated(self, ice, ocean, gravity, wavenumbers):
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
-        wui = WavesUnderIce.from_ep_no_attenuation(wup)
+        wui = WavesUnderIce.without_attenuation(wup)
         assert wui.attenuations == 0
 
 
@@ -41,7 +41,7 @@ class TestParam01:
     def test_integrated(self, ice, ocean, gravity, wavenumbers):
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
-        wui = WavesUnderIce.from_ep_attenuation_param_01(wup)
+        wui = WavesUnderIce.with_attenuation_01(wup)
         assert np.allclose(
             wui.attenuations - att.parameterisation_01(ice.thickness, wavenumbers), 0
         )
@@ -55,8 +55,8 @@ class TestGeneric:
     def test_no_attenuation(self, ice, ocean, gravity, wavenumbers):
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
-        wui = WavesUnderIce.from_ep_generic_attenuation_param(wup, lambda: 0)
-        wui_ref = WavesUnderIce.from_ep_no_attenuation(wup)
+        wui = WavesUnderIce.with_generic_attenuation(wup, lambda: 0)
+        wui_ref = WavesUnderIce.without_attenuation(wup)
         assert wui.attenuations == wui_ref.attenuations
 
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
@@ -64,12 +64,12 @@ class TestGeneric:
         # Test Param01 providing arguments as a string
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
-        wui = WavesUnderIce.from_ep_generic_attenuation_param(
+        wui = WavesUnderIce.with_generic_attenuation(
             wup,
             lambda thickness, wavenumbers: wavenumbers**2 * thickness / 4,
             "ice.thickness wavenumbers",
         )
-        wui_ref = WavesUnderIce.from_ep_attenuation_param_01(wup)
+        wui_ref = WavesUnderIce.with_attenuation_01(wup)
         assert np.allclose(wui.attenuations - wui_ref.attenuations, 0)
 
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
@@ -77,10 +77,10 @@ class TestGeneric:
         # Test Param01 providing arguments as a dict
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
-        wui = WavesUnderIce.from_ep_generic_attenuation_param(
+        wui = WavesUnderIce.with_generic_attenuation(
             wup,
             lambda thickness, wavenumbers: wavenumbers**2 * thickness / 4,
             **{"thickness": ice.thickness, "wavenumbers": wavenumbers},
         )
-        wui_ref = WavesUnderIce.from_ep_attenuation_param_01(wup)
+        wui_ref = WavesUnderIce.with_attenuation_01(wup)
         assert np.allclose(wui.attenuations - wui_ref.attenuations, 0)
