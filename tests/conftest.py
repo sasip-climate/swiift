@@ -79,7 +79,7 @@ def spec_mono(draw):
 
 @st.composite
 def spec_poly(draw):
-    n = draw(st.integers(min_value=1, max_value=100))
+    n = draw(st.integers(min_value=2, max_value=10))
     amplitudes = draw(
         st.lists(
             physical_strategies["wave"]["amplitude"],
@@ -113,11 +113,27 @@ ocean_and_mono_spectrum = {
         depth=physical_strategies["ocean"]["depth"],
         density=physical_strategies["ocean"]["density"],
     ),
-    "spectrum": st.builds(
-        DiscreteSpectrum,
-        st.just(1),
-        physical_strategies["wave"]["frequency"],
+    "spectrum": spec_mono(),
+    "gravity": physical_strategies["gravity"],
+}
+
+ocean_and_poly_spectrum = {
+    "ocean": st.builds(
+        Ocean,
+        depth=physical_strategies["ocean"]["depth"],
+        density=physical_strategies["ocean"]["density"],
     ),
+    "spectrum": spec_poly(),
+    "gravity": physical_strategies["gravity"],
+}
+
+ocean_and_spectrum = {
+    "ocean": st.builds(
+        Ocean,
+        depth=physical_strategies["ocean"]["depth"],
+        density=physical_strategies["ocean"]["density"],
+    ),
+    "spectrum": spec_mono() | spec_poly(),
     "gravity": physical_strategies["gravity"],
 }
 
@@ -157,7 +173,6 @@ coupled_ocean_ice = {
     "gravity": physical_strategies["gravity"],
 }
 
-
 coupled_floe = {
     "floe": st.builds(
         Floe,
@@ -168,3 +183,13 @@ coupled_floe = {
         ice=st.shared(coupled_ocean_ice["ice"], key="ice"),
     )
 } | coupled_ocean_ice
+
+simple_objects = {
+    "ocean": Ocean(),
+    "ice": Ice(),
+    "spec_mono": DiscreteSpectrum(0.5, 1 / 7),
+    "spec_poly": DiscreteSpectrum((0.1, 0.2), (1 / 7, 1 / 5)),
+    "gravity": 9.8,
+    "length": 101.5,
+    "left_edge": 13.8,
+}

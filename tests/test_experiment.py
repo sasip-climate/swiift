@@ -131,6 +131,7 @@ def test_step():
         len(experiment.domain.subdomains) == 2
     )  # this floe should definitely have fractured in these conditions
     assert total_length_comparison(experiment.domain.subdomains, floe)
+    assert delta_t in experiment.domain.cached_phases
 
     number_of_additional_steps = 5
     for _ in range(number_of_additional_steps):

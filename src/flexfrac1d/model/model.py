@@ -789,22 +789,58 @@ class Domain:
             attenuation = att.AttenuationParameterisation(1)
         return cls(gravity, spectrum, fsw, attenuation, growth_params)
 
+    @classmethod
+    def with_growth_means(
+        cls,
+        gravity: float,
+        spectrum: DiscreteSpectrum,
+        ocean: Ocean,
+        growth_means: np.ndarray | Sequence[Real] | Real,
+        attenuation: att.Attenuation | None = None,
+    ) -> typing.Self:
+        return cls.from_discrete(
+            gravity, spectrum, ocean, attenuation, (growth_means, None)
+        )
+
+    @classmethod
+    def with_growth_std(
+        cls,
+        gravity: float,
+        spectrum: DiscreteSpectrum,
+        ocean: Ocean,
+        growth_std: Real,
+        attenuation: att.Attenuation | None = None,
+    ) -> typing.Self:
+        return cls.from_discrete(gravity, spectrum, ocean, attenuation, (0, growth_std))
+
     def __attrs_post_init__(self):
         if self.growth_params is not None:
             if len(self.growth_params) != 2:
                 raise ValueError
-            growth_mean, growth_std = (
+            growth_means, growth_std = (
                 np.asarray(self.growth_params[0]),
                 self.growth_params[1],
             )
-            if growth_mean.size == 1:
+            # TODO: simplify all this. Ideally, do not test for anything or
+            # babysit the user. Why was upping growth_mean to a column
+            # necessary in case its of size 1?
+            if growth_means.size == 1:
                 # As `broadcast_to` returns a view,
                 # copying is necessary to obtain a mutable array. It is easier
                 # than dealing with 0-length and 1-length arrays seperately.
-                growth_mean = np.broadcast_to(growth_mean, (self.spectrum.nf, 1)).copy()
+                growth_means = np.broadcast_to(
+                    growth_means, (self.spectrum.nf, 1)
+                ).copy()
+            else:
+                if growth_means.size != self.spectrum.nf:
+                    raise ValueError(
+                        f"Means (size {growth_means.size}) could not be"
+                        "broadcast with the shape of the spectrum"
+                        f"({self.spectrum.nf} components)"
+                    )
             if growth_std is None:
                 growth_std = self.fsw.wavelengths[self.spectrum._amps.argmax()]
-            self.growth_params = [growth_mean, growth_std]
+            self.growth_params = [growth_means, growth_std]
 
     def _compute_phase_shifts(self, delta_time: float):
         if delta_time not in self.cached_phases:
@@ -821,8 +857,6 @@ class Domain:
                     wui = WavesUnderIce.without_attenuation(wup)
                 elif self.attenuation == att.AttenuationParameterisation.PARAM_01:
                     wui = WavesUnderIce.with_attenuation_01(wup)
-                else:
-                    raise ValueError
             else:
                 wui = WavesUnderIce.with_generic_attenuation(
                     wup,
@@ -855,14 +889,14 @@ class Domain:
         self._add_c_floes(subdomains)
 
     @staticmethod
-    def _promote_floe(floes: Floe | Sequence[Floe]):
+    def _promote_floe(floes: Floe | Sequence[Floe]) -> Sequence[Floe]:
         match floes:
             case Floe():
                 return (floes,)
             case Sequence():
                 return floes
             case _:
-                ValueError(
+                raise ValueError(
                     "`floes` should be a `Floe` object or a sequence of such objects"
                 )
 
