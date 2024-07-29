@@ -175,8 +175,7 @@ class PerturbationScatteringHandler(ScatteringHandler):
         c_wavenumbers: np.ndarray,
         xf: np.ndarray,
     ) -> np.ndarray:
-        uni_handler = ContinuousScatteringHandler(self.rng)
-        edge_amplitudes = uni_handler.compute_edge_amplitudes(
+        edge_amplitudes = ContinuousScatteringHandler.compute_edge_amplitudes(
             edge_amplitudes, c_wavenumbers, xf
         )
         perturbations = self.rng.normal(
