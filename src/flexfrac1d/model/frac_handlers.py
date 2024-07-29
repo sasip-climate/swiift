@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import abc
 import attrs
 from collections.abc import Iterator, Sequence
@@ -10,6 +8,7 @@ import scipy.optimize as optimize
 import scipy.signal as signal
 
 from ..lib.constants import PI_2
+from ..lib import phase_shift as ps
 from . import model
 from ..lib import physics as ph
 
@@ -40,16 +39,39 @@ class _FractureDiag:
 @attrs.define
 class _FractureHandler(abc.ABC):
     coef_nd: int = 4
+    scattering_handler: ps.ScatteringHandler = attrs.field(
+        factory=ps.ContinuousScatteringHandler
+    )
 
     def split(
-        self, wuf: model.WavesUnderFloe, xf: Real | np.ndarray
+        self,
+        wuf: model.WavesUnderFloe,
+        xf: Real | np.ndarray,
+        is_searching: bool = False,
     ) -> list[model.WavesUnderFloe]:
         xf = np.hstack((0, xf))
         lengths = np.ediff1d(np.hstack((xf, wuf.length)))
         edges = wuf.left_edge + xf
-        edge_amplitudes = wuf.edge_amplitudes * np.exp(
-            1j * wuf.wui._c_wavenumbers * xf[:, None]
-        )
+
+        if is_searching:
+            post_breakup_amplitudes = (
+                ps.ContinuousScatteringHandler.compute_edge_amplitudes(
+                    wuf.edge_amplitudes, wuf.wui._c_wavenumbers, xf
+                )
+            )
+        else:
+            post_breakup_amplitudes = np.full(
+                (xf.size, wuf.edge_amplitudes.size), np.nan, dtype=complex
+            )
+            post_breakup_amplitudes[0] = wuf.edge_amplitudes.copy()
+            post_breakup_amplitudes[1:] = (
+                self.scattering_handler.compute_edge_amplitudes(
+                    wuf.edge_amplitudes, wuf.wui._c_wavenumbers, xf[1:]
+                )
+            )
+        # edge_amplitudes = wuf.edge_amplitudes * np.exp(
+        #     1j * wuf.wui._c_wavenumbers * xf[:, None]
+        # )
         gens = wuf.generation * np.ones(xf.size)
         gens[:-1] += 1
         return [
@@ -61,7 +83,7 @@ class _FractureHandler(abc.ABC):
                 generation=gen,
             )
             for edge, lgth, amplitudes, gen in zip(
-                edges, lengths, edge_amplitudes, gens
+                edges, lengths, post_breakup_amplitudes, gens
             )
         ]
 
@@ -89,7 +111,7 @@ class BinaryFracture(_FractureHandler):
         """Objective function to minimise for energy-based fracture"""
         sub_left, sub_right = self.split(wuf, length)
         energy_left, energy_right = self.compute_energies(
-            self.split(wuf, length), growth_params, an_sol, num_params
+            self.split(wuf, length, True), growth_params, an_sol, num_params
         )
         return np.log(energy_left + energy_right)
 

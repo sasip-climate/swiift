@@ -3,9 +3,20 @@ import pathlib
 import pytest
 import warnings
 
-
+import flexfrac1d.lib.phase_shift as ps
 from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum, Floe, Domain
 import flexfrac1d.model.frac_handlers as fh
+
+fracture_handler_types = (
+    fh.BinaryFracture,
+    fh.BinaryStrainFracture,
+    fh.MultipleStrainFracture,
+)
+scattering_handler_types = (
+    ps.ContinuousScatteringHandler,
+    ps.UniformScatteringHandler,
+    ps.PerturbationScatteringHandler,
+)
 
 PATH_FRACTURE_TARGETS = pathlib.Path("tests/target/fracture")
 binary_energy_no_growth_target = np.loadtxt(
@@ -62,6 +73,27 @@ def test_abstract():
         fh._StrainFracture()
 
 
+@pytest.mark.parametrize("fracture_handler_type", fracture_handler_types)
+@pytest.mark.parametrize("scattering_spec_type", scattering_handler_types)
+def test_initialisation_scattering(fracture_handler_type, scattering_spec_type):
+    rng_seed = 13
+
+    loc, scale = 0.3, 0.005
+
+    if scattering_spec_type == ps.ContinuousScatteringHandler:
+        scattering_spec = scattering_spec_type()
+    elif scattering_spec_type == ps.UniformScatteringHandler:
+        scattering_spec = scattering_spec_type.from_seed(rng_seed)
+    elif scattering_spec_type == ps.PerturbationScatteringHandler:
+        scattering_spec = scattering_spec_type.from_seed(rng_seed, loc, scale)
+
+    fracture_handler: fh._FractureHandler = fracture_handler_type(
+        scattering_handler=scattering_spec
+    )
+    assert isinstance(fracture_handler, fracture_handler_type)
+    assert isinstance(fracture_handler.scattering_handler, scattering_spec_type)
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize("row", binary_energy_no_growth_target)
 def test_binary_energy_no_growth(row):
@@ -77,7 +109,11 @@ def test_binary_energy_no_growth(row):
             assert np.allclose(row[-1] - xf, 0)
         except AssertionError:
             assert np.allclose(row[-1] - xf, 0, atol=1e-5)
-            warnings.warn("Absolute error greater than 1e-8", stacklevel=2)
+            warnings.warn(
+                f"Absolute error greater than 1e-8: target {row[-1]}, computed {xf}, "
+                f"diff is {row[-1] - xf}",
+                stacklevel=2,
+            )
     else:
         assert np.isnan(row[-1])
 

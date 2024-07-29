@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import attrs
@@ -113,7 +111,7 @@ class Ocean:
     density: float = 1025
 
 
-@attrs.define(frozen=True)
+@attrs.define(frozen=True, eq=False)
 @functools.total_ordering
 class _Subdomain:
     """A segment localised in space.
@@ -130,7 +128,21 @@ class _Subdomain:
     right_edge : float
         Coordinate of the right edge of the domain in m
 
+    Notes
+    -----
+    To be used within sorted collections, instances of `_Subdomain` and its
+    subclasses need to be sortable. The order is defined with respect to the
+    left edge. Therefore, an equality test between two instances of
+    `_Subdomain` with the same `left_edge` attribute, and differing `length`
+    attributes, would hold. This unfortunately differs from the behaviour of
+    all other `attrs`-defined class, and can be surprising.
+
     """
+
+    # TODO: total_ordering and SortedList are nice and all, but the surprise
+    # element of `==` not behaving as expected is not. Maybe consider a
+    # rewrite/perf comparison, doing without, and reinstatiating a list in
+    # order after breakup events, à la swisib.
 
     left_edge: float
     length: float
@@ -142,7 +154,9 @@ class _Subdomain:
             case Real():
                 return self.left_edge == other
             case _:
-                raise NotImplementedError
+                raise TypeError(
+                    f"Comparison not supported between instance of {type(self)} and {type(other)}"
+                )
 
     def __lt__(self, other: _Subdomain | Real) -> bool:
         match other:
@@ -151,7 +165,9 @@ class _Subdomain:
             case Real():
                 return self.left_edge < other
             case _:
-                raise NotImplementedError
+                raise TypeError(
+                    f"Comparison not supported between instance of {type(self)} and {type(other)}"
+                )
 
     @functools.cached_property
     def right_edge(self):
@@ -418,9 +434,7 @@ class WavesUnderIce:
     attenuations: np.ndarray | Real = attrs.field(repr=False)
 
     @classmethod
-    def from_ep_no_attenuation(
-        cls, waves_under_ep: WavesUnderElasticPlate
-    ) -> typing.Self:
+    def without_attenuation(cls, waves_under_ep: WavesUnderElasticPlate) -> typing.Self:
         """Build an instance by combining properties of existing objects.
 
         Parameters
@@ -444,9 +458,7 @@ class WavesUnderIce:
         )
 
     @classmethod
-    def from_ep_attenuation_param_01(
-        cls, waves_under_ep: WavesUnderElasticPlate
-    ) -> typing.Self:
+    def with_attenuation_01(cls, waves_under_ep: WavesUnderElasticPlate) -> typing.Self:
         """Build an instance by combining properties of existing objects.
 
         Parameters
@@ -472,14 +484,14 @@ class WavesUnderIce:
         )
 
     @classmethod
-    def from_ep_generic_attenuation_param(
+    def with_generic_attenuation(
         cls,
         waves_under_ep: WavesUnderElasticPlate,
         parameterisation: typing.Callable,
         args: str | None = None,
         **kwargs,
-    ):
-        """[TODO:description]
+    ) -> typing.Self:
+        """Instantiate a `WavesUnderFloe` with custom attenuation.
 
         Parameters
         ----------
@@ -506,12 +518,12 @@ class WavesUnderIce:
         three following objects are identical, setting the attenuation egal to
         the ice density for all wave modes.
 
-        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+        >>> WavesUnderIce.with_generic_attenuation_param(
             wue,
             lambda density: density,
             "ice.density"
         )
-        >>> WavesUnderIce.from_ep_generic_attenuation_param(
+        >>> WavesUnderIce.with_generic_attenuation_param(
             wue,
             lambda density: density,
             {"density": wue.ice.density},
@@ -584,7 +596,7 @@ class FreeSurfaceWaves:
 
 
 # TODO: docstring inheritance
-@attrs.define(kw_only=True)
+@attrs.define(kw_only=True, eq=False)
 class Floe(_Subdomain):
     """An ice floe localised in space.
 
@@ -598,7 +610,7 @@ class Floe(_Subdomain):
     ice: Ice
 
 
-@attrs.define(kw_only=True)
+@attrs.define(kw_only=True, eq=False)
 class WavesUnderFloe(_Subdomain):
     """A localised zone characetrised by wave action under floating ice.
 
@@ -742,6 +754,7 @@ class Domain:
     gravity : float
     spectrum : DiscreteSpectrum
     fsw : FreeSurfaceWaves
+    attenuation: flexrac1d.lib.att.Attenuation
     growth_params : list
     subdomains : SortedList of WavesUnderFloe
     cached_wuis :
@@ -776,22 +789,58 @@ class Domain:
             attenuation = att.AttenuationParameterisation(1)
         return cls(gravity, spectrum, fsw, attenuation, growth_params)
 
+    @classmethod
+    def with_growth_means(
+        cls,
+        gravity: float,
+        spectrum: DiscreteSpectrum,
+        ocean: Ocean,
+        growth_means: np.ndarray | Sequence[Real] | Real,
+        attenuation: att.Attenuation | None = None,
+    ) -> typing.Self:
+        return cls.from_discrete(
+            gravity, spectrum, ocean, attenuation, (growth_means, None)
+        )
+
+    @classmethod
+    def with_growth_std(
+        cls,
+        gravity: float,
+        spectrum: DiscreteSpectrum,
+        ocean: Ocean,
+        growth_std: Real,
+        attenuation: att.Attenuation | None = None,
+    ) -> typing.Self:
+        return cls.from_discrete(gravity, spectrum, ocean, attenuation, (0, growth_std))
+
     def __attrs_post_init__(self):
         if self.growth_params is not None:
             if len(self.growth_params) != 2:
                 raise ValueError
-            growth_mean, growth_std = (
+            growth_means, growth_std = (
                 np.asarray(self.growth_params[0]),
                 self.growth_params[1],
             )
-            if growth_mean.size == 1:
+            # TODO: simplify all this. Ideally, do not test for anything or
+            # babysit the user. Why was upping growth_mean to a column
+            # necessary in case its of size 1?
+            if growth_means.size == 1:
                 # As `broadcast_to` returns a view,
                 # copying is necessary to obtain a mutable array. It is easier
                 # than dealing with 0-length and 1-length arrays seperately.
-                growth_mean = np.broadcast_to(growth_mean, (self.spectrum.nf, 1)).copy()
+                growth_means = np.broadcast_to(
+                    growth_means, (self.spectrum.nf, 1)
+                ).copy()
+            else:
+                if growth_means.size != self.spectrum.nf:
+                    raise ValueError(
+                        f"Means (size {growth_means.size}) could not be"
+                        "broadcast with the shape of the spectrum"
+                        f"({self.spectrum.nf} components)"
+                    )
             if growth_std is None:
                 growth_std = self.fsw.wavelengths[self.spectrum._amps.argmax()]
-            self.growth_params = [growth_mean, growth_std]
+            self.growth_params = [growth_means, growth_std]
 
     def _compute_phase_shifts(self, delta_time: float):
         if delta_time not in self.cached_phases:
@@ -805,13 +854,11 @@ class Domain:
             )
             if isinstance(self.attenuation, att.AttenuationParameterisation):
                 if self.attenuation == att.AttenuationParameterisation.NO:
-                    wui = WavesUnderIce.from_ep_no_attenuation(wup)
+                    wui = WavesUnderIce.without_attenuation(wup)
                 elif self.attenuation == att.AttenuationParameterisation.PARAM_01:
-                    wui = WavesUnderIce.from_ep_attenuation_param_01(wup)
-                else:
-                    raise ValueError
+                    wui = WavesUnderIce.with_attenuation_01(wup)
             else:
-                wui = WavesUnderIce.from_ep_generic_attenuation_param(
+                wui = WavesUnderIce.with_generic_attenuation(
                     wup,
                     self.attenuation.function,
                     self.attenuation.args,
@@ -842,14 +889,14 @@ class Domain:
         self._add_c_floes(subdomains)
 
     @staticmethod
-    def _promote_floe(floes: Floe | Sequence[Floe]):
+    def _promote_floe(floes: Floe | Sequence[Floe]) -> Sequence[Floe]:
         match floes:
             case Floe():
                 return (floes,)
             case Sequence():
                 return floes
             case _:
-                ValueError(
+                raise ValueError(
                     "`floes` should be a `Floe` object or a sequence of such objects"
                 )
 

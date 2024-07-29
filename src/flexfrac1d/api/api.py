@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import attrs
@@ -18,7 +16,7 @@ class Experiment:
     time: float
     domain: md.Domain
     history: dict[float, Step] = attrs.field(init=False, factory=dict, repr=False)
-    fracture_handler: fh._FractureHandler = attrs.field(default=fh.BinaryFracture())
+    fracture_handler: fh._FractureHandler = attrs.field(factory=fh.BinaryFracture)
 
     @classmethod
     def from_discrete(
@@ -35,6 +33,7 @@ class Experiment:
         domain = md.Domain.from_discrete(
             gravity, spectrum, ocean, attenuation_spec, growth_params
         )
+
         if fracture_handler is None:
             return cls(0, domain)
         return cls(0, domain, fracture_handler)
