@@ -1,5 +1,7 @@
 """Pseudo-scattering parameterisations."""
 
+from __future__ import annotations
+
 import abc
 import attrs
 from numbers import Real
