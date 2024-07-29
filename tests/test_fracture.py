@@ -75,7 +75,7 @@ def test_binary_energy_no_growth(row):
         # HACK: tests pass locally but need to be tweeked for CI
         try:
             assert np.allclose(row[-1] - xf, 0)
-        except AssertionError:
+        except AssertionError:  # pragma: no cover
             assert np.allclose(row[-1] - xf, 0, atol=1e-5)
             warnings.warn("Absolute error greater than 1e-8", stacklevel=2)
     else:
