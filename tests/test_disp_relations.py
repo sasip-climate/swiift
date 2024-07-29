@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from hypothesis import given, settings
 import numpy as np
 
