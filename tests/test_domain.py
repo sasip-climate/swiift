@@ -3,16 +3,13 @@ import numpy as np
 import pytest
 
 from .conftest import (
-    coupled_ocean_ice,
     ocean_and_spectrum,
-    ocean_and_mono_spectrum,
     simple_objects,
 )
 import flexfrac1d.lib.att as att
 from flexfrac1d.model.model import (
     Domain,
     Floe,
-    Ice,
     Ocean,
     DiscreteSpectrum,
     FreeSurfaceWaves,
