@@ -103,7 +103,7 @@ class TestSubdomain:
         assert sd_same_but_different_length == sd
 
         with pytest.raises(TypeError):
-            sd > []
+            sd > []  # noqa: B015
 
     @staticmethod
     @pytest.mark.parametrize("left_edge", (-100, 0, 0.8, 45, 34.2))
