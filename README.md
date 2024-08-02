@@ -28,8 +28,7 @@ python -m pip install git+ssh://git@github.com/sasip-climate/FlexFrac1D.git@$ver
 ```
 where `$var` is to be replaced by the desired version tag (for instance, `v0.4.0`).
 
-> **Warning**
->
+> [!NOTE]
 > Depending on your system, you might have to replace the command `python` with
 > `python3`, or even a specific minor version such as `python3.11`.
 
