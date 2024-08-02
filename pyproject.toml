@@ -9,14 +9,13 @@ description = "A numerical model to study wave-induced fracture of sea ice floes
 readme = "README.md"
 requires-python = ">= 3.10"
 license = "Apache-2.0"
+authors = [{ name = "Nicolas Mokus", email = "nmks@tuta.io" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -25,12 +24,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Oceanography",
     "Topic :: Scientific/Engineering :: Physics",
 ]
-
-[project.optional-dependencies]
-test = ["pytest~=7.4", "hypothesis~=6.98", "primefac~=2.0"]
+dependencies = ["attrs", "scipy", "numpy<2", "matplotlib", "sortedcontainers"]
 
 [tool.hatch.version]
 path = "src/flexfrac1d/__about__.py"
+
+[tool.hatch.envs.hatch-test]
+dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist"]
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.12", "3.11"]
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
@@ -39,3 +42,4 @@ markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 [tool.coverage.run]
 branch = true
 source = ["src", "tests"]
+omit = ["src/flexfrac1d/__about__.py"]
