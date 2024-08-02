@@ -67,7 +67,7 @@ def test_absolute_value_continuity(
         edge_amplitudes, c_wavenumbers, xf
     )
     for pac, par in zip(pa_continuous[1:], pa_random[1:]):
-        assert ~np.allclose(pac - par, 0)
+        assert not np.allclose(pac - par, 0)
         assert np.allclose(np.abs(pac) - np.abs(par), 0)
 
 
