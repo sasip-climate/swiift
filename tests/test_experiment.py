@@ -6,6 +6,7 @@ from sortedcontainers import SortedList
 from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 from flexfrac1d.api.api import Experiment
 import flexfrac1d.lib.att as att
+import flexfrac1d.lib.phase_shift as ps
 import flexfrac1d.model.frac_handlers as fh
 from flexfrac1d.model.model import Domain, Floe, Ice, Ocean, DiscreteSpectrum
 
@@ -33,6 +34,9 @@ def test_initialisation(gravity, spectrum, ocean):
         isinstance(experiment.domain.attenuation, att.AttenuationParameterisation)
         and experiment.domain.attenuation == att.AttenuationParameterisation.PARAM_01
     )
+    assert isinstance(
+        experiment.fracture_handler.scattering_handler, ps.ContinuousScatteringHandler
+    )
     assert isinstance(experiment.history, dict) and len(experiment.history) == 0
     assert isinstance(experiment.fracture_handler, fh.BinaryFracture)
 
@@ -42,7 +46,12 @@ def test_initialisation(gravity, spectrum, ocean):
 @pytest.mark.parametrize("fracture_handler_type", fracture_handlers)
 @pytest.mark.parametrize("att_spec", att.AttenuationParameterisation)
 def test_initialisation_with_opt_params(
-    gravity, spectrum, ocean, growth_params, fracture_handler_type, att_spec
+    gravity,
+    spectrum,
+    ocean,
+    growth_params,
+    fracture_handler_type,
+    att_spec,
 ):
     fracture_handler = fracture_handler_type()
     experiment = Experiment.from_discrete(

@@ -15,11 +15,13 @@ wavenumbers_strategy = npst.arrays(
 
 
 class TestNoAttenuation:
-    def test_unit(self):
+    @staticmethod
+    def test_unit():
         assert att.no_attenuation() == 0
 
+    @staticmethod
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
-    def test_integrated(self, ice, ocean, gravity, wavenumbers):
+    def test_integrated(ice, ocean, gravity, wavenumbers):
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
         wui = WavesUnderIce.without_attenuation(wup)
@@ -27,18 +29,20 @@ class TestNoAttenuation:
 
 
 class TestParam01:
+    @staticmethod
     @given(
         thickness=physical_strategies["ice"]["thickness"],
         wavenumbers=wavenumbers_strategy,
     )
-    def test_unit(self, thickness, wavenumbers):
+    def test_unit(thickness, wavenumbers):
         attenuations = wavenumbers**2 * thickness / 4
         assert np.allclose(
             attenuations - att.parameterisation_01(thickness, wavenumbers), 0
         )
 
+    @staticmethod
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
-    def test_integrated(self, ice, ocean, gravity, wavenumbers):
+    def test_integrated(ice, ocean, gravity, wavenumbers):
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
         wui = WavesUnderIce.with_attenuation_01(wup)
@@ -51,16 +55,18 @@ class TestGeneric:
     # Test passing a generic attenuation function against the existing
     # parameterisations.
 
+    @staticmethod
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
-    def test_no_attenuation(self, ice, ocean, gravity, wavenumbers):
+    def test_no_attenuation(ice, ocean, gravity, wavenumbers):
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
         wui = WavesUnderIce.with_generic_attenuation(wup, lambda: 0)
         wui_ref = WavesUnderIce.without_attenuation(wup)
         assert wui.attenuations == wui_ref.attenuations
 
+    @staticmethod
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
-    def test_param01_args(self, ice, ocean, gravity, wavenumbers):
+    def test_param01_args(ice, ocean, gravity, wavenumbers):
         # Test Param01 providing arguments as a string
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
@@ -72,8 +78,9 @@ class TestGeneric:
         wui_ref = WavesUnderIce.with_attenuation_01(wup)
         assert np.allclose(wui.attenuations - wui_ref.attenuations, 0)
 
+    @staticmethod
     @given(**coupled_ocean_ice, wavenumbers=wavenumbers_strategy)
-    def test_param01_kwargs(self, ice, ocean, gravity, wavenumbers):
+    def test_param01_kwargs(ice, ocean, gravity, wavenumbers):
         # Test Param01 providing arguments as a dict
         fi = FloatingIce.from_ice_ocean(ice, ocean, gravity)
         wup = WavesUnderElasticPlate(fi, wavenumbers)
