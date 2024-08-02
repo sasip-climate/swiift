@@ -155,7 +155,8 @@ class _Subdomain:
                 return self.left_edge == other
             case _:
                 raise TypeError(
-                    f"Comparison not supported between instance of {type(self)} and {type(other)}"
+                    "Comparison not supported between instance of "
+                    f"{type(self)} and {type(other)}"
                 )
 
     def __lt__(self, other: _Subdomain | Real) -> bool:
@@ -166,7 +167,8 @@ class _Subdomain:
                 return self.left_edge < other
             case _:
                 raise TypeError(
-                    f"Comparison not supported between instance of {type(self)} and {type(other)}"
+                    "Comparison not supported between instance of "
+                    f"{type(self)} and {type(other)}"
                 )
 
     @functools.cached_property
