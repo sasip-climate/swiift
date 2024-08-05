@@ -1,10 +1,15 @@
 from hypothesis import given, settings
 import numpy as np
 
-from flexfrac1d.model.model import Ice, Ocean, DiscreteSpectrum
-from flexfrac1d.model.model import FreeSurfaceWaves, WavesUnderElasticPlate
+from flexfrac1d.model.model import (
+    DiscreteSpectrum,
+    FreeSurfaceWaves,
+    Ice,
+    Ocean,
+    WavesUnderElasticPlate,
+)
 
-from .conftest import coupled_ocean_ice, spec_mono, ocean_and_mono_spectrum
+from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 
 
 def free_surface(wavenumber, depth):

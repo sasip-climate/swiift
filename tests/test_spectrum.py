@@ -1,11 +1,11 @@
 import itertools
-import primefac
-import pytest
+
 from hypothesis import given, strategies as st
 import hypothesis.extra.numpy as npst
+import primefac
+import pytest
 
 from flexfrac1d.model.model import DiscreteSpectrum
-
 
 float_kw = {"allow_nan": False, "allow_infinity": False}
 number = st.one_of(

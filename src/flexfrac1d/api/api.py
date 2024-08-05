@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import attrs
 from collections import namedtuple
 from collections.abc import Sequence
 
-from ..model import model as md
-from ..model import frac_handlers as fh
+import attrs
+
 from ..lib import att
+from ..model import frac_handlers as fh, model as md
 
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 

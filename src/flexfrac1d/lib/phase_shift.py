@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import abc
-import attrs
 from numbers import Real
 import typing
+
+import attrs
 import numpy as np
 
 from .constants import PI_2

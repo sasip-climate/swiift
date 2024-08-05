@@ -3,12 +3,13 @@ import numpy as np
 import pytest
 from sortedcontainers import SortedList
 
-from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 from flexfrac1d.api.api import Experiment
 import flexfrac1d.lib.att as att
 import flexfrac1d.lib.phase_shift as ps
 import flexfrac1d.model.frac_handlers as fh
-from flexfrac1d.model.model import Domain, Floe, Ice, Ocean, DiscreteSpectrum
+from flexfrac1d.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
+
+from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 
 fracture_handlers = (
     fh.BinaryFracture,

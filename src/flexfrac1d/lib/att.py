@@ -1,8 +1,9 @@
 """Attenuation parameterisations."""
 
-import attrs
 import enum
 import typing
+
+import attrs
 import numpy as np
 
 
