@@ -2,18 +2,16 @@ from hypothesis import given
 import numpy as np
 import pytest
 
-from .conftest import (
-    ocean_and_spectrum,
-    simple_objects,
-)
 import flexfrac1d.lib.att as att
 from flexfrac1d.model.model import (
+    DiscreteSpectrum,
     Domain,
     Floe,
-    Ocean,
-    DiscreteSpectrum,
     FreeSurfaceWaves,
+    Ocean,
 )
+
+from .conftest import ocean_and_spectrum, simple_objects
 
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 

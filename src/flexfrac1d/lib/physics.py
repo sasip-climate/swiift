@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import attrs
 import functools
-import numpy as np
 import typing
 
-from .constants import SQR2, PI_D4
-from ._ph_utils import _wavefield
+import attrs
+import numpy as np
+
 from . import numerical
+from ._ph_utils import _wavefield
+from .constants import PI_D4, SQR2
 
 if typing.TYPE_CHECKING:
     from ..model import model

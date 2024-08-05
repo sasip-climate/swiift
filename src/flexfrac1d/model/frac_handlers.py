@@ -1,16 +1,16 @@
 import abc
-import attrs
 from collections.abc import Iterator, Sequence
 import functools
 from numbers import Real
+
+import attrs
 import numpy as np
 import scipy.optimize as optimize
 import scipy.signal as signal
 
-from ..lib.constants import PI_2
-from ..lib import phase_shift as ps
 from . import model
-from ..lib import physics as ph
+from ..lib import phase_shift as ps, physics as ph
+from ..lib.constants import PI_2
 
 
 def _make_search_array(wuf: model.WavesUnderFloe, coef: int):

@@ -2,10 +2,10 @@ from hypothesis import given
 import hypothesis.extra.numpy as npst
 import numpy as np
 
-from .conftest import physical_strategies, coupled_ocean_ice
-from flexfrac1d.model.model import FloatingIce
-from flexfrac1d.model.model import WavesUnderIce, WavesUnderElasticPlate
 import flexfrac1d.lib.att as att
+from flexfrac1d.model.model import FloatingIce, WavesUnderElasticPlate, WavesUnderIce
+
+from .conftest import coupled_ocean_ice, physical_strategies
 
 wavenumbers_strategy = npst.arrays(
     float,

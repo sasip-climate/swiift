@@ -1,8 +1,9 @@
 from numbers import Real
+import warnings
+
 import numpy as np
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
-import warnings
 
 from ._ph_utils import _unit_wavefield
 

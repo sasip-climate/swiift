@@ -1,6 +1,8 @@
 from collections.abc import Callable
 import pathlib
+
 import numpy as np
+
 import flexfrac1d.lib.physics as ph
 
 # Test configurations visually examined against solution from scipy.solve_bvp

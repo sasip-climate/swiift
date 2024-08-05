@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import attrs
 from collections.abc import Sequence
 import functools
 import itertools
 from numbers import Real
-import numpy as np
 import operator
-from sortedcontainers import SortedList
 import typing
 
+import attrs
+import numpy as np
+from sortedcontainers import SortedList
+
+from ..lib import att, dr, physics as ph
 from ..lib.constants import PI_2, SQR2
-from ..lib import att
-from ..lib import dr
-from ..lib import physics as ph
 from ..lib.graphics import plot_displacement
 
 if typing.TYPE_CHECKING:

@@ -1,8 +1,9 @@
-import attrs
 import functools
+import warnings
+
+import attrs
 import numpy as np
 import scipy.optimize as optimize
-import warnings
 
 # TODO: add from_ocean, from_ice class methods, use them model.Domain where
 # relevant

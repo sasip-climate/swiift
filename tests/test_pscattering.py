@@ -3,7 +3,6 @@ import pytest
 
 import flexfrac1d.lib.phase_shift as ps
 
-
 random_handlers = (
     ps.UniformScatteringHandler,
     ps.PerturbationScatteringHandler,

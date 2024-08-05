@@ -43,3 +43,9 @@ markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 branch = true
 source = ["src", "tests"]
 omit = ["src/flexfrac1d/__about__.py"]
+
+[tool.isort]
+profile = "black"
+skip = [".gitignore"]
+force_sort_within_sections = true
+combine_as_imports = true
