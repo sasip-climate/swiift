@@ -2,6 +2,7 @@ from collections.abc import Callable
 import pathlib
 
 import numpy as np
+import pytest
 
 import flexfrac1d.lib.physics as ph
 
@@ -92,3 +93,13 @@ def test_energy():
         floe_params, wave_params = format_to_pack(red_num, length, wave_params_real)
         handler = ph.EnergyHandler(floe_params, wave_params)
         assert np.isclose(vars[-1] - handler.compute(), 0)
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+def test_energy_no_attenuation():
+    floe_params = 0.34, 126.12
+    wave_params = (
+        np.array([0.14808142 + 0.34891663j, 0.08581965 + 0.54191726j]),
+        np.array([0.02674772 + 0.0j, 0.09422177 + 0.0j]),
+    )
+    ph.EnergyHandler(floe_params, wave_params).compute()

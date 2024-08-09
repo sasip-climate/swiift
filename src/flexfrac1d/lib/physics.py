@@ -319,15 +319,25 @@ class EnergyHandler:
         wn_moduli, curv_moduli = map(np.abs, (c_wavenumbers, comp_curvs))
         wn_phases, curv_phases = map(np.angle, (c_wavenumbers, comp_curvs))
 
-        red = np.exp(-2 * attenuations * length)
+        # Because of a division by `attenuations`, this term must me handled
+        # with some extra care
+        attenuation_mask = attenuations != 0
+        non_oscillatory_term = np.full(attenuations.shape, np.nan)
+        non_oscillatory_term[attenuation_mask] = (
+            -np.expm1(-2 * attenuations[attenuation_mask] * length)
+            / attenuations[attenuation_mask]
+        )
+        # NOTE: corresponds to the limit of the previous term, when attenuation -> 0
+        non_oscillatory_term[~attenuation_mask] = 2 * length
 
         return (
             curv_moduli**2
             @ (
-                (1 - red) / attenuations
+                non_oscillatory_term
                 + (
                     np.sin(2 * curv_phases - wn_phases)
-                    - np.sin(2 * (wavenumbers * length + curv_phases) - wn_phases) * red
+                    - np.sin(2 * (wavenumbers * length + curv_phases) - wn_phases)
+                    * np.exp(-2 * attenuations * length)
                 )
                 / wn_moduli
             )
