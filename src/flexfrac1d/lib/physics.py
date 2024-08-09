@@ -306,9 +306,7 @@ class EnergyHandler:
         comp_amps = _dis_par_amps(red_num, self.wave_params)
         _, c_wavenumbers = self.wave_params
 
-        comp_curvs = comp_amps * (1j * c_wavenumbers) ** 2
-
-        return c_wavenumbers, comp_curvs
+        return comp_amps * (1j * c_wavenumbers) ** 2
 
     def _egy_par_pow2(self):
         """Energy contribution from individual forcings"""
@@ -317,9 +315,9 @@ class EnergyHandler:
         wavenumbers = np.real(c_wavenumbers)
         attenuations = np.imag(c_wavenumbers)
 
-        comp_wns, comp_curvs = self._egy_par_vals()
-        wn_moduli, curv_moduli = map(np.abs, (comp_wns, comp_curvs))
-        wn_phases, curv_phases = map(np.angle, (comp_wns, comp_curvs))
+        comp_curvs = self._egy_par_vals()
+        wn_moduli, curv_moduli = map(np.abs, (c_wavenumbers, comp_curvs))
+        wn_phases, curv_phases = map(np.angle, (c_wavenumbers, comp_curvs))
 
         red = np.exp(-2 * attenuations * length)
 
@@ -341,7 +339,7 @@ class EnergyHandler:
         _, c_wavenumbers = self.wave_params
         wavenumbers = np.real(c_wavenumbers)
         attenuations = np.imag(c_wavenumbers)
-        _, comp_curvs = self._egy_par_vals()
+        comp_curvs = self._egy_par_vals()
 
         # Binomial coefficients, much quicker than itertools
         idx1, idx2 = np.triu_indices(c_wavenumbers.size, 1)
@@ -389,7 +387,7 @@ class EnergyHandler:
         attenuations = np.imag(c_wavenumbers)
 
         wn_abs, wn_phases = (_f(c_wavenumbers) for _f in (np.abs, np.angle))
-        _, comp_curvs = self._egy_par_vals()
+        comp_curvs = self._egy_par_vals()
         curv_moduli, curv_phases = np.abs(comp_curvs), np.angle(comp_curvs)
         num_add = red_num + wavenumbers
         num_sub = red_num - wavenumbers
