@@ -8,6 +8,7 @@ import attrs
 from ..lib import att
 from ..model import frac_handlers as fh, model as md
 
+# TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
 
