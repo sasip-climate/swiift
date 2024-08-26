@@ -72,7 +72,7 @@ class _FractureHandler(abc.ABC):
         # edge_amplitudes = wuf.edge_amplitudes * np.exp(
         #     1j * wuf.wui._c_wavenumbers * xf[:, None]
         # )
-        gens = wuf.generation * np.ones(xf.size)
+        gens = wuf.generation * np.ones(xf.size, dtype=int)
         gens[:-1] += 1
         return [
             model.WavesUnderFloe(
