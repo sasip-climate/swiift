@@ -34,6 +34,8 @@ class _StrainDiag:
 class _FractureDiag:
     x: np.ndarray
     energy: np.ndarray
+    initial_energy: float
+    frac_energy_rate: float
 
 
 @attrs.define
@@ -125,11 +127,19 @@ class BinaryFracture(_FractureHandler):
     ):
         lengths = _make_diagnose_array(wuf, res)[1:-1]
         energies = np.full((lengths.size, 2), np.nan)
+        initial_energy = (
+            ph.EnergyHandler.from_wuf(wuf, growth_params).compute(an_sol, num_params),
+        )
         for i, length in enumerate(lengths):
             energies[i, :] = self.compute_energies(
                 self.split(wuf, length), growth_params, an_sol, num_params
             )
-        return _FractureDiag(lengths, energies)
+        return _FractureDiag(
+            lengths,
+            energies,
+            initial_energy,
+            wuf.wui.ice.frac_energy_rate,
+        )
 
     def discrete_sweep(
         self, wuf, an_sol, growth_params, num_params
