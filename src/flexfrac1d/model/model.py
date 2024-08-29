@@ -674,7 +674,18 @@ class WavesUnderFloe(_Subdomain):
         # subdomains is not, so we mutate the amplitude/phase instead
         object.__setattr__(self, "edge_amplitudes", shifted_amplitudes)
 
-    def energy(self, growth_params=None, an_sol: bool = False, num_params=None):
+    def displacement(
+        self,
+        x: np.ndarray,
+        growth_params=None,
+        an_sol: bool | None = None,
+        num_params=None,
+    ):
+        return ph.DisplacementHandler.from_wuf(self, growth_params).compute(
+            x, an_sol, num_params
+        )
+
+    def energy(self, growth_params=None, an_sol: bool | None = None, num_params=None):
         return ph.EnergyHandler.from_wuf(self, growth_params).compute(
             an_sol, num_params
         )
