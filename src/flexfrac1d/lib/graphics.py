@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import functools
+import typing
+
+import matplotlib
 from matplotlib.animation import FuncAnimation
 from matplotlib.collections import LineCollection
 import matplotlib.pyplot as plt
@@ -5,13 +11,21 @@ import numpy as np
 
 from . import numerical, physics as ph
 
+if typing.TYPE_CHECKING:
+    from ..model import Domain, WavesUnderFloe
+
 
 def _linspace_nums(resolution: float, floes) -> list[int]:
+    # For each floe, return the number of points needed to discretise its
+    # length at the specified resolution
     return [np.ceil(floe.length / resolution).astype(int) + 1 for floe in floes]
 
 
-def _surface_segments(resolution, domain, left_bound, an_sol) -> list[np.ndarray]:
+def _surface_segments(
+    resolution: float, domain: Domain, left_bound: float, an_sol: bool | None
+) -> list[np.ndarray]:
     nxs = _linspace_nums(resolution, domain.subdomains)
+    # Array of points to discretise the free surface on the left of the ice domain
     xfs = np.linspace(
         left_bound,
         domain.subdomains[0].left_edge,
@@ -19,6 +33,7 @@ def _surface_segments(resolution, domain, left_bound, an_sol) -> list[np.ndarray
         + 1,
     )
     growth_params = None if an_sol else (domain.growth_mean, domain.growth_std)
+    # TODO: replace numerical.free_surface by a FluidSurfaceHandler
     yfs = numerical.free_surface(
         xfs,
         (domain.spectrum._amps, domain.ocean.wavenumbers, domain.spectrum._phases),
@@ -35,25 +50,53 @@ def _surface_segments(resolution, domain, left_bound, an_sol) -> list[np.ndarray
     return segments
 
 
-def _dis_segments(resolution, domain, an_sol, base):
-    # TODO: use `base` to offset, e.g. to the bottom or the top of the floe
+def _compute_segment(
+    nx: int,
+    wuf: WavesUnderFloe,
+    growth_params,
+    an_sol: bool | None,
+    num_params: dict | None,
+) -> np.ndarray:
+    segment = np.full((nx, 2), np.nan)
+    segment[:, 0] = np.linspace(0, wuf.length, nx)
+    segment[:, 1] = wuf.displacement(
+        segment[:, 0],
+        growth_params,
+        an_sol,
+        num_params,
+    )
+    segment[:, 0] += wuf.left_edge
+    return segment
+
+
+def _dis_segments(
+    resolution: float,
+    domain: Domain,
+    an_sol: bool | None,
+    num_params: dict | None,
+    base: float,
+):
+    # TODO: use `base` to offset, e.g. to the bottom or the top of the floe.
+    # Probably pass it to _compute_segment.
     nxs = _linspace_nums(resolution, domain.subdomains)
-    segments = [np.full((nx, 2), np.nan) for nx in nxs]
-    for i, (nx, floe) in enumerate(zip(nxs, domain.subdomains)):
-        segments[i][:, 0] = np.linspace(0, floe.length, nx)
-        segments[i][:, 1] = floe.displacement(
-            segments[i][:, 0], domain.spectrum, domain._pack_growth(floe), an_sol, None
-        )
-        segments[i][:, 0] += floe.left_edge
+    # Freeze the arguments that do not vary between calls
+    compute_segments = functools.partial(
+        _compute_segment,
+        **dict(
+            an_sol=an_sol, growth_params=domain.growth_params, num_params=num_params
+        ),
+    )
+    segments = [compute_segments(nxs[i], domain.subdomains[i]) for i in range(len(nxs))]
     return segments
 
 
 def plot_displacement(
-    resolution,
-    domain,
+    resolution: float,
+    domain: Domain,
     left_bound=None,
-    ax=None,
-    an_sol=None,
+    ax: matplotlib.axes.Axes = None,
+    an_sol: bool | None = None,
+    num_params: dict | None = None,
     add_surface=True,
     base=0,
     kw_dis=None,
@@ -62,7 +105,7 @@ def plot_displacement(
     if kw_dis is None:
         kw_dis = {"color": "k", "lw": 3}
     displacements = LineCollection(
-        _dis_segments(resolution, domain, an_sol, base), **kw_dis
+        _dis_segments(resolution, domain, an_sol, num_params, base), **kw_dis
     )
     if left_bound is None:
         left_bound = domain.subdomains[0].left_edge
