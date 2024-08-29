@@ -59,6 +59,16 @@ def test_displacement():
     _test_analytical(PATH_DIS, ph.DisplacementHandler)
 
 
+@pytest.mark.parametrize
+def test_displacement_wuf():
+    # TODO:
+    # * instantiate wui from parameters
+    # * instantiate wuf from parameters and wui
+    # * call `displacement`
+    # * profit
+    pass
+
+
 def test_curvature():
     _test_analytical(PATH_CUR, ph.CurvatureHandler)
 
