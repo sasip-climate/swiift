@@ -6,6 +6,8 @@ import pytest
 
 import flexfrac1d.lib.physics as ph
 
+# TODO: fiture these tests instead of running loops in individual functions
+
 # Test configurations visually examined against solution from scipy.solve_bvp
 PATH_DIS = pathlib.Path("tests/target/displacement")
 PATH_CUR = pathlib.Path("tests/target/curvature")
