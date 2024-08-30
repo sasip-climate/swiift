@@ -44,6 +44,9 @@ branch = true
 source = ["src", "tests"]
 omit = ["src/flexfrac1d/__about__.py"]
 
+[tool.coverage.report]
+exclude_also = ["if typing.TYPE_CHECKING:"]
+
 [tool.isort]
 profile = "black"
 skip = [".gitignore"]
