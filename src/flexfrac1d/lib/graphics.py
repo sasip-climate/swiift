@@ -15,16 +15,20 @@ if typing.TYPE_CHECKING:
     from ..model import Domain, WavesUnderFloe
 
 
-def _linspace_nums(resolution: float, floes) -> list[int]:
+def _linspace_nums(resolution: float, lengths: list[float]) -> list[int]:
     # For each floe, return the number of points needed to discretise its
     # length at the specified resolution
-    return [np.ceil(floe.length / resolution).astype(int) + 1 for floe in floes]
+    return [np.ceil(length / resolution).astype(int) + 1 for length in lengths]
+
+
+def _domain_to_lengths(domain: Domain) -> list[float]:
+    return [wuf.length for wuf in domain.subdomains]
 
 
 def _surface_segments(
     resolution: float, domain: Domain, left_bound: float, an_sol: bool | None
 ) -> list[np.ndarray]:
-    nxs = _linspace_nums(resolution, domain.subdomains)
+    nxs = _linspace_nums(resolution, _domain_to_lengths(domain))
     # Array of points to discretise the free surface on the left of the ice domain
     xfs = np.linspace(
         left_bound,
@@ -78,7 +82,7 @@ def _dis_segments(
 ):
     # TODO: use `base` to offset, e.g. to the bottom or the top of the floe.
     # Probably pass it to _compute_segment.
-    nxs = _linspace_nums(resolution, domain.subdomains)
+    nxs = _linspace_nums(resolution, _domain_to_lengths(domain))
     # Freeze the arguments that do not vary between calls
     compute_segments = functools.partial(
         _compute_segment,
