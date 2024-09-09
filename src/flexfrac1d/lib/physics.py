@@ -268,8 +268,12 @@ class EnergyHandler:
 
     @classmethod
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
-        factor = wuf.wui.ice.flex_rigidity / (2 * wuf.wui.ice.thickness)
+        factor = cls._compute_factor(wuf)
         return cls(*_package_wuf(wuf, growth_params), factor)
+
+    @staticmethod
+    def _compute_factor(wuf: model.WavesUnderFloe):
+        return wuf.wui.ice.flex_rigidity / (2 * wuf.wui.ice.thickness)
 
     def _egy_hom(self):
         """Energy from the homogen term of the displacement ODE"""
