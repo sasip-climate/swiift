@@ -273,6 +273,7 @@ class EnergyHandler:
 
     @staticmethod
     def _compute_factor(wuf: model.WavesUnderFloe):
+        # NOTE: this could also be a WUF property?
         return wuf.wui.ice.flex_rigidity / (2 * wuf.wui.ice.thickness)
 
     def _egy_hom(self):
