@@ -237,12 +237,41 @@ class CurvatureHandler:
         x,
         an_sol: bool | None = None,
         num_params: dict | None = None,
+        is_linear: bool = True,
     ):
-        """Curvature of the floe, i.e. second derivative of the vertical displacement"""
-        if numerical._use_an_sol(an_sol, self.floe_params[1], self.growth_params):
+        """Curvature of the floe.
+
+        A linear approximation is given by the second derivative of the
+        displacement. The exact definition involves the first derivative of the
+        displacement.
+
+        Parameters
+        ----------
+        x : float or 1d array_like of float
+            Along-floe coordinates at which to compute the curvature, in m
+        an_sol : bool
+            Whether to use an analytical formulation of the curvature
+        num_params : dict
+            Optional arguments passed to the numerical solver if `not an_sol`
+        is_linear : bool
+            Whether to use the linear approximation; ignored if `an_sol`
+
+        Returns
+        -------
+        float or 1d array_like of float
+
+        """
+        if numerical._use_an_sol(
+            an_sol, self.floe_params[1], self.growth_params, is_linear
+        ):
             return self._cur(x)
         return numerical.curvature(
-            x, self.floe_params, self.wave_params, self.growth_params, num_params
+            x,
+            self.floe_params,
+            self.wave_params,
+            self.growth_params,
+            num_params,
+            is_linear,
         )
 
 
@@ -483,12 +512,19 @@ class EnergyHandler:
         self,
         an_sol: bool | None = None,
         num_params: dict | None = None,
+        linear_curvature: bool | None = None,
     ):
-        if numerical._use_an_sol(an_sol, self.floe_params[1], self.growth_params):
+        if numerical._use_an_sol(
+            an_sol, self.floe_params[1], self.growth_params, linear_curvature
+        ):
             unit_energy = self._egy_hom() + 2 * self._egy_m() + self._egy_par()
         else:
             unit_energy = numerical.energy(
-                self.floe_params, self.wave_params, self.growth_params, num_params
+                self.floe_params,
+                self.wave_params,
+                self.growth_params,
+                num_params,
+                linear_curvature,
             )[0]
 
         return self.factor * unit_energy

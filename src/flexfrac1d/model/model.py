@@ -691,14 +691,21 @@ class WavesUnderFloe(_Subdomain):
         growth_params=None,
         an_sol: bool | None = None,
         num_params=None,
+        is_linear: bool = None,
     ):
         return ph.CurvatureHandler.from_wuf(self, growth_params).compute(
-            x, an_sol, num_params
+            x, an_sol, num_params, is_linear
         )
 
-    def energy(self, growth_params=None, an_sol: bool | None = None, num_params=None):
+    def energy(
+        self,
+        growth_params=None,
+        an_sol: bool | None = None,
+        num_params=None,
+        linear_curvature: bool | None = None,
+    ):
         return ph.EnergyHandler.from_wuf(self, growth_params).compute(
-            an_sol, num_params
+            an_sol, num_params, linear_curvature
         )
 
 

@@ -102,18 +102,31 @@ class BinaryFracture(_FractureHandler):
         growth_params,
         an_sol: bool,
         num_params,
+        linear_curvature: bool | None = None,
     ) -> tuple[float]:
         energies = np.full(len(wuf_collection), np.nan)
         for i, wuf in enumerate(wuf_collection):
             handler = ph.EnergyHandler.from_wuf(wuf, growth_params)
-            energies[i] = handler.compute(an_sol, num_params)
+            energies[i] = handler.compute(an_sol, num_params, linear_curvature)
         return energies
 
-    def _ener_min(self, length, wuf, growth_params, an_sol, num_params) -> float:
+    def _ener_min(
+        self,
+        length,
+        wuf,
+        growth_params,
+        an_sol,
+        num_params,
+        linear_curvature: bool | None = None,
+    ) -> float:
         """Objective function to minimise for energy-based fracture"""
         sub_left, sub_right = self.split(wuf, length)
         energy_left, energy_right = self.compute_energies(
-            self.split(wuf, length, True), growth_params, an_sol, num_params
+            self.split(wuf, length, True),
+            growth_params,
+            an_sol,
+            num_params,
+            linear_curvature,
         )
         return np.log(energy_left + energy_right)
 
@@ -124,15 +137,22 @@ class BinaryFracture(_FractureHandler):
         growth_params=None,
         an_sol=False,
         num_params=None,
+        linear_curvature: bool | None = None,
     ):
         lengths = _make_diagnose_array(wuf, res)[1:-1]
         energies = np.full((lengths.size, 2), np.nan)
         initial_energy = (
-            ph.EnergyHandler.from_wuf(wuf, growth_params).compute(an_sol, num_params),
+            ph.EnergyHandler.from_wuf(wuf, growth_params).compute(
+                an_sol, num_params, linear_curvature
+            ),
         )
         for i, length in enumerate(lengths):
             energies[i, :] = self.compute_energies(
-                self.split(wuf, length), growth_params, an_sol, num_params
+                self.split(wuf, length),
+                growth_params,
+                an_sol,
+                num_params,
+                linear_curvature,
             )
         return _FractureDiag(
             lengths,
@@ -142,12 +162,19 @@ class BinaryFracture(_FractureHandler):
         )
 
     def discrete_sweep(
-        self, wuf, an_sol, growth_params, num_params
+        self,
+        wuf,
+        an_sol,
+        growth_params,
+        num_params,
+        linear_curvature: bool | None = None,
     ) -> Iterator[tuple[float]]:
         lengths = _make_search_array(wuf, self.coef_nd)
         ener = np.full(lengths.shape, np.nan)
         for i, length in enumerate(lengths):
-            ener[i] = self._ener_min(length, wuf, growth_params, an_sol, num_params)
+            ener[i] = self._ener_min(
+                length, wuf, growth_params, an_sol, num_params, linear_curvature
+            )
 
         peak_idxs = np.hstack(
             (0, signal.find_peaks(ener, distance=2)[0], ener.size - 1)
@@ -155,10 +182,15 @@ class BinaryFracture(_FractureHandler):
         return zip(lengths[peak_idxs[:-1]], lengths[peak_idxs[1:]])
 
     def search(
-        self, wuf: model.WavesUnderFloe, growth_params, an_sol, num_params
+        self,
+        wuf: model.WavesUnderFloe,
+        growth_params,
+        an_sol,
+        num_params,
+        linear_curvature: bool | None = None,
     ) -> float | None:
         base_handler = ph.EnergyHandler.from_wuf(wuf, growth_params)
-        base_energy = base_handler.compute(an_sol, num_params)
+        base_energy = base_handler.compute(an_sol, num_params, linear_curvature)
 
         # No fracture if the elastic energy is below the threshold
         if base_energy < wuf.wui.ice.frac_energy_rate:

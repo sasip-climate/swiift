@@ -85,17 +85,55 @@ def _get_result(
 
 
 def _use_an_sol(
-    an_sol: bool | None, length: float, growth_params: tuple | None
-) -> None:
-    if an_sol is None:
-        if growth_params is None:
-            an_sol = True
-        else:
+    analytical_solution: bool | None,
+    length: float,
+    growth_params: tuple | None,
+    linear_curvature: bool | None = None,
+) -> bool:
+    """Determine whether to use an analytical solution.
+
+    The displacement, curvature, and elastic energy have analytical expressions
+    under certain conditions. These are used if `analytical_solution` is
+    explicitely set to `True`. Otherwise, the other parameters are examined to
+    determine if the analytical solutions can (and, therefore, should) be used.
+    If `growth_params` is not provided, or if all its location values are
+    greater than `length`, and if `linear_curvature` is not provided or set to
+    `True`, analytical solutions will be used. If `linear_curvature` is set to
+    `False`, numerical solutions will be used.
+
+    Parameters
+    ----------
+    analytical_solution : bool, optional
+       Set to `True` to force using analytical solutions.
+    length : float
+        Length of the floe.
+    growth_params : tuple, optional
+        Parameters of a wave growth kernel.
+    linear_curvature : bool, optional
+        Set to `False` to force using numerical approximations to the
+        non-linear curvature. It has no effect for other variables
+        (displacement, elastic energy) but *does* force using numerical
+        solutions instead of analytical solutions, if set to `False`.
+
+    Returns
+    -------
+    bool
+
+    """
+    if analytical_solution is not None:
+        return analytical_solution
+    if growth_params is None:
+        if linear_curvature is None:
+            return True
+        # No analytical solution for non-linear curvature
+        return linear_curvature
+    else:
+        if linear_curvature is None or linear_curvature:
             # If the wave growth kernel mean is to the right of the floe
             # for every wave component, the wave is fully developed
             # and the analytical solution can be used
-            an_sol = np.all(growth_params[0] > length)
-    return an_sol
+            return np.all(growth_params[0] > length)
+        return False
 
 
 def _extract_from_poly(sol: interpolate.PPoly, n: int) -> interpolate.PPoly:
@@ -106,8 +144,20 @@ def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
     return _extract_from_poly(sol, 0)
 
 
-def _extract_cur_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
-    return _extract_from_poly(sol, 2)
+def _extract_cur_poly(
+    sol: interpolate.PPoly, is_linear: bool = True
+) -> interpolate.PPoly:
+    if is_linear:
+        return _extract_from_poly(sol, 2)
+    else:
+
+        def non_lin_curv(x):
+            return (
+                _extract_from_poly(sol, 2)(x)
+                / (1 + _extract_from_poly(sol, 1)(x) ** 2) ** 1.5
+            )
+
+        return non_lin_curv
 
 
 def displacement(x, floe_params, wave_params, growth_params, num_params):
@@ -115,17 +165,23 @@ def displacement(x, floe_params, wave_params, growth_params, num_params):
     return _extract_dis_poly(opt.sol)(x)
 
 
-def curvature(x, floe_params, wave_params, growth_params, num_params):
+def curvature(
+    x, floe_params, wave_params, growth_params, num_params, is_linear: bool = True
+):
     opt = _get_result(floe_params, wave_params, growth_params, num_params)
-    return _extract_cur_poly(opt.sol)(x)
+    return _extract_cur_poly(opt.sol, is_linear)(x)
 
 
-def energy(floe_params, wave_params, growth_params, num_params) -> tuple[float]:
+def energy(
+    floe_params, wave_params, growth_params, num_params, linear_curvature: bool = True
+) -> tuple[float]:
     """Numerically evaluate the energy
 
-    The energy is up to a prefactor"""
+    The energy is up to a prefactor.
+
+    """
     opt = _get_result(floe_params, wave_params, growth_params, num_params)
-    curvature_poly = _extract_cur_poly(opt.sol)
+    curvature_poly = _extract_cur_poly(opt.sol, linear_curvature)
 
     def unit_energy(x: float) -> float:
         return curvature_poly(x) ** 2
