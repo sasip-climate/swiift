@@ -44,7 +44,7 @@ class Experiment:
         self.domain.add_floes(floes)
         self.save_step()
 
-    def last_step(self):
+    def get_final_state(self):
         return self.history[next(reversed(self.history))]
 
     def _save_step(self):
