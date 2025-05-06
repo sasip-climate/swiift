@@ -103,7 +103,7 @@ class BinaryFracture(_FractureHandler):
         an_sol: bool,
         num_params,
         linear_curvature: bool | None = None,
-    ) -> tuple[float]:
+    ) -> np.ndarray:
         energies = np.full(len(wuf_collection), np.nan)
         for i, wuf in enumerate(wuf_collection):
             handler = ph.EnergyHandler.from_wuf(wuf, growth_params)
