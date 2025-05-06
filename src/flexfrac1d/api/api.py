@@ -2,15 +2,25 @@ from __future__ import annotations
 
 from collections import namedtuple
 from collections.abc import Sequence
+import pickle
 
 import attrs
 import numpy as np
 
+from .. import __about__
 from ..lib import att
 from ..model import frac_handlers as fh, model as md
 
 # TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
+
+
+def read_pickle(fname) -> Experiment:
+    with open(fname, "rb") as file:
+        instance = pickle.load(file)
+        if not isinstance(instance, Experiment):
+            raise TypeError("The pickled object is not an instance of `Experiment`.")
+    return instance
 
 
 @attrs.define
@@ -170,5 +180,20 @@ class Experiment:
         indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
         return {k: self.history[k] for k in timestep_keys[indexes]}
 
-    def serialize(self, fname):
-        pass
+    def _generate_name(self):
+        first_time = next(iter(self.history))
+        return f"{id(self)}_v{__about__.__version__}_{first_time:.3f}-{self.time:.3f}"
+
+    def _dump(self):
+        fname = f"{self._generate_name()}.pickle"
+        with open(fname, "bw") as file:
+            pickle.dump(self, file)
+
+    def _clean_history(self):
+        current_state = self.get_final_state()
+        self.history.clear()
+        self.history[self.time] = current_state
+
+    def dump_history(self):
+        self._dump()
+        self._clean_history()
