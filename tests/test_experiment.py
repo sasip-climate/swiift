@@ -150,5 +150,5 @@ def test_step():
     assert np.allclose(experiment.time - (number_of_additional_steps + 1) * delta_t, 0)
     assert len(experiment.history) == number_of_additional_steps + 2
     assert total_length_comparison(experiment.domain.subdomains, floe)
-    last_step = experiment.last_step()
+    last_step = experiment.get_last_step()
     assert experiment.history[(number_of_additional_steps + 1) * delta_t] == last_step
