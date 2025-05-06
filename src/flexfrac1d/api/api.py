@@ -40,11 +40,65 @@ class Experiment:
             return cls(0, domain)
         return cls(0, domain, fracture_handler)
 
+    @property
+    def timesteps(self) -> np.ndarray:
+        """The experiment timesteps in s.
+
+        These can be used to index `self.history`.
+
+        Returns
+        -------
+        1D array
+            The existing timesteps.
+
+        """
+        return np.array(list(self.history.keys()))
+
     def add_floes(self, floes: md.Floe | Sequence[md.Floe]):
         self.domain.add_floes(floes)
         self._save_step()
 
-    def get_final_state(self):
+    def _find_fracture_indices(self) -> np.ndarray[int]:
+        """Find the indices of states immediately before fracture.
+
+        Returns
+        -------
+        1D array of int
+            The indices of the current timesteps corresponding to the states
+            that broke on the next iteration.
+
+        """
+        _t = [len(step.subdomains) for step in self.history.values()]
+        return np.nonzero(np.ediff1d(_t))[0]
+
+    def get_pre_fracture_times(self) -> np.ndarray:
+        """Return the times corresponding to states immediately after fracture.
+
+        These can be used to index `self.history`.
+
+        Returns
+        -------
+        1D array
+            Output times.
+
+        """
+        return self.timesteps[self._find_fracture_indices()]
+
+    def get_post_fracture_times(self) -> np.ndarray:
+        """Return the times corresponding to states immediately after fracture.
+
+        These can be used to index `self.history`.
+        Note: in these states, the waves have been advected, compared to the
+        corresponding pre-fracture states.
+
+        Returns
+        -------
+        1D array
+            Output times.
+
+        """
+        return self.timesteps[self._find_fracture_indices() + 1]
+
     def get_final_state(self) -> Step:
         """Return the final state of the experiment.
 
