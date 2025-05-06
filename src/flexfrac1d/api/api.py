@@ -45,6 +45,15 @@ class Experiment:
         self._save_step()
 
     def get_final_state(self):
+    def get_final_state(self) -> Step:
+        """Return the final state of the experiment.
+
+        Returns
+        -------
+        Step
+            The `Step` corresponding to the last timestep.
+
+        """
         return self.history[next(reversed(self.history))]
 
     def _save_step(self):
