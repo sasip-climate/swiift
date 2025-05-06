@@ -4,6 +4,7 @@ from collections import namedtuple
 from collections.abc import Sequence
 
 import attrs
+import numpy as np
 
 from ..lib import att
 from ..model import frac_handlers as fh, model as md
@@ -61,3 +62,25 @@ class Experiment:
         self.domain.iterate(delta_time)
         self.time += delta_time
         self.save_step()
+
+    def get_steps(self, times: np.ndarray | float) -> dict[float, Step]:
+        """Return a subset of the history matching the given times.
+
+        Parameters
+        ----------
+        times : 1D array_like, float
+            Time, or sequence of times.
+
+        Returns
+        -------
+        dict[float, Step]
+            A dictionary containing the `Step`s closest to the input `times`.
+
+        """
+        times = np.ravel(times)
+        timestep_keys = np.array(list(self.history.keys()))
+        indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
+        return {k: self.history[k] for k in timestep_keys[indexes]}
+
+    def serialize(self, fname):
+        pass
