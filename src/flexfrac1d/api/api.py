@@ -47,7 +47,7 @@ class Experiment:
     def last_step(self):
         return self.history[next(reversed(self.history))]
 
-    def save_step(self):
+    def _save_step(self):
         self.history[self.time] = Step(
             tuple(wuf.make_copy() for wuf in self.domain.subdomains),
             (
@@ -61,7 +61,7 @@ class Experiment:
         self.domain.breakup(self.fracture_handler, an_sol, num_params)
         self.domain.iterate(delta_time)
         self.time += delta_time
-        self.save_step()
+        self._save_step()
 
     def get_steps(self, times: np.ndarray | float) -> dict[float, Step]:
         """Return a subset of the history matching the given times.
