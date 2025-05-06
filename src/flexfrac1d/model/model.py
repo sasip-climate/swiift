@@ -708,6 +708,8 @@ class WavesUnderFloe(_Subdomain):
             an_sol, num_params, linear_curvature
         )
 
+    # TODO: method to return the local wave forcing
+
 
 class DiscreteSpectrum:
     def __init__(
