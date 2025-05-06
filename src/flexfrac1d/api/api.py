@@ -42,7 +42,7 @@ class Experiment:
 
     def add_floes(self, floes: md.Floe | Sequence[md.Floe]):
         self.domain.add_floes(floes)
-        self.save_step()
+        self._save_step()
 
     def get_final_state(self):
         return self.history[next(reversed(self.history))]
