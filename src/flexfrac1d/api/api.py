@@ -57,7 +57,32 @@ class Experiment:
             ),
         )
 
-    def step(self, delta_time: float, an_sol=None, num_params=None):
+    def step(
+        self,
+        delta_time: float,
+        an_sol: bool | None = None,
+        num_params: dict | None = None,
+    ):
+        """Move the experiment forward in time.
+
+        On step is a succession of events. First, the current floes are scanned
+        for fractures. The domain is eventually updated with the newly formed
+        fragments replacing the fractured floes. Then, the actual time
+        progression happens, by updating the wave phases at the edge of every
+        individual floe. Finally, this new state is saved to the history, at
+        the index corresponding to the updated time.
+
+        Parameters
+        ----------
+        delta_time : float
+            The time increment in second.
+        an_sol : bool, optional
+            Whether to force the use of a numerical or analytical solution for
+            the deflection of the floes.
+        num_params : dict, optional
+            Optional parameters to pass to the numerical solver, if applicable.
+
+        """
         self.domain.breakup(self.fracture_handler, an_sol, num_params)
         self.domain.iterate(delta_time)
         self.time += delta_time
