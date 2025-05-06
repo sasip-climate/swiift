@@ -88,7 +88,7 @@ class Experiment:
         self.time += delta_time
         self._save_step()
 
-    def get_steps(self, times: np.ndarray | float) -> dict[float, Step]:
+    def get_states(self, times: np.ndarray | float) -> dict[float, Step]:
         """Return a subset of the history matching the given times.
 
         Parameters
