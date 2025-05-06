@@ -691,7 +691,7 @@ class WavesUnderFloe(_Subdomain):
         growth_params=None,
         an_sol: bool | None = None,
         num_params=None,
-        is_linear: bool = None,
+        is_linear: bool | None = None,
     ):
         return ph.CurvatureHandler.from_wuf(self, growth_params).compute(
             x, an_sol, num_params, is_linear
