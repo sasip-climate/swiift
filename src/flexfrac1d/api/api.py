@@ -197,3 +197,94 @@ class Experiment:
     def dump_history(self):
         self._dump()
         self._clean_history()
+
+    def run(
+        self,
+        time: float,
+        delta_time: float,
+        break_time: float | None = None,
+        chunk_size: int | None = None,
+        verbose: int | None = None,
+        pbar=None,
+    ):
+        """Run the experiment for a specified duration.
+
+        The experiment is run from its current time for a duration
+        corresponding to `time`, with states regularly spaced with step
+        `delta_time`. If `time` is not an integer multiple of `delta_time`, the
+        number of steps will be rounded up. The experiment can optionally be
+        stopped before `time`, if no fracture happens for `break_time`, and at
+        least one fracture has occured.
+
+        The current object can be saved at regularly spaced step intervals, as
+        specified by `chunk_size`.
+
+        Optional messages can be printed to stdout, with a verbosity level
+        controlled by `verbose`.
+
+        A progress bar can be passed as an optional parameter to monitor the
+        experiment. The implementation expect an objects that behaves as a
+        `tqdm` bar; in particular, it needs to expose `update` and close
+        `method`. If used conjonctly with `verbose`, it also needs to expose a
+        `write` method.
+
+        Parameters
+        ----------
+        time : float
+            Duration to run the experiment for, in seconds.
+        delta_time : float
+            Time step between iterations, in seconds.
+        break_time : float | None
+            Time before stopping the experiment if no fracture occurs, in seconds.
+        chunk_size : int | None
+            Number of steps before writing the results to a file.
+        pbar : tqdm bar
+            Progress bar monitoring the experiment.
+        verbose : int | None
+            Verbosity level. If 1, outputs for disk writes. If 2, additional
+            outputs for fractures.
+
+        """
+
+        def pbar_print(msg, pbar):
+            if pbar is not None:
+                pbar.write(msg)
+            else:
+                print(msg)
+
+        number_of_fragments0 = len(self.domain.subdomains)
+        number_of_fragments = number_of_fragments0
+        number_of_steps = np.ceil(time / delta_time).as_type(int)
+        time_since_fracture = 0.0
+
+        for i in range(number_of_steps):
+            self.step(delta_time)
+            new_nof = len(self.domain.subdomains)
+            if new_nof > number_of_fragments:
+                time_since_fracture = 0
+                number_of_fragments = new_nof
+                if verbose is not None and verbose >= 2:
+                    msg = f"t = {self.time:.3f} s; N_f = {number_of_fragments}"
+                    pbar_print(msg, pbar)
+            else:
+                time_since_fracture += delta_time
+
+            if chunk_size is not None:
+                if i > 0 and i % chunk_size == 0:
+                    self.dump_history()
+                    if verbose is not None and verbose >= 1:
+                        msg = f"t = {self.time:.3f} s; history dumped"
+                        pbar_print(msg, pbar)
+
+            if pbar is not None:
+                pbar.update(1)
+
+            if (
+                break_time is not None
+                and number_of_fragments > number_of_fragments0
+                and time_since_fracture > break_time
+            ):
+                break
+
+        if pbar is not None:
+            pbar.close()
