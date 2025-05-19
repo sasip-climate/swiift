@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from collections import namedtuple
 from collections.abc import Sequence
+import functools
+import glob
+import operator
 import pickle
+from typing import Any
 
 import attrs
 import numpy as np
@@ -15,19 +19,48 @@ from ..model import frac_handlers as fh, model as md
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
 
-def read_pickle(fname) -> Experiment:
+def _read_pickle(fname: str):
     with open(fname, "rb") as file:
+        print(f"Reading {fname}...")
         instance = pickle.load(file)
         if not isinstance(instance, Experiment):
             raise TypeError("The pickled object is not an instance of `Experiment`.")
     return instance
 
 
+def _glob_pickle(pattern, glob_kwds: dict[str, Any] | None):
+    if glob_kwds is None:
+        glob_kwds = dict()
+    return [_read_pickle(fname) for fname in glob.iglob(pattern, **glob_kwds)]
+
+
+def _assemble_experiments(experiments: list[Experiment]) -> Experiment:
+    latest_experiment = max(experiments, key=lambda _exp: _exp.time)
+    common_history = functools.reduce(
+        operator.or_, (_exp.history for _exp in experiments)
+    )
+    return Experiment(
+        latest_experiment.time,
+        latest_experiment.domain,
+        common_history,
+        latest_experiment.fracture_handler,
+    )
+
+
+def read_pickle(
+    fname: str, glob: bool = True, glob_kwds: dict[str, Any] | None = None
+) -> Experiment:
+    if glob:
+        experiments = _glob_pickle(fname, glob_kwds)
+        return _assemble_experiments(experiments)
+    return _read_pickle(fname)
+
+
 @attrs.define
 class Experiment:
     time: float
     domain: md.Domain
-    history: dict[float, Step] = attrs.field(init=False, factory=dict, repr=False)
+    history: dict[float, Step] = attrs.field(factory=dict, repr=False)
     fracture_handler: fh._FractureHandler = attrs.field(factory=fh.BinaryFracture)
 
     @classmethod
@@ -48,7 +81,7 @@ class Experiment:
 
         if fracture_handler is None:
             return cls(0, domain)
-        return cls(0, domain, fracture_handler)
+        return cls(0, domain, fracture_handler=fracture_handler)
 
     @property
     def timesteps(self) -> np.ndarray:
