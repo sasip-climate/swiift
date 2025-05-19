@@ -287,7 +287,7 @@ class Experiment:
 
         number_of_fragments0 = len(self.domain.subdomains)
         number_of_fragments = number_of_fragments0
-        number_of_steps = np.ceil(time / delta_time).as_type(int)
+        number_of_steps = np.ceil(time / delta_time).astype(int)
         time_since_fracture = 0.0
 
         for i in range(number_of_steps):
