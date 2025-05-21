@@ -135,7 +135,7 @@ class BinaryFracture(_FractureHandler):
         wuf: model.WavesUnderFloe,
         res: float = 0.5,
         growth_params=None,
-        an_sol=False,
+        an_sol=False,  # TODO: should be None
         num_params=None,
         linear_curvature: bool | None = None,
     ):
