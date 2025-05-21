@@ -34,11 +34,17 @@ def _glob_pickle(pattern, glob_kwds: dict[str, Any] | None):
     return [_read_pickle(fname) for fname in glob.iglob(pattern, **glob_kwds)]
 
 
+def _dct_keys_to_array(dct, dtype=np.float64) -> np.ndarray:
+    return np.fromiter(dct, dtype, count=len(dct))
+
+
 def _assemble_experiments(experiments: list[Experiment]) -> Experiment:
     latest_experiment = max(experiments, key=lambda _exp: _exp.time)
     common_history = functools.reduce(
         operator.or_, (_exp.history for _exp in experiments)
     )
+    sorted_keys = np.sort(_dct_keys_to_array(common_history))
+    common_history = {k: common_history[k] for k in sorted_keys}
     return Experiment(
         latest_experiment.time,
         latest_experiment.domain,
@@ -208,8 +214,8 @@ class Experiment:
             A dictionary containing the `Step`s closest to the input `times`.
 
         """
-        times = np.ravel(times)
-        timestep_keys = np.array(list(self.history.keys()))
+        times = np.ravel(times)  # ensure we have exactly a 1D array
+        timestep_keys = _dct_keys_to_array(self.history)
         indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
         return {k: self.history[k] for k in timestep_keys[indexes]}
 
