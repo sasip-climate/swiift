@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import functools
 import glob
 import operator
+import pathlib
 import pickle
 from typing import Any
 
@@ -17,6 +18,13 @@ from ..model import frac_handlers as fh, model as md
 
 # TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
+
+
+def _create_path(path: str) -> pathlib.Path:
+    _path = pathlib.Path(path)
+    if not _path.exists():
+        _path.mkdir(parents=True)
+    return _path
 
 
 def _read_pickle(fname: str):
@@ -219,13 +227,23 @@ class Experiment:
         indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
         return {k: self.history[k] for k in timestep_keys[indexes]}
 
-    def _generate_name(self):
+    def _time_interval_str(self):
         first_time = next(iter(self.history))
-        return f"{id(self)}_v{__about__.__version__}_{first_time:.3f}-{self.time:.3f}"
+        return f"{first_time:.3f}--{self.time:.3f}"
 
-    def _dump(self):
-        fname = f"{self._generate_name()}.pickle"
-        with open(fname, "bw") as file:
+    def _generate_name(self, prefix: str | None) -> str:
+        if prefix is None:
+            prefix = f"{id(self):x}"
+        return prefix + f"_v{__about__.__version__}" + self._time_interval_str()
+
+    def _dump(self, prefix: str | None, pathstr: str | None):
+        fname = pathlib.Path(f"{self._generate_name(prefix)}.pickle")
+        if pathstr is not None:
+            path = _create_path(pathstr)
+            full_path = path.joinpath(fname)
+        else:
+            full_path = fname
+        with open(full_path, "bw") as file:
             pickle.dump(self, file)
 
     def _clean_history(self):
@@ -233,8 +251,22 @@ class Experiment:
         self.history.clear()
         self.history[self.time] = current_state
 
-    def dump_history(self):
-        self._dump()
+    def dump_history(self, prefix: str | None = None, path: str | None = None):
+        """Write the results to disk and clear the history.
+
+        The whole object is pickled, before emptying the current history from
+        memory. The filename is constructed with the `prefix` passed as
+        argument, the package version number, and the time interval covered by
+        the history.
+
+        Parameters
+        ----------
+        prefix : str | None
+            Prefix for the file name. If none is provided, defaults to the `id`
+            of the `Experiment` object.
+
+        """
+        self._dump(prefix, path)
         self._clean_history()
 
     def run(
@@ -245,6 +277,9 @@ class Experiment:
         chunk_size: int | None = None,
         verbose: int | None = None,
         pbar=None,
+        path: str | None = None,
+        dump_final: bool = True,
+        dump_prefix: str | None = None,
     ):
         """Run the experiment for a specified duration.
 
@@ -277,11 +312,20 @@ class Experiment:
             Time before stopping the experiment if no fracture occurs, in seconds.
         chunk_size : int | None
             Number of steps before writing the results to a file.
-        pbar : tqdm bar
-            Progress bar monitoring the experiment.
         verbose : int | None
             Verbosity level. If 1, outputs for disk writes. If 2, additional
             outputs for fractures.
+        pbar : tqdm bar
+            Progress bar monitoring the experiment.
+        path : str | None
+            Directory where files will be saved. If none is provided, files
+            will be saved in the current directory.
+        dump_final : bool
+            Whether the results should be saved to disk at the end of the run
+            by calling `dump_history`, thus clearing the history from memory.
+        dump_prefix : str | None
+            Prefix for the file names used in the dumps. If none is provided,
+            defaults to the `id` of the `Experiment` object.
 
         """
 
@@ -290,6 +334,17 @@ class Experiment:
                 pbar.write(msg)
             else:
                 print(msg)
+
+        def dump_and_print(
+            dump_prefix: str | None,
+            path: str | None,
+            verbose: int | None,
+            pbar,
+        ):
+            self.dump_history(dump_prefix, path)
+            if verbose is not None and verbose >= 1:
+                msg = f"t = {self.time:.3f} s; history dumped"
+            pbar_print(msg, pbar)
 
         number_of_fragments0 = len(self.domain.subdomains)
         number_of_fragments = number_of_fragments0
@@ -310,10 +365,7 @@ class Experiment:
 
             if chunk_size is not None:
                 if i > 0 and i % chunk_size == 0:
-                    self.dump_history()
-                    if verbose is not None and verbose >= 1:
-                        msg = f"t = {self.time:.3f} s; history dumped"
-                        pbar_print(msg, pbar)
+                    dump_and_print(dump_prefix, path, verbose, pbar)
 
             if pbar is not None:
                 pbar.update(1)
@@ -323,7 +375,13 @@ class Experiment:
                 and number_of_fragments > number_of_fragments0
                 and time_since_fracture > break_time
             ):
+                msg = f"No fracture in {break_time:.3f} s, stopping"
+                pbar_print(msg, pbar)
                 break
 
         if pbar is not None:
             pbar.close()
+
+        if dump_final:
+            # No `pbar` passed as it should have been closed
+            dump_and_print(dump_prefix, path, verbose, None)
