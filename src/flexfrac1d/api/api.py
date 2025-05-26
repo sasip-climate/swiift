@@ -234,7 +234,7 @@ class Experiment:
     def _generate_name(self, prefix: str | None) -> str:
         if prefix is None:
             prefix = f"{id(self):x}"
-        return prefix + f"_v{__about__.__version__}" + self._time_interval_str()
+        return prefix + f"_v{__about__.__version__}_" + self._time_interval_str()
 
     def _dump(self, prefix: str | None, pathstr: str | None):
         fname = pathlib.Path(f"{self._generate_name(prefix)}.pickle")
