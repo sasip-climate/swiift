@@ -1,7 +1,7 @@
 from hypothesis import given, settings
 import numpy as np
 
-from flexfrac1d.model.model import (
+from swiift.model.model import (
     DiscreteSpectrum,
     FreeSurfaceWaves,
     Ice,

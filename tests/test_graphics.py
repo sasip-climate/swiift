@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from flexfrac1d.lib import graphics as gr
+from swiift.lib import graphics as gr
 
 
 @pytest.mark.parametrize("resolution", (1, 0.5, 2.1, 4))

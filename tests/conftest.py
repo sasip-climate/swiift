@@ -1,8 +1,8 @@
 from hypothesis import strategies as st
 import numpy as np
 
-from flexfrac1d.lib.constants import PI_2
-from flexfrac1d.model.model import DiscreteSpectrum, Floe, Ice, Ocean
+from swiift.lib.constants import PI_2
+from swiift.model.model import DiscreteSpectrum, Floe, Ice, Ocean
 
 # Generic float options
 float_kw = {

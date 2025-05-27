@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import flexfrac1d.lib.physics as ph
+import swiift.lib.physics as ph
 
 floe_params = (0.36, 7.8)
 wave_params = (

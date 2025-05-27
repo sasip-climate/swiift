@@ -1,4 +1,5 @@
-# flexfrac1d
+# SWIIFT
+Surface Wave Impact on sea Ice---Fracture Toolkit
 
 [![Hatch project](https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg)](https://github.com/pypa/hatch)
 
@@ -11,20 +12,20 @@ A numerical model to study wave-induced fracture of sea ice floes.
 
 ## Installation
 
-Make sure your Python version is at least 3.10.
+Make sure your Python version is at least 3.11.
 In a terminal, run 
 ```console
 python -m venv .venv
 source ./venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install git+ssh://git@github.com/sasip-climate/FlexFrac1D.git#egg=flexfrac1d
+python -m pip install git+ssh://git@github.com/sasip-climate/swiift.git#egg=swiift
 ```
-to install the latest version of `FlexFrac1D` and its dependencies in a
+to install the latest version of `SWIIFT` and its dependencies in a
 dedicated environment.
 
-Alternatively, a specific version can be installed by specifying it on the last line
+Alternatively, a specific version can be installed by specifying it in the git URL,
 ```console
-python -m pip install git+ssh://git@github.com/sasip-climate/FlexFrac1D.git@$ver#egg=flexfrac1d
+python -m pip install git+ssh://git@github.com/sasip-climate/swiift.git@$ver#egg=swiift
 ```
 where `$var` is to be replaced by the desired version tag (for instance, `v0.4.0`).
 
@@ -50,11 +51,11 @@ Refer to [its documentation](https://hatch.pypa.io/latest/install) for installat
 
 Once Hatch is installed, run
 ```console
-git clone git@github.com:sasip-climate/FlexFrac1D.git
-cd FlexFrac1D
+git clone git@github.com:sasip-climate/swiift.git
+cd swiift
 hatch test --all --parallel
 ```
-to install `FlexFrac1D` along with its dependencies, and run the test suite in
+to install `SWIIFT` along with its dependencies, and run the test suite in
 a dedicated environment.
 
 

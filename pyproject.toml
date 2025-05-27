@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "flexfrac1d"
+name = "SWIIFT"
 dynamic = ["version"]
 description = "A numerical model to study wave-induced fracture of sea ice floes."
 readme = "README.md"
@@ -16,7 +16,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -27,7 +26,7 @@ classifiers = [
 dependencies = ["attrs", "scipy", "numpy<2", "matplotlib", "sortedcontainers"]
 
 [tool.hatch.version]
-path = "src/flexfrac1d/__about__.py"
+path = "src/swiift/__about__.py"
 
 [tool.hatch.envs.hatch-test]
 dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist"]
@@ -42,7 +41,7 @@ markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 [tool.coverage.run]
 branch = true
 source = ["src", "tests"]
-omit = ["src/flexfrac1d/__about__.py"]
+omit = ["src/swiift/__about__.py"]
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:"]

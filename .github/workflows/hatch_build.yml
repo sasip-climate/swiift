@@ -7,7 +7,7 @@ on:
   push:
     branches: "master"
     paths-ignore:
-      - 'src/flexfrac1d/__about__.py'
+      - 'src/swiift/__about__.py'
   pull_request:
     branches: "master"
   workflow_dispatch:

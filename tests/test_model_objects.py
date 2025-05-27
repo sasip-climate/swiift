@@ -3,8 +3,8 @@ from hypothesis import given, strategies as st
 import numpy as np
 import pytest
 
-from flexfrac1d.lib.constants import PI_2
-import flexfrac1d.model.model as md
+from swiift.lib.constants import PI_2
+import swiift.model.model as md
 
 from .conftest import physical_strategies
 

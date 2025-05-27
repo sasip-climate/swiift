@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import flexfrac1d.lib.phase_shift as ps
+import swiift.lib.phase_shift as ps
 
 random_handlers = (
     ps.UniformScatteringHandler,

@@ -4,7 +4,7 @@ import pathlib
 import numpy as np
 import pytest
 
-import flexfrac1d.lib.physics as ph
+import swiift.lib.physics as ph
 
 # TODO: fiture these tests instead of running loops in individual functions
 

@@ -4,9 +4,9 @@ import warnings
 import numpy as np
 import pytest
 
-import flexfrac1d.lib.phase_shift as ps
-import flexfrac1d.model.frac_handlers as fh
-from flexfrac1d.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
+import swiift.lib.phase_shift as ps
+import swiift.model.frac_handlers as fh
+from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 
 fracture_handler_types = (
     fh.BinaryFracture,

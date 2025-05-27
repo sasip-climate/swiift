@@ -2,8 +2,8 @@ from hypothesis import given
 import hypothesis.extra.numpy as npst
 import numpy as np
 
-import flexfrac1d.lib.att as att
-from flexfrac1d.model.model import FloatingIce, WavesUnderElasticPlate, WavesUnderIce
+import swiift.lib.att as att
+from swiift.model.model import FloatingIce, WavesUnderElasticPlate, WavesUnderIce
 
 from .conftest import coupled_ocean_ice, physical_strategies
 

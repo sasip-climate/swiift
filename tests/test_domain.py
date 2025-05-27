@@ -2,8 +2,8 @@ from hypothesis import given
 import numpy as np
 import pytest
 
-import flexfrac1d.lib.att as att
-from flexfrac1d.model.model import (
+import swiift.lib.att as att
+from swiift.model.model import (
     DiscreteSpectrum,
     Domain,
     Floe,
