@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Oceanography",
     "Topic :: Scientific/Engineering :: Physics",
 ]
-dependencies = ["attrs", "scipy", "numpy<2", "matplotlib", "sortedcontainers"]
+dependencies = ["attrs", "scipy", "numpy>=2", "matplotlib", "sortedcontainers"]
 
 [tool.hatch.version]
 path = "src/swiift/__about__.py"
