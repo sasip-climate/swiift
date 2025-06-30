@@ -32,7 +32,7 @@ path = "src/swiift/__about__.py"
 dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist"]
 
 [[tool.hatch.envs.hatch-test.matrix]]
-python = ["3.12", "3.11"]
+python = ["3.11", "3.12"]
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
