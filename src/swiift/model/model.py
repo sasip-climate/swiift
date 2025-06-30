@@ -900,6 +900,7 @@ class Domain:
         return self.cached_wuis[ice]
 
     def _shift_phases(self, phases: np.ndarray):
+        # NOTE: doesn't seem to be called
         for i in range(len(self.subdomains)):
             self.subdomains[i].phases -= phases
 
