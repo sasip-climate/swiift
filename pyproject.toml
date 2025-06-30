@@ -29,10 +29,16 @@ dependencies = ["attrs", "scipy", "numpy>=2", "matplotlib", "sortedcontainers"]
 path = "src/swiift/__about__.py"
 
 [tool.hatch.envs.hatch-test]
-dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist"]
+dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist", "coverage"]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.11", "3.12"]
+
+[tool.hatch.envs.hatch-test.scripts]
+run = "pytest{env:HATCH_TEST_ARGS:} {args}"
+run-cov = "coverage run -m pytest{env:HATCH_TEST_ARGS:} {args}"
+cov-combine = "coverage combine"
+cov-report = "coverage html"
 
 [tool.hatch.envs.types]
 extra-dependencies = ["mypy>=1.0.0"]
@@ -51,6 +57,7 @@ omit = ["src/swiift/__about__.py"]
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:"]
+format = "html"
 
 [tool.isort]
 profile = "black"
