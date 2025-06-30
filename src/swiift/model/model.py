@@ -900,8 +900,8 @@ class Domain:
         return self.cached_wuis[ice]
 
     def _shift_phases(self, phases: np.ndarray):
-        for i in range(len(self.floes)):
-            self.floes[i].phases -= phases
+        for i in range(len(self.subdomains)):
+            self.subdomains[i].phases -= phases
 
     def _shift_growth_means(self, phases: np.ndarray):
         # TODO: refine to take into account subdomain transitions
