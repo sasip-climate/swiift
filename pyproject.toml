@@ -34,6 +34,12 @@ dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist"]
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.11", "3.12"]
 
+[tool.hatch.envs.types]
+extra-dependencies = ["mypy>=1.0.0"]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/swiift tests}"
+
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
 markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
