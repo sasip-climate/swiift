@@ -115,7 +115,7 @@ class Experiment:
         self.domain.add_floes(floes)
         self._save_step()
 
-    def _find_fracture_indices(self) -> np.ndarray[int]:
+    def _find_fracture_indices(self) -> np.ndarray[tuple[Any, ...], np.dtype[np.int_]]:
         """Find the indices of states immediately before fracture.
 
         Returns
