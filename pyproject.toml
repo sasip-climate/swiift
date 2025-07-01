@@ -38,7 +38,7 @@ python = ["3.11", "3.12"]
 run = "pytest{env:HATCH_TEST_ARGS:} {args}"
 run-cov = "coverage run -m pytest{env:HATCH_TEST_ARGS:} {args}"
 cov-combine = "coverage combine"
-cov-report = "coverage html"
+cov-report = "coverage html --show-contexts"
 
 [tool.hatch.envs.types]
 extra-dependencies = ["mypy>=1.0.0"]
@@ -54,10 +54,10 @@ markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 branch = true
 source = ["src", "tests"]
 omit = ["src/swiift/__about__.py"]
+dynamic_context = "test_function"
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:"]
-format = "html"
 
 [tool.isort]
 profile = "black"
