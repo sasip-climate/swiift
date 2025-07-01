@@ -82,19 +82,22 @@ def test_initialisation_scattering(
     fracture_handler_type: Type[fh._FractureHandler],
     scattering_spec_type: Type[ps._ScatteringHandler],
 ):
-    rng_seed = 13
+    def make_handler_from_spec(scattering_spec_type):
+        rng_seed = 13
+        loc, scale = 0.3, 0.005
 
-    loc, scale = 0.3, 0.005
-
-    if scattering_spec_type == ps.ContinuousScatteringHandler:
-        scattering_spec = scattering_spec_type()
-    elif scattering_spec_type == ps.UniformScatteringHandler:
-        scattering_spec = scattering_spec_type.from_seed(rng_seed)
-    elif scattering_spec_type == ps.PerturbationScatteringHandler:
-        scattering_spec = scattering_spec_type.from_seed(rng_seed, loc, scale)
+        match scattering_spec_type:
+            case ps.ContinuousScatteringHandler:
+                return scattering_spec_type()
+            case ps.UniformScatteringHandler:
+                return scattering_spec_type.from_seed(rng_seed)
+            case ps.PerturbationScatteringHandler:
+                return scattering_spec_type.from_seed(rng_seed, loc, scale)
+            case _:
+                raise TypeError("Unsupported scattering handler")
 
     fracture_handler: fh._FractureHandler = fracture_handler_type(
-        scattering_handler=scattering_spec
+        scattering_handler=make_handler_from_spec(scattering_spec_type)
     )
     assert isinstance(fracture_handler, fracture_handler_type)
     assert isinstance(fracture_handler.scattering_handler, scattering_spec_type)
