@@ -41,7 +41,8 @@ cov-combine = "coverage combine"
 cov-report = "coverage html --show-contexts"
 
 [tool.hatch.envs.types]
-extra-dependencies = ["pytest", "mypy>=1.0.0"]
+template = "hatch-test"
+extra-dependencies = ["mypy>=1.0.0"]
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/swiift tests}"
