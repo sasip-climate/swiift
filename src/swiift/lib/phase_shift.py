@@ -50,7 +50,6 @@ class ScatteringHandler(abc.ABC):
         np.ndarray of complex
 
         """
-        pass
 
 
 class ContinuousScatteringHandler(ScatteringHandler):
