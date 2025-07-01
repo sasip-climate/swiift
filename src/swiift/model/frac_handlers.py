@@ -41,7 +41,7 @@ class _FractureDiag:
 @attrs.define
 class _FractureHandler(abc.ABC):
     coef_nd: int = 4
-    scattering_handler: ps.ScatteringHandler = attrs.field(
+    scattering_handler: ps._ScatteringHandler = attrs.field(
         factory=ps.ContinuousScatteringHandler
     )
 
