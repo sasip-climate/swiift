@@ -113,16 +113,7 @@ def test_binary_energy_no_growth(row):
     wuf = make_wuf(row[:-1], growth_params)
     xf = binary_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
-        # HACK: tests pass locally but need to be tweeked for CI
-        try:
-            assert np.allclose(row[-1] - xf, 0)
-        except AssertionError:  # pragma: no cover
-            assert np.allclose(row[-1] - xf, 0, atol=1e-5)
-            warnings.warn(
-                f"Absolute error greater than 1e-8: target {row[-1]}, computed {xf}, "
-                f"diff is {row[-1] - xf}",
-                stacklevel=2,
-            )
+        assert np.allclose(row[-1] - xf, 0)
     else:
         assert np.isnan(row[-1])
 
