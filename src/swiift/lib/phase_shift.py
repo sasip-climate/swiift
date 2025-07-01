@@ -50,19 +50,6 @@ class _ScatteringHandler(abc.ABC):
 
         """
 
-    @abc.abstractmethod
-    @classmethod
-    def from_seed(cls, seed: int, *_: typing.Any, **__: typing.Any) -> typing.Self:
-        """Instantiate self with an RNG seeded by an integer.
-
-        Parameters
-        ----------
-        seed : int
-            A seed passed to `numpy.random.default_rng`
-
-
-        """
-
 
 class ContinuousScatteringHandler(_ScatteringHandler):
     """No scattering.
@@ -80,8 +67,23 @@ class ContinuousScatteringHandler(_ScatteringHandler):
         return edge_amplitudes * np.exp(1j * c_wavenumbers * xf[:, None])
 
 
+@attrs.define
+class _RandomScatteringHandler(_ScatteringHandler):
+    @classmethod
+    @abc.abstractmethod
+    def from_seed(cls, seed: int, *_: typing.Any, **__: typing.Any) -> typing.Self:
+        """Instantiate self with an RNG seeded by an integer.
+
+        Parameters
+        ----------
+        seed : int
+            A seed passed to `numpy.random.default_rng`
+
+        """
+
+
 @attrs.frozen
-class UniformScatteringHandler(_ScatteringHandler):
+class UniformScatteringHandler(_RandomScatteringHandler):
     r"""Scattering with uniformly sampled new phases.
 
     The wave phase at the edge of a new floe is sampled from the uniform
@@ -131,7 +133,7 @@ class UniformScatteringHandler(_ScatteringHandler):
 
 
 @attrs.frozen
-class PerturbationScatteringHandler(_ScatteringHandler):
+class PerturbationScatteringHandler(_RandomScatteringHandler):
     """Scattering with phases perturbated around the continuous solution.
 
     The wave phase at the left edge of a new floe is computed to maintain
@@ -142,10 +144,10 @@ class PerturbationScatteringHandler(_ScatteringHandler):
     ----------
     rng : numpy.random.Generator
         Random generator used to sample perturbations
-    loc : Real
+    loc : float
         The mean of the normal distribution used to sample perturbations,
         in rad
-    scale : Real
+    scale : float
         The standard deviation of the normal distribution used to sample
         perturbations, in rad
 
@@ -169,15 +171,14 @@ class PerturbationScatteringHandler(_ScatteringHandler):
         ----------
         seed : int
             A seed passed to `numpy.random.default_rng`
-        loc : Real
+        loc : float
             Mean of a normal distribution, in rad
-        scale : Real
+        scale : float
             Standard deviation of a normal distribution, in rad
 
         Returns
         -------
-        typing.Self
-            [TODO:description]
+        PerturbationScatteringHandler
 
         """
         rng = _seed_rng(seed)

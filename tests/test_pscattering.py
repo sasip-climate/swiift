@@ -51,7 +51,7 @@ def test_continuity(
 )
 @pytest.mark.parametrize("xf", xfs)
 def test_absolute_value_continuity(
-    handler_type: typing.Type[ps._ScatteringHandler],
+    handler_type: typing.Type[ps._RandomScatteringHandler],
     edge_amplitudes: np.ndarray,
     c_wavenumbers: np.ndarray,
     xf: np.ndarray,
@@ -72,22 +72,25 @@ def test_absolute_value_continuity(
         assert np.allclose(np.abs(pac) - np.abs(par), 0)
 
 
-@pytest.mark.parametrize("handler_type", random_handlers)
+@pytest.mark.parametrize("random_handler", random_handlers)
 @pytest.mark.parametrize(
     "edge_amplitudes, c_wavenumbers", zip(edge_amplitudes, c_wavenumbers)
 )
 @pytest.mark.parametrize("xf", xfs)
 def test_repeatability(
-    handler_type: typing.Type[ps._ScatteringHandler], edge_amplitudes, c_wavenumbers, xf
+    random_handler: typing.Type[ps._RandomScatteringHandler],
+    edge_amplitudes,
+    c_wavenumbers,
+    xf,
 ):
     # Verify that two random scattering handlers return the same result when
     # computing the amplitudes from a generator seeded with the same number.
     seed = 83
 
-    handler1 = handler_type.from_seed(seed)
+    handler1 = random_handler.from_seed(seed)
     test1 = handler1.compute_edge_amplitudes(edge_amplitudes, c_wavenumbers, xf)
 
-    handler2 = handler_type.from_seed(seed)
+    handler2 = random_handler.from_seed(seed)
     test2 = handler2.compute_edge_amplitudes(edge_amplitudes, c_wavenumbers, xf)
 
     assert np.allclose(test1 - test2, 0)
