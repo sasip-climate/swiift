@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import abc
-from numbers import Real
 import typing
 
 import attrs
@@ -146,11 +145,11 @@ class PerturbationScatteringHandler(ScatteringHandler):
     """
 
     rng: np.random.Generator
-    loc: Real
-    scale: Real
+    loc: float
+    scale: float
 
     @classmethod
-    def from_seed(cls, seed: int, loc: Real = 0, scale: Real = 1) -> typing.Self:
+    def from_seed(cls, seed: int, loc: float = 0, scale: float = 1) -> typing.Self:
         """Instantiate with an RNG seeded with an integer.
 
         Parameters
