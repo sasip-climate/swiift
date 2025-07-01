@@ -58,8 +58,8 @@ class ContinuousScatteringHandler(_ScatteringHandler):
 
     """
 
-    @staticmethod
     def compute_edge_amplitudes(
+        self,
         edge_amplitudes,
         c_wavenumbers: np.ndarray,
         xf: np.ndarray,
@@ -190,7 +190,7 @@ class PerturbationScatteringHandler(_RandomScatteringHandler):
         c_wavenumbers: np.ndarray,
         xf: np.ndarray,
     ) -> np.ndarray:
-        edge_amplitudes = ContinuousScatteringHandler.compute_edge_amplitudes(
+        edge_amplitudes = ContinuousScatteringHandler().compute_edge_amplitudes(
             edge_amplitudes, c_wavenumbers, xf
         )
         perturbations = self.rng.normal(

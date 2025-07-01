@@ -36,7 +36,7 @@ def test_continuity(
     # is in the same state as the left edge of the right floe. That is, the
     # complex amplitude advected from the left edge of the left floe is equal to the
     # amplitude at the left edge of the right floe.
-    post_amplitudes = ps.ContinuousScatteringHandler.compute_edge_amplitudes(
+    post_amplitudes = ps.ContinuousScatteringHandler().compute_edge_amplitudes(
         edge_amplitudes, c_wavenumbers, xf
     )
     for xl, xr, pl, pr in zip(
@@ -61,7 +61,7 @@ def test_absolute_value_continuity(
     # amplitude at the left edge of the right floe.
     seed = 3103
     random_handler = handler_type.from_seed(seed)
-    pa_continuous = ps.ContinuousScatteringHandler.compute_edge_amplitudes(
+    pa_continuous = ps.ContinuousScatteringHandler().compute_edge_amplitudes(
         edge_amplitudes, c_wavenumbers, xf
     )
     pa_random = random_handler.compute_edge_amplitudes(

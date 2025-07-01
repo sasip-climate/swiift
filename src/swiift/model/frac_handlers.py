@@ -57,7 +57,7 @@ class _FractureHandler(abc.ABC):
 
         if is_searching:
             post_breakup_amplitudes = (
-                ps.ContinuousScatteringHandler.compute_edge_amplitudes(
+                ps.ContinuousScatteringHandler().compute_edge_amplitudes(
                     wuf.edge_amplitudes, wuf.wui._c_wavenumbers, xf
                 )
             )
