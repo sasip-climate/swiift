@@ -15,7 +15,7 @@ def _seed_rng(seed: int):
     return np.random.default_rng(seed)
 
 
-class ScatteringHandler(abc.ABC):
+class _ScatteringHandler(abc.ABC):
     @abc.abstractmethod
     def compute_edge_amplitudes(
         self,
@@ -51,7 +51,7 @@ class ScatteringHandler(abc.ABC):
         """
 
 
-class ContinuousScatteringHandler(ScatteringHandler):
+class ContinuousScatteringHandler(_ScatteringHandler):
     """No scattering.
 
     The surface stays continuous across floes edges.
@@ -68,7 +68,7 @@ class ContinuousScatteringHandler(ScatteringHandler):
 
 
 @attrs.frozen
-class UniformScatteringHandler(ScatteringHandler):
+class UniformScatteringHandler(_ScatteringHandler):
     r"""Scattering with uniformly sampled new phases.
 
     The wave phase at the edge of a new floe is sampled from the uniform
@@ -118,7 +118,7 @@ class UniformScatteringHandler(ScatteringHandler):
 
 
 @attrs.frozen
-class PerturbationScatteringHandler(ScatteringHandler):
+class PerturbationScatteringHandler(_ScatteringHandler):
     """Scattering with phases perturbated around the continuous solution.
 
     The wave phase at the left edge of a new floe is computed to maintain
