@@ -1,4 +1,5 @@
 import pathlib
+from typing import Type
 import warnings
 
 import numpy as np
@@ -6,6 +7,7 @@ import pytest
 
 import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
+import swiift.model.model as model
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 
 fracture_handler_types = (
@@ -35,7 +37,7 @@ multi_strain_no_growth_target = (
 )
 
 
-def make_wuf(array, growth_params):
+def make_wuf(array: np.ndarray, growth_params: tuple | None) -> model.WavesUnderFloe:
     (
         frac_toughness,
         strain_threshold,
@@ -76,7 +78,10 @@ def test_abstract():
 
 @pytest.mark.parametrize("fracture_handler_type", fracture_handler_types)
 @pytest.mark.parametrize("scattering_spec_type", scattering_handler_types)
-def test_initialisation_scattering(fracture_handler_type, scattering_spec_type):
+def test_initialisation_scattering(
+    fracture_handler_type: Type[fh._FractureHandler],
+    scattering_spec_type: Type[ps._ScatteringHandler],
+):
     rng_seed = 13
 
     loc, scale = 0.3, 0.005
