@@ -50,6 +50,19 @@ class _ScatteringHandler(abc.ABC):
 
         """
 
+    @abc.abstractmethod
+    @classmethod
+    def from_seed(cls, seed: int, *_: typing.Any, **__: typing.Any) -> typing.Self:
+        """Instantiate self with an RNG seeded by an integer.
+
+        Parameters
+        ----------
+        seed : int
+            A seed passed to `numpy.random.default_rng`
+
+
+        """
+
 
 class ContinuousScatteringHandler(_ScatteringHandler):
     """No scattering.
