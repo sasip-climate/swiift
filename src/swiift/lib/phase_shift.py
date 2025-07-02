@@ -51,6 +51,7 @@ class _ScatteringHandler(abc.ABC):
         """
 
 
+@attrs.frozen
 class ContinuousScatteringHandler(_ScatteringHandler):
     """No scattering.
 

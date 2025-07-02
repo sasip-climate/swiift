@@ -29,7 +29,14 @@ dependencies = ["attrs", "scipy", "numpy>=2", "matplotlib", "sortedcontainers"]
 path = "src/swiift/__about__.py"
 
 [tool.hatch.envs.hatch-test]
-dependencies = ["pytest", "hypothesis", "primefac", "pytest-xdist", "coverage"]
+dependencies = [
+    "pytest",
+    "pytest-mock",
+    "pytest-xdist",
+    "coverage",
+    "hypothesis",
+    "primefac",
+]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.11", "3.12"]

@@ -1,8 +1,14 @@
+import io
+import pathlib
+import pickle
+
 from hypothesis import given
 import numpy as np
 import pytest
+from pytest_mock import MockerFixture
 from sortedcontainers import SortedList
 
+import swiift.api.api as api
 from swiift.api.api import Experiment
 import swiift.lib.att as att
 import swiift.lib.phase_shift as ps
@@ -20,9 +26,36 @@ attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
+def make_dummy_experiment():
+    gravity = 9.8
+    spectrum = DiscreteSpectrum(1, 1)
+    ocean = Ocean()
+    return Experiment.from_discrete(gravity, spectrum, ocean)
+
+
 def test_create_path(tmp_path: pathlib.Path):
     path = api._create_path(tmp_path)
     assert path.exists()
+
+
+@pytest.mark.parametrize("step", (False, True))
+def test_simple_read(mocker: MockerFixture, step):
+    experiment = make_dummy_experiment()
+    step_size = 10  # simply to test we do recover different instance properties
+    # HACK: remove this line once DiscreteSpectrum has been attrs'd
+    experiment.domain = None
+    if step:
+        experiment.time = 10
+    file_content = io.BytesIO(pickle.dumps(experiment))
+    mocker.patch("builtins.open", return_value=file_content)
+    loaded_result = api._read_pickle("dummy.pickle")
+    assert experiment == loaded_result
+    if step:
+        assert loaded_result.time == step_size
+
+
+
+
 @given(**ocean_and_mono_spectrum)
 def test_initialisation(gravity, spectrum, ocean):
     experiment = Experiment.from_discrete(gravity, spectrum, ocean)
