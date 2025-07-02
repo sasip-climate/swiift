@@ -180,6 +180,13 @@ def energy(
     The energy is up to a prefactor.
 
     """
+    # TODO: enable different integrators, for example, tanhsinh seems to work great
+
+    # TODO: actually pass the options to the integrator. For quad, there might
+    # be convergence issues if many oscillations wrt the length of the floe. A
+    # usual heuristic seems to be fixing `limit` to L / lambda * N with N
+    # between 10 to 20. Choosing a big number doesn't hurt computing time, as
+    # the integration stops when reaching the desired tolerance anyway.
     opt = _get_result(floe_params, wave_params, growth_params, num_params)
     curvature_poly = _extract_cur_poly(opt.sol, linear_curvature)
 
