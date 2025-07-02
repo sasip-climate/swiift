@@ -20,6 +20,9 @@ attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
+def test_create_path(tmp_path: pathlib.Path):
+    path = api._create_path(tmp_path)
+    assert path.exists()
 @given(**ocean_and_mono_spectrum)
 def test_initialisation(gravity, spectrum, ocean):
     experiment = Experiment.from_discrete(gravity, spectrum, ocean)
