@@ -24,8 +24,14 @@ PATH_FRACTURE_TARGETS = pathlib.Path("tests/target/fracture")
 binary_energy_no_growth_target = np.loadtxt(
     PATH_FRACTURE_TARGETS.joinpath("binary_fracture.ssv")
 )
+binary_energy_with_growth_target = np.loadtxt(
+    PATH_FRACTURE_TARGETS.joinpath("binary_fracture_with_growth.ssv")
+)
 binary_strain_no_growth_target = np.loadtxt(
     PATH_FRACTURE_TARGETS.joinpath("binary_strain_fracture.ssv")
+)
+binary_strain_with_growth_target = np.loadtxt(
+    PATH_FRACTURE_TARGETS.joinpath("binary_strain_fracture_with_growth.ssv")
 )
 multi_strain_no_growth_archive = np.load(
     PATH_FRACTURE_TARGETS.joinpath("multi_strain_fracture.npz")
@@ -33,6 +39,13 @@ multi_strain_no_growth_archive = np.load(
 multi_strain_no_growth_target = (
     (row, multi_strain_no_growth_archive[f"res{i:02d}"])
     for i, row in enumerate(multi_strain_no_growth_archive["params"])
+)
+multi_strain_with_growth_archive = np.load(
+    PATH_FRACTURE_TARGETS.joinpath("multi_strain_fracture_with_growth.npz")
+)
+multi_strain_with_growth_target = (
+    (row, multi_strain_with_growth_archive[f"res{i:02d}"])
+    for i, row in enumerate(multi_strain_with_growth_archive["params"])
 )
 
 
@@ -117,6 +130,21 @@ def test_binary_energy_no_growth(row):
         assert np.isnan(row[-1])
 
 
+@pytest.mark.slow
+@pytest.mark.parametrize("row", binary_energy_with_growth_target)
+def test_binary_energy_with_growth(row):
+    binary_handler = fh.BinaryFracture()
+    growth_params = np.atleast_2d(row[-3]), row[-2]
+    an_sol = None
+
+    wuf = make_wuf(row[:-3], growth_params)
+    xf = binary_handler.search(wuf, growth_params, an_sol, None)
+    if xf is not None:
+        assert np.allclose(row[-1] - xf, 0)
+    else:
+        assert np.isnan(row[-1])
+
+
 @pytest.mark.parametrize("row", binary_strain_no_growth_target)
 def test_binary_strain_no_growth(row):
     growth_params = None
@@ -131,6 +159,20 @@ def test_binary_strain_no_growth(row):
         assert np.isnan(row[-1])
 
 
+@pytest.mark.parametrize("row", binary_strain_with_growth_target)
+def test_binary_strain_with_growth(row):
+    binary_handler = fh.BinaryStrainFracture()
+    growth_params = np.atleast_2d(row[-3]), row[-2]
+    an_sol = None
+
+    wuf = make_wuf(row[:-3], growth_params)
+    xf = binary_handler.search(wuf, growth_params, an_sol, None)
+    if xf is not None:
+        assert np.allclose(row[-1] - xf, 0)
+    else:
+        assert np.isnan(row[-1])
+
+
 @pytest.mark.parametrize("row, target", multi_strain_no_growth_target)
 def test_multi_strain_no_growth(row, target):
     growth_params = None
@@ -138,6 +180,21 @@ def test_multi_strain_no_growth(row, target):
     handler = fh.MultipleStrainFracture()
 
     wuf = make_wuf(row, growth_params)
+    xfs = handler.search(wuf, growth_params, an_sol, None)
+    if xfs is not None:
+        assert np.allclose(target - xfs, 0)
+    else:
+        assert np.isnan(target)
+
+
+@pytest.mark.parametrize("row, target", multi_strain_with_growth_target)
+def test_multi_strain_with_growth(row, target):
+    handler = fh.MultipleStrainFracture()
+    # xf not part of the array here, so slightly different slicing
+    growth_params = np.atleast_2d(row[-2]), row[-1]
+    an_sol = None
+
+    wuf = make_wuf(row[:-2], growth_params)
     xfs = handler.search(wuf, growth_params, an_sol, None)
     if xfs is not None:
         assert np.allclose(target - xfs, 0)
