@@ -1,6 +1,5 @@
 import pathlib
 from typing import Type
-import warnings
 
 import numpy as np
 import pytest
