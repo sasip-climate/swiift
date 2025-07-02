@@ -222,6 +222,9 @@ class _StrainFracture(_FractureHandler):
     def discrete_sweep(
         self, strain_handler, wuf, growth_params, an_sol, num_params
     ) -> Iterator[tuple[float]]:
+        # NOTE: caveat: some small peaks close to the edges can be missed. The
+        # multi-fracture handler is more here as a demo anyway, so this is very
+        # low priority.
         x = _make_search_array(wuf, self.coef_nd)
         strain = strain_handler.compute(x, an_sol, num_params)
         peak_idxs = np.hstack((0, signal.find_peaks(-(strain**2))[0], x.size - 1))
