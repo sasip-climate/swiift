@@ -36,6 +36,8 @@ def make_dummy_experiment():
 def test_create_path(tmp_path: pathlib.Path):
     path = api._create_path(tmp_path)
     assert path.exists()
+    path2 = api._create_path(tmp_path)
+    assert path == path2
 
 
 @pytest.mark.parametrize("step", (False, True))
