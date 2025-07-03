@@ -26,11 +26,28 @@ attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
-def make_dummy_experiment():
+def setup_experiment() -> api.Experiment:
+    amplitude = 2
+    period = 7
+    spectrum = DiscreteSpectrum(amplitude, 1 / period)
+    depth = np.inf
+    ocean = Ocean(depth=depth)
     gravity = 9.8
-    spectrum = DiscreteSpectrum(1, 1)
-    ocean = Ocean()
     return Experiment.from_discrete(gravity, spectrum, ocean)
+
+
+def setup_experiment_with_floe() -> tuple[api.Experiment, Floe]:
+    experiment = setup_experiment()
+    thickness = 0.5
+    ice = Ice(thickness=thickness)
+    floe = Floe(left_edge=0, length=200, ice=ice)
+    experiment.add_floes(floe)
+    return experiment, floe
+
+
+def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experiment:
+    experiment.step(delta_t)
+    return experiment
 
 
 @pytest.mark.parametrize("dir_to_create", ("tmp_dir", pathlib.Path("tmp_dir2")))
@@ -162,24 +179,14 @@ def total_length_comparison(subdomains, floe: Floe):
 
 
 def test_step():
-    amplitude = 2
-    period = 7
-    spectrum = DiscreteSpectrum(amplitude, 1 / period)
-    thickness = 0.5
-    ice = Ice(thickness=thickness)
-    depth = np.inf
-    ocean = Ocean(depth=depth)
-    gravity = 9.8
+    experiment, floe = setup_experiment_with_floe()
 
-    experiment = Experiment.from_discrete(gravity, spectrum, ocean)
-    floe = Floe(left_edge=0, length=200, ice=ice)
-    experiment.add_floes(floe)
     assert len(experiment.history) == 1
     assert len(experiment.domain.subdomains) == 1
 
     # NOTE: use an integer here to avoid floating point precision issues down the line
     delta_t = 1
-    experiment.step(delta_t, True)
+    experiment = step_experiment(experiment, delta_t)
     assert np.allclose(experiment.time - delta_t, 0)
     assert len(experiment.history) == 2
     assert (
