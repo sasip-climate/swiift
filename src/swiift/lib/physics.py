@@ -517,7 +517,7 @@ class EnergyHandler:
         an_sol: bool | None = None,
         num_params: dict | None = None,
         linear_curvature: bool | None = None,
-    ):
+    ) -> float:
         if numerical._use_an_sol(
             an_sol, self.floe_params[1], self.growth_params, linear_curvature
         ):
