@@ -36,6 +36,7 @@ dependencies = [
     "coverage",
     "hypothesis",
     "primefac",
+    "scipy-stubs",
 ]
 
 [[tool.hatch.envs.hatch-test.matrix]]
