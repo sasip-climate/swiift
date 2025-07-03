@@ -204,3 +204,14 @@ def test_step():
     assert total_length_comparison(experiment.domain.subdomains, floe)
     last_step = experiment.get_final_state()
     assert experiment.history[(number_of_additional_steps + 1) * delta_t] == last_step
+
+
+@pytest.mark.parametrize("delta_t", (0.1, 0.5, 1, 1.5))
+def test_get_timesteps(delta_t):
+    experiment, _ = setup_experiment_with_floe()
+    n_steps = 4
+    target_times = np.linspace(0, n_steps, n_steps + 1) * delta_t
+    for i in range(n_steps):
+        experiment = step_experiment(experiment, delta_t)
+    times = experiment.timesteps
+    assert np.allclose(target_times, times)
