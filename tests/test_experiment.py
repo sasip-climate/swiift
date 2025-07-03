@@ -57,6 +57,12 @@ def test_simple_read(mocker: MockerFixture, step):
         assert loaded_result.time == step_size
 
 
+def test_read_wrong_type(mocker: MockerFixture):
+    experiment = 1.12
+    file_content = io.BytesIO(pickle.dumps(experiment))
+    mocker.patch("builtins.open", return_value=file_content)
+    with pytest.raises(TypeError):
+        _ = api._read_pickle("dummy.pickle")
 
 
 @given(**ocean_and_mono_spectrum)
