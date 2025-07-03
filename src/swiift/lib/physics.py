@@ -14,7 +14,9 @@ if typing.TYPE_CHECKING:
     from ..model import model
 
 
-def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
+def _package_wuf(
+    wuf: model.WavesUnderFloe, growth_params: tuple | None
+) -> tuple[tuple, tuple, tuple | None]:
     floe_params = wuf.wui.ice._red_elastic_number, wuf.length
     wave_params = wuf.edge_amplitudes, wuf.wui._c_wavenumbers
     if growth_params is not None:
@@ -22,14 +24,14 @@ def _package_wuf(wuf: model.WavesUnderFloe, growth_params):
     return floe_params, wave_params, growth_params
 
 
-def _dis_par_amps(red_num: float, wave_params: tuple[np.ndarray]):
+def _dis_par_amps(red_num: float, wave_params: tuple[np.ndarray, np.ndarray]):
     """Complex amplitudes of individual particular solutions"""
     c_amplitudes, c_wavenumbers = wave_params
     return c_amplitudes / (1 + 0.25 * (c_wavenumbers / red_num) ** 4)
 
 
 def _dis_hom_coefs(
-    floe_params: tuple[float], wave_params: tuple[np.ndarray]
+    floe_params: tuple[float, float], wave_params: tuple[np.ndarray, np.ndarray]
 ) -> np.ndarray:
     """Coefficients of the four orthogonal homogeneous solutions"""
     return _dis_hom_mat(*floe_params) @ _dis_hom_rhs(floe_params, wave_params)
@@ -88,7 +90,9 @@ def _dis_hom_mat(red_num: float, length: float):
     return mat / denom
 
 
-def _dis_hom_rhs(floe_params: tuple[float], wave_params: tuple[np.ndarray]):
+def _dis_hom_rhs(
+    floe_params: tuple[float, float], wave_params: tuple[np.ndarray, np.ndarray]
+):
     """Vector onto which apply the matrix, to extract the coefficients"""
     red_num, length = floe_params
     _, c_wavenumbers = wave_params
@@ -124,15 +128,15 @@ def _demote_to_scalar(f):
 
 @attrs.define
 class FluidSurfaceHandler:
-    wave_params: tuple[np.ndarray]
-    growth_params: list[np.ndarray, float] | None = None
+    wave_params: tuple[np.ndarray, np.ndarray]
+    growth_params: tuple[np.ndarray, float] | None = None
 
     @classmethod
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
         return cls(*(_package_wuf(wuf, growth_params)[1:]))
 
     @classmethod
-    def from_domain(cls, domain: model.Domain, growth_params: list | None = None):
+    def from_domain(cls, domain: model.Domain, growth_params: tuple | None = None):
         return cls(
             (
                 domain.spectrum._amps * np.exp(1j * domain.spectrum._phases),
@@ -148,9 +152,9 @@ class FluidSurfaceHandler:
 
 @attrs.define
 class DisplacementHandler:
-    floe_params: tuple[float]
-    wave_params: tuple[np.ndarray]
-    growth_params: list[np.ndarray, float] | None = None
+    floe_params: tuple[float, float]
+    wave_params: tuple[np.ndarray, np.ndarray]
+    growth_params: tuple[np.ndarray, float] | None = None
 
     @classmethod
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
@@ -192,9 +196,9 @@ class DisplacementHandler:
 
 @attrs.define
 class CurvatureHandler:
-    floe_params: tuple[float]
-    wave_params: tuple[np.ndarray]
-    growth_params: list[np.ndarray, float] | None = None
+    floe_params: tuple[float, float]
+    wave_params: tuple[np.ndarray, np.ndarray]
+    growth_params: tuple[np.ndarray, float] | None = None
 
     @classmethod
     def from_wuf(cls, wuf: model.WavesUnderFloe, growth_params=None):
@@ -290,9 +294,9 @@ class StrainHandler:
 
 @attrs.define
 class EnergyHandler:
-    floe_params: tuple[float]
-    wave_params: tuple[np.ndarray]
-    growth_params: list[np.ndarray, float] | None = None
+    floe_params: tuple[float, float]
+    wave_params: tuple[np.ndarray, np.ndarray]
+    growth_params: tuple[np.ndarray, float] | None = None
     factor: float = 1
 
     @classmethod
@@ -513,12 +517,13 @@ class EnergyHandler:
         an_sol: bool | None = None,
         num_params: dict | None = None,
         linear_curvature: bool | None = None,
-    ):
+    ) -> float:
         if numerical._use_an_sol(
             an_sol, self.floe_params[1], self.growth_params, linear_curvature
         ):
             unit_energy = self._egy_hom() + 2 * self._egy_m() + self._egy_par()
         else:
+            linear_curvature = True if linear_curvature else False
             unit_energy = numerical.energy(
                 self.floe_params,
                 self.wave_params,

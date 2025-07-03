@@ -20,7 +20,7 @@ from ..model import frac_handlers as fh, model as md
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
 
-def _create_path(path: str) -> pathlib.Path:
+def _create_path(path: str | pathlib.Path) -> pathlib.Path:
     _path = pathlib.Path(path)
     if not _path.exists():
         _path.mkdir(parents=True)

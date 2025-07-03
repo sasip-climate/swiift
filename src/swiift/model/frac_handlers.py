@@ -135,16 +135,14 @@ class BinaryFracture(_FractureHandler):
         wuf: model.WavesUnderFloe,
         res: float = 0.5,
         growth_params=None,
-        an_sol=False,  # TODO: should be None
+        an_sol=None,
         num_params=None,
         linear_curvature: bool | None = None,
     ):
         lengths = _make_diagnose_array(wuf, res)[1:-1]
         energies = np.full((lengths.size, 2), np.nan)
-        initial_energy = (
-            ph.EnergyHandler.from_wuf(wuf, growth_params).compute(
-                an_sol, num_params, linear_curvature
-            ),
+        initial_energy = ph.EnergyHandler.from_wuf(wuf, growth_params).compute(
+            an_sol, num_params, linear_curvature
         )
         for i, length in enumerate(lengths):
             energies[i, :] = self.compute_energies(

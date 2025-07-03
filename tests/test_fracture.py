@@ -105,7 +105,7 @@ def test_initialisation_scattering(
                 return scattering_spec_type.from_seed(rng_seed)
             case ps.PerturbationScatteringHandler:
                 return scattering_spec_type.from_seed(rng_seed, loc, scale)
-            case _:
+            case _:  # pragma: no cover
                 raise TypeError("Unsupported scattering handler")
 
     fracture_handler: fh._FractureHandler = fracture_handler_type(
