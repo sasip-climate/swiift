@@ -33,10 +33,11 @@ def make_dummy_experiment():
     return Experiment.from_discrete(gravity, spectrum, ocean)
 
 
-def test_create_path(tmp_path: pathlib.Path):
-    path = api._create_path(tmp_path)
+@pytest.mark.parametrize("dir_to_create", ("tmp_dir", pathlib.Path("tmp_dir2")))
+def test_create_path(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
+    path = api._create_path(dir_to_create)
     assert path.exists()
-    path2 = api._create_path(tmp_path)
+    path2 = api._create_path(dir_to_create)
     assert path == path2
 
 
