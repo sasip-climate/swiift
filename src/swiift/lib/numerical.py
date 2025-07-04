@@ -1,4 +1,4 @@
-from numbers import Real
+from collections.abc import Callable
 import warnings
 
 import numpy as np
@@ -17,8 +17,8 @@ def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
 
 def free_surface(
     x,
-    wave_params: tuple[np.ndarray],
-    growth_params: tuple[np.ndarray, Real] | None,
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params: tuple[np.ndarray, float] | None,
 ) -> np.ndarray:
     c_amplitudes, c_wavenumbers = wave_params
     wave_shape = _unit_wavefield(x, c_wavenumbers)
@@ -33,9 +33,9 @@ def _ode_system(
     x,
     w,
     *,
-    floe_params: tuple[float],
-    wave_params: tuple[np.ndarray],
-    growth_params: tuple[np.ndarray, Real] | None,
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params: tuple[np.ndarray, float] | None,
 ) -> np.ndarray:
     red_num, _ = floe_params
     eta = free_surface(x, wave_params, growth_params)
@@ -146,12 +146,12 @@ def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
 
 def _extract_cur_poly(
     sol: interpolate.PPoly, is_linear: bool = True
-) -> interpolate.PPoly:
+) -> interpolate.PPoly | Callable[[float | np.ndarray], np.ndarray]:
     if is_linear:
         return _extract_from_poly(sol, 2)
     else:
 
-        def non_lin_curv(x):
+        def non_lin_curv(x: float | np.ndarray) -> np.ndarray:
             return (
                 _extract_from_poly(sol, 2)(x)
                 / (1 + _extract_from_poly(sol, 1)(x) ** 2) ** 1.5
@@ -174,7 +174,7 @@ def curvature(
 
 def energy(
     floe_params, wave_params, growth_params, num_params, linear_curvature: bool = True
-) -> tuple[float]:
+) -> tuple[float, float]:
     """Numerically evaluate the energy
 
     The energy is up to a prefactor.
@@ -190,7 +190,7 @@ def energy(
     opt = _get_result(floe_params, wave_params, growth_params, num_params)
     curvature_poly = _extract_cur_poly(opt.sol, linear_curvature)
 
-    def unit_energy(x: float) -> float:
+    def unit_energy(x: float):
         return curvature_poly(x) ** 2
 
     return integrate.quad(unit_energy, *opt.x[[0, -1]])
