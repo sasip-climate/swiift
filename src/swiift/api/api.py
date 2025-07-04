@@ -66,6 +66,8 @@ def read_pickle(
 ) -> Experiment:
     if glob:
         experiments = _glob_pickle(fname, glob_kwds)
+        if len(experiments) == 0:
+            raise FileNotFoundError(f"No file matching {fname} was found.")
         return _assemble_experiments(experiments)
     return _read_pickle(fname)
 
