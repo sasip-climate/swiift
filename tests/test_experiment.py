@@ -60,9 +60,10 @@ def test_create_path(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
 
 @pytest.mark.parametrize("step", (False, True))
 def test_simple_read(mocker: MockerFixture, step):
-    experiment = make_dummy_experiment()
+    experiment = setup_experiment()
     step_size = 10  # simply to test we do recover different instance properties
-    # HACK: remove this line once DiscreteSpectrum has been attrs'd
+    # HACK: remove this line once DiscreteSpectrum has been attrs'd.
+    # For now, needed for equality test.
     experiment.domain = None
     if step:
         experiment.time = 10
