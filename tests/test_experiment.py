@@ -69,7 +69,7 @@ def test_simple_read(mocker: MockerFixture, step):
         experiment.time = 10
     file_content = io.BytesIO(pickle.dumps(experiment))
     mocker.patch("builtins.open", return_value=file_content)
-    loaded_result = api._read_pickle("dummy.pickle")
+    loaded_result = api._load_pickle("dummy.pickle")
     assert experiment == loaded_result
     if step:
         assert loaded_result.time == step_size
@@ -80,7 +80,29 @@ def test_read_wrong_type(mocker: MockerFixture):
     file_content = io.BytesIO(pickle.dumps(experiment))
     mocker.patch("builtins.open", return_value=file_content)
     with pytest.raises(TypeError):
-        _ = api._read_pickle("dummy.pickle")
+        _ = api._load_pickle("dummy.pickle")
+
+
+@pytest.mark.parametrize("use_str", (True, False))
+def test_generic_read(use_str: bool):
+    pattern = "exper_test*"
+    path_as_str = "tests/target/experiments"
+    path = pathlib.Path(path_as_str)
+    if use_str:
+        experiment = api.load_pickles(pattern, path_as_str)
+    else:
+        experiment = api.load_pickles(pattern, path)
+    experiments = [api._load_pickle(_p) for _p in sorted(path.glob(pattern))]
+    # Check the expected length. The read length should match the sum of the
+    # individually loaded length, minus (total of experiment minus 1), as the
+    # last key of a saved file should match the first key of the next one.
+    assert len(experiment.history) == (
+        sum(len(_exper.history) for _exper in experiments) - (len(experiments) - 1)
+    )
+    # Check the first history entry matches the first entry of the first history saved
+    assert next(iter(experiment.history)) == next(iter(experiments[0].history))
+    # Check the last history entry matches the last entry of the last history saved
+    assert experiment.time == experiments[-1].time
 
 
 @given(**ocean_and_mono_spectrum)
