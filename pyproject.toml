@@ -32,6 +32,7 @@ path = "src/swiift/__about__.py"
 dependencies = [
     "pytest",
     "pytest-mock",
+    "pytest-skip-slow",
     "pytest-xdist",
     "coverage",
     "hypothesis",

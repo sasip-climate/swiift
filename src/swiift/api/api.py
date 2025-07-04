@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Sequence
 import functools
-import glob
 import operator
 import pathlib
 import pickle
@@ -27,7 +26,7 @@ def _create_path(path: str | pathlib.Path) -> pathlib.Path:
     return _path
 
 
-def _read_pickle(fname: str):
+def _load_pickle(fname: str | pathlib.Path) -> Experiment:
     with open(fname, "rb") as file:
         print(f"Reading {fname}...")
         instance = pickle.load(file)
@@ -36,10 +35,10 @@ def _read_pickle(fname: str):
     return instance
 
 
-def _glob_pickle(pattern, glob_kwds: dict[str, Any] | None):
-    if glob_kwds is None:
-        glob_kwds = dict()
-    return [_read_pickle(fname) for fname in glob.iglob(pattern, **glob_kwds)]
+def _glob(pattern: str, root: pathlib.Path, recursive: bool, **kwargs):
+    attribute = "rglob" if recursive else "glob"
+    iterator = getattr(root, attribute)
+    return [_load_pickle(fname) for fname in iterator(pattern, **kwargs)]
 
 
 def _dct_keys_to_array(dct, dtype=np.float64) -> np.ndarray:
@@ -61,13 +60,76 @@ def _assemble_experiments(experiments: list[Experiment]) -> Experiment:
     )
 
 
-def read_pickle(
-    fname: str, glob: bool = True, glob_kwds: dict[str, Any] | None = None
+def load_pickles(
+    pattern: str,
+    root: str | pathlib.Path | None = None,
+    recursive: bool = False,
+    **kwargs,
 ) -> Experiment:
-    if glob:
-        experiments = _glob_pickle(fname, glob_kwds)
-        return _assemble_experiments(experiments)
-    return _read_pickle(fname)
+    """Load pickle objects and assemble them into a single `Experiment`.
+
+    This function relies on `pathlib.Path`'s `glob` and `rglob` methods.
+    Files found matching the pattern are assembled into a single `Experiment`
+    object: thas is, histories are concatenated. Duplicated keys (timestep
+    entries) are thus lost. This function is therefore intended to be used
+    on files which the user knows have no overlap between their time axes.
+
+    Parameters
+    ----------
+    pattern : str
+        A pattern to glob upon.
+    root : str | pathlib.Path | None
+        The directory in which files will be looked for. If `None`, search from
+        the current working directory.
+    recursive : bool
+        Whether to search for the pattern recursively.
+    **kwargs
+        Arguments passed to `pathlib.Path.[r]glob`.
+
+    Returns
+    -------
+    Experiment
+
+    Raises
+    ------
+    FileNotFoundError
+        If no file matches the pattern.
+    ValueError
+        If a found file does not correspond to an instance of `Experiment`.
+
+    """
+    match root:
+        case None:
+            root = pathlib.Path.cwd()
+        case str():
+            root = pathlib.Path(root)
+    experiments = _glob(pattern, root, recursive, **kwargs)
+    if len(experiments) == 0:
+        raise FileNotFoundError(f"No file matching {pattern} was found.")
+    return _assemble_experiments(experiments)
+
+
+def load_pickle(
+    fname: str | pathlib.Path,
+) -> Experiment:
+    """Read and return an `Experiment` object stored in a pickle file.
+
+    Parameters
+    ----------
+    fname : str | pathlib.Path
+        A file name or path object.
+
+    Returns
+    -------
+    Experiment
+
+    Raises
+    ------
+    FileNotFoundError
+        If files matching `fname` cannot be found.
+
+    """
+    return _load_pickle(fname)
 
 
 @attrs.define

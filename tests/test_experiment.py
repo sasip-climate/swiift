@@ -26,36 +26,83 @@ attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
-def make_dummy_experiment():
+def setup_experiment() -> api.Experiment:
+    amplitude = 2
+    period = 7
+    spectrum = DiscreteSpectrum(amplitude, 1 / period)
+    depth = np.inf
+    ocean = Ocean(depth=depth)
     gravity = 9.8
-    spectrum = DiscreteSpectrum(1, 1)
-    ocean = Ocean()
     return Experiment.from_discrete(gravity, spectrum, ocean)
 
 
-def test_create_path(tmp_path: pathlib.Path):
-    path = api._create_path(tmp_path)
+def setup_experiment_with_floe() -> tuple[api.Experiment, Floe]:
+    experiment = setup_experiment()
+    thickness = 0.5
+    ice = Ice(thickness=thickness)
+    floe = Floe(left_edge=0, length=200, ice=ice)
+    experiment.add_floes(floe)
+    return experiment, floe
+
+
+def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experiment:
+    experiment.step(delta_t)
+    return experiment
+
+
+@pytest.mark.parametrize("dir_to_create", ("tmp_dir", pathlib.Path("tmp_dir2")))
+def test_create_path(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
+    path = api._create_path(dir_to_create)
     assert path.exists()
-    path2 = api._create_path(tmp_path)
+    path2 = api._create_path(dir_to_create)
     assert path == path2
 
 
 @pytest.mark.parametrize("step", (False, True))
 def test_simple_read(mocker: MockerFixture, step):
-    experiment = make_dummy_experiment()
+    experiment = setup_experiment()
     step_size = 10  # simply to test we do recover different instance properties
-    # HACK: remove this line once DiscreteSpectrum has been attrs'd
+    # HACK: remove this line once DiscreteSpectrum has been attrs'd.
+    # For now, needed for equality test.
     experiment.domain = None
     if step:
         experiment.time = 10
     file_content = io.BytesIO(pickle.dumps(experiment))
     mocker.patch("builtins.open", return_value=file_content)
-    loaded_result = api._read_pickle("dummy.pickle")
+    loaded_result = api._load_pickle("dummy.pickle")
     assert experiment == loaded_result
     if step:
         assert loaded_result.time == step_size
 
 
+def test_read_wrong_type(mocker: MockerFixture):
+    experiment = 1.12
+    file_content = io.BytesIO(pickle.dumps(experiment))
+    mocker.patch("builtins.open", return_value=file_content)
+    with pytest.raises(TypeError):
+        _ = api._load_pickle("dummy.pickle")
+
+
+@pytest.mark.parametrize("use_str", (True, False))
+def test_generic_read(use_str: bool):
+    pattern = "exper_test*"
+    path_as_str = "tests/target/experiments"
+    path = pathlib.Path(path_as_str)
+    if use_str:
+        experiment = api.load_pickles(pattern, path_as_str)
+    else:
+        experiment = api.load_pickles(pattern, path)
+    experiments = [api._load_pickle(_p) for _p in sorted(path.glob(pattern))]
+    # Check the expected length. The read length should match the sum of the
+    # individually loaded length, minus (total of experiment minus 1), as the
+    # last key of a saved file should match the first key of the next one.
+    assert len(experiment.history) == (
+        sum(len(_exper.history) for _exper in experiments) - (len(experiments) - 1)
+    )
+    # Check the first history entry matches the first entry of the first history saved
+    assert next(iter(experiment.history)) == next(iter(experiments[0].history))
+    # Check the last history entry matches the last entry of the last history saved
+    assert experiment.time == experiments[-1].time
 
 
 @given(**ocean_and_mono_spectrum)
@@ -155,24 +202,14 @@ def total_length_comparison(subdomains, floe: Floe):
 
 
 def test_step():
-    amplitude = 2
-    period = 7
-    spectrum = DiscreteSpectrum(amplitude, 1 / period)
-    thickness = 0.5
-    ice = Ice(thickness=thickness)
-    depth = np.inf
-    ocean = Ocean(depth=depth)
-    gravity = 9.8
+    experiment, floe = setup_experiment_with_floe()
 
-    experiment = Experiment.from_discrete(gravity, spectrum, ocean)
-    floe = Floe(left_edge=0, length=200, ice=ice)
-    experiment.add_floes(floe)
     assert len(experiment.history) == 1
     assert len(experiment.domain.subdomains) == 1
 
     # NOTE: use an integer here to avoid floating point precision issues down the line
     delta_t = 1
-    experiment.step(delta_t, True)
+    experiment = step_experiment(experiment, delta_t)
     assert np.allclose(experiment.time - delta_t, 0)
     assert len(experiment.history) == 2
     assert (
@@ -190,3 +227,14 @@ def test_step():
     assert total_length_comparison(experiment.domain.subdomains, floe)
     last_step = experiment.get_final_state()
     assert experiment.history[(number_of_additional_steps + 1) * delta_t] == last_step
+
+
+@pytest.mark.parametrize("delta_t", (0.1, 0.5, 1, 1.5))
+def test_get_timesteps(delta_t):
+    experiment, _ = setup_experiment_with_floe()
+    n_steps = 4
+    target_times = np.linspace(0, n_steps, n_steps + 1) * delta_t
+    for i in range(n_steps):
+        experiment = step_experiment(experiment, delta_t)
+    times = experiment.timesteps
+    assert np.allclose(target_times, times)
