@@ -64,6 +64,35 @@ def _assemble_experiments(experiments: list[Experiment]) -> Experiment:
 def read_pickle(
     fname: str, glob: bool = True, glob_kwds: dict[str, Any] | None = None
 ) -> Experiment:
+    """Read and return `Experiment` objects stored in pickle files.
+
+    This function attemps to read a single file (`glob` set to `False`) or to
+    glob on the provided pattern (`glob` set to `True`). In the latter case,
+    files found matching the pattern will be assembled in a single `Experiment`
+    object: thas is, histories will be concatenated. Duplicated keys (timestep
+    entries) would thus be lost. This utility is therefore intended to be used
+    on files which the user knows have no overlap between their time axes.
+
+
+    Parameters
+    ----------
+    fname : str
+        A pathname or globbing pattern.
+    glob : bool
+        Whether to use globbing.
+    glob_kwds : dict[str, Any] | None
+        Keyword arguments to be passed to `glob.iglob`.
+
+    Returns
+    -------
+    Experiment
+
+    Raises
+    ------
+    FileNotFoundError
+        If files matching `fname` cannot be found.
+
+    """
     if glob:
         experiments = _glob_pickle(fname, glob_kwds)
         if len(experiments) == 0:
