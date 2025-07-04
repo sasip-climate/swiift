@@ -51,10 +51,11 @@ def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experimen
 
 
 @pytest.mark.parametrize("dir_to_create", ("tmp_dir", pathlib.Path("tmp_dir2")))
-def test_create_path(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
-    path = api._create_path(dir_to_create)
+def test_create_directory(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
+    target_path = tmp_path.joinpath(dir_to_create)
+    path = api._create_path(target_path)
     assert path.exists()
-    path2 = api._create_path(dir_to_create)
+    path2 = api._create_path(target_path)
     assert path == path2
 
 
