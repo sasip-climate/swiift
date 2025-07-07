@@ -35,9 +35,11 @@ def _load_pickle(fname: str | pathlib.Path) -> Experiment:
     return instance
 
 
-def _glob(pattern: str, root: pathlib.Path, recursive: bool, **kwargs):
+def _glob(
+    pattern: str, dir_path: pathlib.Path, recursive: bool, **kwargs
+) -> list[experiment]:
     attribute = "rglob" if recursive else "glob"
-    iterator = getattr(root, attribute)
+    iterator = getattr(dir_path, attribute)
     return [_load_pickle(fname) for fname in iterator(pattern, **kwargs)]
 
 
@@ -62,7 +64,7 @@ def _assemble_experiments(experiments: list[Experiment]) -> Experiment:
 
 def load_pickles(
     pattern: str,
-    root: str | pathlib.Path | None = None,
+    dir_path: str | pathlib.Path | None = None,
     recursive: bool = False,
     **kwargs,
 ) -> Experiment:
@@ -98,12 +100,12 @@ def load_pickles(
         If a found file does not correspond to an instance of `Experiment`.
 
     """
-    match root:
+    match dir_path:
         case None:
-            root = pathlib.Path.cwd()
-        case str():
-            root = pathlib.Path(root)
-    experiments = _glob(pattern, root, recursive, **kwargs)
+            _dir_path = pathlib.Path.cwd()
+        case _:
+            _dir_path = pathlib.Path(dir_path)
+    experiments = _glob(pattern, _dir_path, recursive, **kwargs)
     if len(experiments) == 0:
         raise FileNotFoundError(f"No file matching {pattern} was found.")
     return _assemble_experiments(experiments)
