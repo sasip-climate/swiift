@@ -263,3 +263,23 @@ def test_get_timesteps(delta_t):
         experiment = step_experiment(experiment, delta_t)
     times = experiment.timesteps
     assert np.allclose(target_times, times)
+def test_pre_post_factures():
+    experiment = load_experiment()
+
+    timesteps = experiment.timesteps
+    pre_times = experiment.get_pre_fracture_times()
+    post_times = experiment.get_post_fracture_times()
+
+    # Diff between pre- and post-times should be the timestep.
+    assert np.allclose(post_times - pre_times, timesteps[1])
+
+    # Diff between number of post- and pre-fracture number of floes should be exactly 1.
+    assert np.all(
+        np.subtract(
+            *[
+                np.array([len(experiment.history[_t].subdomains) for _t in _times])
+                for _times in (post_times, pre_times)
+            ]
+        )
+        == 1
+    )
