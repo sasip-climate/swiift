@@ -121,6 +121,15 @@ def test_load_pickles(loading_option: str, monkeypatch):
     assert experiment.time == experiments[-1].time
 
 
+@pytest.mark.parametrize("do_recursive", (True, False))
+def test_recursive_load(do_recursive: bool):
+    if do_recursive:
+        path = pathlib.Path("/".join(epxeriment_targets_path.split("/")[:-1]))
+    else:
+        path = pathlib.Path(epxeriment_targets_path)
+    _ = api.load_pickles(fname_pattern, path, do_recursive)
+
+
 @given(**ocean_and_mono_spectrum)
 def test_initialisation(gravity, spectrum, ocean):
     experiment = Experiment.from_discrete(gravity, spectrum, ocean)
