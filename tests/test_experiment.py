@@ -88,12 +88,21 @@ def test_read_wrong_type(mocker: MockerFixture):
 def test_generic_read(use_str: bool):
     pattern = "exper_test*"
     path_as_str = "tests/target/experiments"
+@pytest.mark.parametrize("loading_option", loading_options)
+def test_load_pickles(loading_option: str, monkeypatch):
+    path_as_str = epxeriment_targets_path
     path = pathlib.Path(path_as_str)
-    if use_str:
-        experiment = api.load_pickles(pattern, path_as_str)
+    experiments = [api._load_pickle(_p) for _p in sorted(path.glob(fname_pattern))]
+    if loading_option == "str":
+        experiment = api.load_pickles(fname_pattern, path_as_str)
+    elif loading_options == "path":
+        experiment = api.load_pickles(fname_pattern, path)
     else:
-        experiment = api.load_pickles(pattern, path)
-    experiments = [api._load_pickle(_p) for _p in sorted(path.glob(pattern))]
+        # Reading from cwd. To be able to read, we chdir to the path we want
+        # first.
+        monkeypatch.chdir(epxeriment_targets_path)
+        experiment = api.load_pickles(fname_pattern)
+
     # Check the expected length. The read length should match the sum of the
     # individually loaded length, minus (total of experiment minus 1), as the
     # last key of a saved file should match the first key of the next one.
