@@ -84,10 +84,16 @@ def test_read_wrong_type(mocker: MockerFixture):
         _ = api._load_pickle("dummy.pickle")
 
 
-@pytest.mark.parametrize("use_str", (True, False))
-def test_generic_read(use_str: bool):
-    pattern = "exper_test*"
-    path_as_str = "tests/target/experiments"
+@pytest.mark.parametrize("use_glob", (True, False))
+def test_file_error(use_glob: bool):
+    fname = "exper_test.pickle"
+    with pytest.raises(FileNotFoundError):
+        if not use_glob:
+            api.load_pickle(fname)
+        else:
+            api.load_pickles(fname)
+
+
 @pytest.mark.parametrize("loading_option", loading_options)
 def test_load_pickles(loading_option: str, monkeypatch):
     path_as_str = epxeriment_targets_path
