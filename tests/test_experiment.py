@@ -2,7 +2,7 @@ import io
 import pathlib
 import pickle
 
-from hypothesis import given
+from hypothesis import given, strategies as st
 import numpy as np
 import pytest
 from pytest_mock import MockerFixture
@@ -301,13 +301,38 @@ def test_pre_post_factures(experiment_with_history):
     )
 
 
-def test_history_dump(tmp_path):
-    experiment = load_experiment()
-    last_timestep = experiment.timesteps[-1]
-    assert len(experiment.history) > 1
-    experiment.dump_history(dir_path=tmp_path)
-    assert len(experiment.history) == 1
-    assert last_timestep in experiment.history
+@given(data=st.data())
+def test_get_states_various_types(data, experiment_with_history: api.Experiment):
+    # Cast to list for hypothesis type correctness
+    timesteps = experiment_with_history.timesteps.tolist()
+
+    # Draw a random subset of timesteps (could be empty, single, or multiple)
+    subset = data.draw(
+        st.lists(st.sampled_from(timesteps), min_size=1, max_size=len(timesteps)),
+        label="subset",
+    )
+    # Draw a single time from timesteps
+    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
+
+    # Test with a single float
+    result_single = experiment_with_history.get_states(single_time)
+    assert isinstance(result_single, dict)
+    assert single_time in result_single
+
+    # Test with a list of floats
+    result_list = experiment_with_history.get_states(subset)
+    assert isinstance(result_list, dict)
+    for t in subset:
+        assert t in result_list
+
+    # Test with a numpy array of floats
+    arr = np.array(subset)
+    result_array = experiment_with_history.get_states(arr)
+    assert isinstance(result_array, dict)
+    for t in subset:
+        assert t in result_array
+
+
 def test_history_dump(tmp_path: pathlib.Path, experiment_with_history: api.Experiment):
     last_timestep = experiment_with_history.timesteps[-1]
     assert len(experiment_with_history.history) > 1
