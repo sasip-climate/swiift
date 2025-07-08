@@ -17,6 +17,9 @@ from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 
 from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 
+epxeriment_targets_path = "tests/target/experiments"
+fname_pattern = "exper_test*"
+
 fracture_handlers = (
     fh.BinaryFracture,
     fh.BinaryStrainFracture,
@@ -24,6 +27,9 @@ fracture_handlers = (
 )
 attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
+
+
+loading_options = ("str", "path", "cwd")
 
 
 def setup_experiment() -> api.Experiment:
@@ -48,6 +54,10 @@ def setup_experiment_with_floe() -> tuple[api.Experiment, Floe]:
 def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experiment:
     experiment.step(delta_t)
     return experiment
+
+
+def load_experiment() -> api.Experiment:
+    return api.load_pickles(fname_pattern, epxeriment_targets_path)
 
 
 @pytest.mark.parametrize("dir_to_create", ("tmp_dir", pathlib.Path("tmp_dir2")))
@@ -263,6 +273,8 @@ def test_get_timesteps(delta_t):
         experiment = step_experiment(experiment, delta_t)
     times = experiment.timesteps
     assert np.allclose(target_times, times)
+
+
 def test_pre_post_factures():
     experiment = load_experiment()
 
@@ -283,3 +295,5 @@ def test_pre_post_factures():
         )
         == 1
     )
+
+
