@@ -56,7 +56,8 @@ def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experimen
     return experiment
 
 
-def load_experiment() -> api.Experiment:
+@pytest.fixture(scope="module")
+def experiment_with_history() -> api.Experiment:
     return api.load_pickles(fname_pattern, epxeriment_targets_path)
 
 
@@ -275,12 +276,10 @@ def test_get_timesteps(delta_t):
     assert np.allclose(target_times, times)
 
 
-def test_pre_post_factures():
-    experiment = load_experiment()
-
-    timesteps = experiment.timesteps
-    pre_times = experiment.get_pre_fracture_times()
-    post_times = experiment.get_post_fracture_times()
+def test_pre_post_factures(experiment_with_history):
+    timesteps = experiment_with_history.timesteps
+    pre_times = experiment_with_history.get_pre_fracture_times()
+    post_times = experiment_with_history.get_post_fracture_times()
 
     # Diff between pre- and post-times should be the timestep.
     assert np.allclose(post_times - pre_times, timesteps[1])
@@ -289,7 +288,12 @@ def test_pre_post_factures():
     assert np.all(
         np.subtract(
             *[
-                np.array([len(experiment.history[_t].subdomains) for _t in _times])
+                np.array(
+                    [
+                        len(experiment_with_history.history[_t].subdomains)
+                        for _t in _times
+                    ]
+                )
                 for _times in (post_times, pre_times)
             ]
         )
@@ -304,3 +308,9 @@ def test_history_dump(tmp_path):
     experiment.dump_history(dir_path=tmp_path)
     assert len(experiment.history) == 1
     assert last_timestep in experiment.history
+def test_history_dump(tmp_path: pathlib.Path, experiment_with_history: api.Experiment):
+    last_timestep = experiment_with_history.timesteps[-1]
+    assert len(experiment_with_history.history) > 1
+    experiment_with_history.dump_history(dir_path=tmp_path)
+    assert len(experiment_with_history.history) == 1
+    assert last_timestep in experiment_with_history.history
