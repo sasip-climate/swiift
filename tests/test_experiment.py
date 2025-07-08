@@ -297,3 +297,10 @@ def test_pre_post_factures():
     )
 
 
+def test_history_dump(tmp_path):
+    experiment = load_experiment()
+    last_timestep = experiment.timesteps[-1]
+    assert len(experiment.history) > 1
+    experiment.dump_history(dir_path=tmp_path)
+    assert len(experiment.history) == 1
+    assert last_timestep in experiment.history
