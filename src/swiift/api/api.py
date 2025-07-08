@@ -35,9 +35,11 @@ def _load_pickle(fname: str | pathlib.Path) -> Experiment:
     return instance
 
 
-def _glob(pattern: str, root: pathlib.Path, recursive: bool, **kwargs):
+def _glob(
+    pattern: str, dir_path: pathlib.Path, recursive: bool, **kwargs
+) -> list[Experiment]:
     attribute = "rglob" if recursive else "glob"
-    iterator = getattr(root, attribute)
+    iterator = getattr(dir_path, attribute)
     return [_load_pickle(fname) for fname in iterator(pattern, **kwargs)]
 
 
@@ -60,9 +62,18 @@ def _assemble_experiments(experiments: list[Experiment]) -> Experiment:
     )
 
 
+def _str_to_path(dir_path: str | pathlib.Path | None) -> pathlib.Path:
+    match dir_path:
+        case None:
+            _dir_path = pathlib.Path.cwd()
+        case _:
+            _dir_path = pathlib.Path(dir_path)
+    return _dir_path
+
+
 def load_pickles(
     pattern: str,
-    root: str | pathlib.Path | None = None,
+    dir_path: str | pathlib.Path | None = None,
     recursive: bool = False,
     **kwargs,
 ) -> Experiment:
@@ -98,12 +109,9 @@ def load_pickles(
         If a found file does not correspond to an instance of `Experiment`.
 
     """
-    match root:
-        case None:
-            root = pathlib.Path.cwd()
-        case str():
-            root = pathlib.Path(root)
-    experiments = _glob(pattern, root, recursive, **kwargs)
+    _dir_path = _str_to_path(dir_path)
+
+    experiments = _glob(pattern, _dir_path, recursive, **kwargs)
     if len(experiments) == 0:
         raise FileNotFoundError(f"No file matching {pattern} was found.")
     return _assemble_experiments(experiments)
@@ -298,13 +306,10 @@ class Experiment:
             prefix = f"{id(self):x}"
         return prefix + f"_v{__about__.__version__}_" + self._time_interval_str()
 
-    def _dump(self, prefix: str | None, pathstr: str | None):
-        fname = pathlib.Path(f"{self._generate_name(prefix)}.pickle")
-        if pathstr is not None:
-            path = _create_path(pathstr)
-            full_path = path.joinpath(fname)
-        else:
-            full_path = fname
+    def _dump(self, prefix: str | None, dir_path: pathlib.Path):
+        fname = f"{self._generate_name(prefix)}.pickle"
+        dir_path = _create_path(dir_path)
+        full_path = dir_path.joinpath(fname)
         with open(full_path, "bw") as file:
             pickle.dump(self, file)
 
@@ -313,7 +318,11 @@ class Experiment:
         self.history.clear()
         self.history[self.time] = current_state
 
-    def dump_history(self, prefix: str | None = None, path: str | None = None):
+    def dump_history(
+        self,
+        prefix: str | None = None,
+        dir_path: str | pathlib.Path | None = None,
+    ):
         """Write the results to disk and clear the history.
 
         The whole object is pickled, before emptying the current history from
@@ -328,7 +337,8 @@ class Experiment:
             of the `Experiment` object.
 
         """
-        self._dump(prefix, path)
+        _dir_path = _str_to_path(dir_path)
+        self._dump(prefix, _dir_path)
         self._clean_history()
 
     def run(

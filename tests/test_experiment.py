@@ -2,7 +2,7 @@ import io
 import pathlib
 import pickle
 
-from hypothesis import given
+from hypothesis import given, strategies as st
 import numpy as np
 import pytest
 from pytest_mock import MockerFixture
@@ -17,6 +17,9 @@ from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 
 from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 
+epxeriment_targets_path = "tests/target/experiments"
+fname_pattern = "exper_test*"
+
 fracture_handlers = (
     fh.BinaryFracture,
     fh.BinaryStrainFracture,
@@ -24,6 +27,9 @@ fracture_handlers = (
 )
 attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
+
+
+loading_options = ("str", "path", "cwd")
 
 
 def setup_experiment() -> api.Experiment:
@@ -50,11 +56,17 @@ def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experimen
     return experiment
 
 
+@pytest.fixture(scope="module")
+def experiment_with_history() -> api.Experiment:
+    return api.load_pickles(fname_pattern, epxeriment_targets_path)
+
+
 @pytest.mark.parametrize("dir_to_create", ("tmp_dir", pathlib.Path("tmp_dir2")))
-def test_create_path(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
-    path = api._create_path(dir_to_create)
+def test_create_directory(tmp_path: pathlib.Path, dir_to_create: str | pathlib.Path):
+    target_path = tmp_path.joinpath(dir_to_create)
+    path = api._create_path(target_path)
     assert path.exists()
-    path2 = api._create_path(dir_to_create)
+    path2 = api._create_path(target_path)
     assert path == path2
 
 
@@ -83,16 +95,31 @@ def test_read_wrong_type(mocker: MockerFixture):
         _ = api._load_pickle("dummy.pickle")
 
 
-@pytest.mark.parametrize("use_str", (True, False))
-def test_generic_read(use_str: bool):
-    pattern = "exper_test*"
-    path_as_str = "tests/target/experiments"
+@pytest.mark.parametrize("use_glob", (True, False))
+def test_file_error(use_glob: bool):
+    fname = "exper_test.pickle"
+    with pytest.raises(FileNotFoundError):
+        if not use_glob:
+            api.load_pickle(fname)
+        else:
+            api.load_pickles(fname)
+
+
+@pytest.mark.parametrize("loading_option", loading_options)
+def test_load_pickles(loading_option: str, monkeypatch):
+    path_as_str = epxeriment_targets_path
     path = pathlib.Path(path_as_str)
-    if use_str:
-        experiment = api.load_pickles(pattern, path_as_str)
+    experiments = [api._load_pickle(_p) for _p in sorted(path.glob(fname_pattern))]
+    if loading_option == "str":
+        experiment = api.load_pickles(fname_pattern, path_as_str)
+    elif loading_options == "path":
+        experiment = api.load_pickles(fname_pattern, path)
     else:
-        experiment = api.load_pickles(pattern, path)
-    experiments = [api._load_pickle(_p) for _p in sorted(path.glob(pattern))]
+        # Reading from cwd. To be able to read, we chdir to the path we want
+        # first.
+        monkeypatch.chdir(epxeriment_targets_path)
+        experiment = api.load_pickles(fname_pattern)
+
     # Check the expected length. The read length should match the sum of the
     # individually loaded length, minus (total of experiment minus 1), as the
     # last key of a saved file should match the first key of the next one.
@@ -103,6 +130,15 @@ def test_generic_read(use_str: bool):
     assert next(iter(experiment.history)) == next(iter(experiments[0].history))
     # Check the last history entry matches the last entry of the last history saved
     assert experiment.time == experiments[-1].time
+
+
+@pytest.mark.parametrize("do_recursive", (True, False))
+def test_recursive_load(do_recursive: bool):
+    if do_recursive:
+        path = pathlib.Path("/".join(epxeriment_targets_path.split("/")[:-1]))
+    else:
+        path = pathlib.Path(epxeriment_targets_path)
+    _ = api.load_pickles(fname_pattern, path, do_recursive)
 
 
 @given(**ocean_and_mono_spectrum)
@@ -238,3 +274,68 @@ def test_get_timesteps(delta_t):
         experiment = step_experiment(experiment, delta_t)
     times = experiment.timesteps
     assert np.allclose(target_times, times)
+
+
+def test_pre_post_factures(experiment_with_history):
+    timesteps = experiment_with_history.timesteps
+    pre_times = experiment_with_history.get_pre_fracture_times()
+    post_times = experiment_with_history.get_post_fracture_times()
+
+    # Diff between pre- and post-times should be the timestep.
+    assert np.allclose(post_times - pre_times, timesteps[1])
+
+    # Diff between number of post- and pre-fracture number of floes should be exactly 1.
+    assert np.all(
+        np.subtract(
+            *[
+                np.array(
+                    [
+                        len(experiment_with_history.history[_t].subdomains)
+                        for _t in _times
+                    ]
+                )
+                for _times in (post_times, pre_times)
+            ]
+        )
+        == 1
+    )
+
+
+@given(data=st.data())
+def test_get_states_various_types(data, experiment_with_history: api.Experiment):
+    # Cast to list for hypothesis type correctness
+    timesteps = experiment_with_history.timesteps.tolist()
+
+    # Draw a random subset of timesteps (could be empty, single, or multiple)
+    subset = data.draw(
+        st.lists(st.sampled_from(timesteps), min_size=1, max_size=len(timesteps)),
+        label="subset",
+    )
+    # Draw a single time from timesteps
+    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
+
+    # Test with a single float
+    result_single = experiment_with_history.get_states(single_time)
+    assert isinstance(result_single, dict)
+    assert single_time in result_single
+
+    # Test with a list of floats
+    result_list = experiment_with_history.get_states(subset)
+    assert isinstance(result_list, dict)
+    for t in subset:
+        assert t in result_list
+
+    # Test with a numpy array of floats
+    arr = np.array(subset)
+    result_array = experiment_with_history.get_states(arr)
+    assert isinstance(result_array, dict)
+    for t in subset:
+        assert t in result_array
+
+
+def test_history_dump(tmp_path: pathlib.Path, experiment_with_history: api.Experiment):
+    last_timestep = experiment_with_history.timesteps[-1]
+    assert len(experiment_with_history.history) > 1
+    experiment_with_history.dump_history(dir_path=tmp_path)
+    assert len(experiment_with_history.history) == 1
+    assert last_timestep in experiment_with_history.history
