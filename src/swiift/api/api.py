@@ -37,7 +37,7 @@ def _load_pickle(fname: str | pathlib.Path) -> Experiment:
 
 def _glob(
     pattern: str, dir_path: pathlib.Path, recursive: bool, **kwargs
-) -> list[experiment]:
+) -> list[Experiment]:
     attribute = "rglob" if recursive else "glob"
     iterator = getattr(dir_path, attribute)
     return [_load_pickle(fname) for fname in iterator(pattern, **kwargs)]
