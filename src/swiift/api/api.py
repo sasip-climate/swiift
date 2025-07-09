@@ -297,6 +297,29 @@ class Experiment:
         indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
         return {k: self.history[k] for k in timestep_keys[indexes]}
 
+    def get_states_strict(self, times: np.ndarray | float) -> dict[float, Step]:
+        """Return a subset of the history matching the given times.
+
+        Parameters
+        ----------
+        times : np.ndarray | float
+            Time, or sequence of times.
+
+        Returns
+        -------
+        dict[float, Step]
+            A dictionary containing the `Step`s matching exactly the input.
+
+        """
+        times, sort_idx = np.unique(np.ravel(times), return_index=True)
+        timestep_keys = _dct_keys_to_array(self.history)
+        # We `unsort' the output of np.unique with the index `sort_idx`,
+        # so that values are returned in the order they were passed.
+        filtered_times = times[
+            np.isin(times[np.argsort(sort_idx)], timestep_keys, assume_unique=True)
+        ]
+        return {_time: self.history[_time] for _time in filtered_times}
+
     def _time_interval_str(self):
         first_time = next(iter(self.history))
         return f"{first_time:.3f}--{self.time:.3f}"
