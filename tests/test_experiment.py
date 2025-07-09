@@ -302,35 +302,78 @@ def test_pre_post_factures(experiment_with_history):
 
 
 @given(data=st.data())
-def test_get_states_various_types(data, experiment_with_history: api.Experiment):
+def test_get_states_strict(data, experiment_with_history: api.Experiment):
     # Cast to list for hypothesis type correctness
     timesteps = experiment_with_history.timesteps.tolist()
+
+    # Draw a single time from timesteps
+    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
+    result_single = experiment_with_history.get_states(single_time)
+    assert isinstance(result_single, dict)
+    assert single_time in result_single
+    result_single_strict = experiment_with_history.get_states_strict(single_time)
+    assert isinstance(result_single_strict, dict)
+    assert result_single == result_single_strict
 
     # Draw a random subset of timesteps (could be empty, single, or multiple)
     subset = data.draw(
         st.lists(st.sampled_from(timesteps), min_size=1, max_size=len(timesteps)),
         label="subset",
     )
-    # Draw a single time from timesteps
-    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
-
-    # Test with a single float
-    result_single = experiment_with_history.get_states(single_time)
-    assert isinstance(result_single, dict)
-    assert single_time in result_single
-
-    # Test with a list of floats
     result_list = experiment_with_history.get_states(subset)
     assert isinstance(result_list, dict)
-    for t in subset:
-        assert t in result_list
+    assert np.all([t in result_list for t in subset])
+    result_list_strict = experiment_with_history.get_states(subset)
+    assert isinstance(result_list_strict, dict)
+    assert result_list == result_list_strict
 
     # Test with a numpy array of floats
-    arr = np.array(subset)
-    result_array = experiment_with_history.get_states(arr)
+    subset_as_array = np.array(subset)
+    result_array = experiment_with_history.get_states(subset_as_array)
     assert isinstance(result_array, dict)
-    for t in subset:
-        assert t in result_array
+    assert np.all([t in result_array for t in subset])
+    result_array_strict = experiment_with_history.get_states_strict(subset)
+    assert isinstance(result_array_strict, dict)
+    assert result_array == result_array_strict
+
+
+@given(data=st.data())
+def test_get_states_perturbated(data, experiment_with_history: api.Experiment):
+    perturbation = 1e-3  # delta_time := 5/6 ~ 0.833
+    # Cast to list for hypothesis type correctness
+    timesteps = experiment_with_history.timesteps.tolist()
+
+    # Draw a single time from timesteps
+    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
+    perturbated_time = single_time + perturbation
+    result_single = experiment_with_history.get_states(perturbated_time)
+    assert isinstance(result_single, dict)
+    assert single_time in result_single
+    result_single = experiment_with_history.get_states_strict(perturbated_time)
+    assert isinstance(result_single, dict)
+    assert len(result_single) == 0
+
+    # Draw a random subset of timesteps (could be empty, single, or multiple)
+    subset = data.draw(
+        st.lists(st.sampled_from(timesteps), min_size=1, max_size=len(timesteps)),
+        label="subset",
+    )
+    perturbated_subset = [_v + perturbation for _v in subset]
+    result_list = experiment_with_history.get_states(perturbated_subset)  # type: ignore
+    assert isinstance(result_list, dict)
+    assert np.all([t in result_list for t in subset])
+    result_list = experiment_with_history.get_states_strict(perturbated_subset)  # type: ignore
+    assert isinstance(result_list, dict)
+    assert len(result_list) == 0
+
+    # Test with a numpy array of floats
+    perturbated_array = np.array(perturbated_subset)
+    result_array = experiment_with_history.get_states(perturbated_array)
+    assert isinstance(result_array, dict)
+    assert np.all([t in result_array for t in subset])
+    result_array = experiment_with_history.get_states_strict(perturbated_array)
+    assert isinstance(result_array, dict)
+    assert len(result_array) == 0
 
 
 def test_history_dump(tmp_path: pathlib.Path, experiment_with_history: api.Experiment):
