@@ -439,7 +439,7 @@ class Experiment:
             self.dump_history(dump_prefix, path)
             if verbose is not None and verbose >= 1:
                 msg = f"t = {self.time:.3f} s; history dumped"
-            pbar_print(msg, pbar)
+                pbar_print(msg, pbar)
 
         number_of_fragments0 = len(self.domain.subdomains)
         number_of_fragments = number_of_fragments0
