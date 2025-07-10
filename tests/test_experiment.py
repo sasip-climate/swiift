@@ -15,7 +15,7 @@ import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 
-from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
+from .conftest import coupled_ocean_ice, float_kw, ocean_and_mono_spectrum, spec_mono
 
 epxeriment_targets_path = "tests/target/experiments"
 fname_pattern = "exper_test*"
@@ -30,6 +30,8 @@ growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
 loading_options = ("str", "path", "cwd")
+
+positive_float = st.floats(**float_kw)
 
 
 def setup_experiment() -> api.Experiment:
@@ -392,3 +394,27 @@ def test_history_dump(
     assert last_timestep in experiment_with_history.history
     if with_prefix:
         assert len(list(tmp_path.glob(f"{prefix}*.pickle"))) == 1
+
+
+@given(
+    n_steps=st.integers(1, 5),
+    delta_time=st.floats(min_value=0.01, max_value=5.0, **float_kw),  # type: ignore
+)
+def test_run_basic(n_steps, delta_time):
+    time = n_steps * delta_time
+
+    def step_spy(*args, **kwargs):
+        # Function attribute! Magic!
+        step_spy.calls += 1
+
+    step_spy.calls = 0
+
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        mp.setattr(api.Experiment, "step", step_spy)
+        experiment, _ = setup_experiment_with_floe()
+        experiment.run(time=time, delta_time=delta_time, dump_final=False)
+        # Rounding errors can lead to the actual number of steps exceeding the
+        # expected number of steps.
+        # assert len(step_calls) in (n_steps, n_steps + 1)
+        assert step_spy.calls in (n_steps, n_steps + 1)
