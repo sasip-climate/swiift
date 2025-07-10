@@ -2,7 +2,7 @@ import io
 import pathlib
 import pickle
 
-from hypothesis import given, strategies as st
+from hypothesis import HealthCheck, given, settings, strategies as st
 import numpy as np
 import pytest
 from pytest_mock import MockerFixture
@@ -56,7 +56,7 @@ def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experimen
     return experiment
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def experiment_with_history() -> api.Experiment:
     return api.load_pickles(fname_pattern, epxeriment_targets_path)
 
@@ -302,6 +302,7 @@ def test_pre_post_factures(experiment_with_history):
 
 
 @given(data=st.data())
+@settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_get_states_strict(data, experiment_with_history: api.Experiment):
     # Cast to list for hypothesis type correctness
     timesteps = experiment_with_history.timesteps.tolist()
@@ -338,6 +339,7 @@ def test_get_states_strict(data, experiment_with_history: api.Experiment):
 
 
 @given(data=st.data())
+@settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_get_states_perturbated(data, experiment_with_history: api.Experiment):
     perturbation = 1e-3  # delta_time := 5/6 ~ 0.833
     # Cast to list for hypothesis type correctness
@@ -376,9 +378,17 @@ def test_get_states_perturbated(data, experiment_with_history: api.Experiment):
     assert len(result_array) == 0
 
 
-def test_history_dump(tmp_path: pathlib.Path, experiment_with_history: api.Experiment):
+@pytest.mark.parametrize("with_prefix", (True, False))
+def test_history_dump(
+    tmp_path: pathlib.Path,
+    experiment_with_history: api.Experiment,
+    with_prefix: bool,
+):
+    prefix = "test_prefix" if with_prefix else None
     last_timestep = experiment_with_history.timesteps[-1]
     assert len(experiment_with_history.history) > 1
-    experiment_with_history.dump_history(dir_path=tmp_path)
+    experiment_with_history.dump_history(prefix, dir_path=tmp_path)
     assert len(experiment_with_history.history) == 1
     assert last_timestep in experiment_with_history.history
+    if with_prefix:
+        assert len(list(tmp_path.glob(f"{prefix}*.pickle"))) == 1
