@@ -445,8 +445,14 @@ class Experiment:
         number_of_fragments = number_of_fragments0
         number_of_steps = np.ceil(time / delta_time).astype(int)
         time_since_fracture = 0.0
+        if chunk_size is not None:
+            modulo_target = chunk_size - 1
 
         for i in range(number_of_steps):
+            if chunk_size is not None:
+                if i % chunk_size == modulo_target:
+                    dump_and_print(dump_prefix, path, verbose, pbar)
+
             self.step(delta_time)
             new_nof = len(self.domain.subdomains)
             if new_nof > number_of_fragments:
@@ -457,10 +463,6 @@ class Experiment:
                     pbar_print(msg, pbar)
             else:
                 time_since_fracture += delta_time
-
-            if chunk_size is not None:
-                if i > 0 and i % chunk_size == 0:
-                    dump_and_print(dump_prefix, path, verbose, pbar)
 
             if pbar is not None:
                 pbar.update(1)

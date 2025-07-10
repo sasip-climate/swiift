@@ -442,3 +442,14 @@ def test_run_with_pbar(monkeypatch):
     experiment.run(time=2.0, delta_time=1.0, pbar=pbar, dump_final=False)
     assert pbar.updates == 2
     assert pbar.closed
+
+
+@pytest.mark.parametrize("dump_final", (True, False))
+def test_run_with_chunk_size(tmp_path: pathlib.Path, dump_final: bool):
+    experiment, _ = setup_experiment_with_floe()
+    # dump_spy = mocker.spy(experiment, "dump_history")
+    experiment.run(
+        time=4.0, delta_time=1.0, chunk_size=2, path=tmp_path, dump_final=dump_final
+    )
+    # Should call dump_history every 2 steps
+    assert len(list(tmp_path.glob("*pickle"))) == 2
