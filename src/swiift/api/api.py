@@ -372,7 +372,7 @@ class Experiment:
         chunk_size: int | None = None,
         verbose: int | None = None,
         pbar=None,
-        path: str | None = None,
+        path: str | pathlib.Path | None = None,
         dump_final: bool = True,
         dump_prefix: str | None = None,
     ):
@@ -432,7 +432,7 @@ class Experiment:
 
         def dump_and_print(
             dump_prefix: str | None,
-            path: str | None,
+            path: str | pathlib.Path | None,
             verbose: int | None,
             pbar,
         ):
