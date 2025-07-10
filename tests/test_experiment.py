@@ -402,6 +402,10 @@ def test_history_dump(
 )
 def test_run_basic(n_steps, delta_time):
     time = n_steps * delta_time
+    expected_n_steps = np.ceil(time / delta_time).astype(int)
+    # Rounding errors can lead to the actual number of steps exceeding the
+    # expected number of steps.
+    assert expected_n_steps in (n_steps, n_steps + 1)
 
     def step_spy(*args, **kwargs):
         # Function attribute! Magic!
@@ -414,7 +418,7 @@ def test_run_basic(n_steps, delta_time):
         mp.setattr(api.Experiment, "step", step_spy)
         experiment, _ = setup_experiment_with_floe()
         experiment.run(time=time, delta_time=delta_time, dump_final=False)
-        # Rounding errors can lead to the actual number of steps exceeding the
+        assert step_spy.calls == expected_n_steps
         # expected number of steps.
         # assert len(step_calls) in (n_steps, n_steps + 1)
         assert step_spy.calls in (n_steps, n_steps + 1)
