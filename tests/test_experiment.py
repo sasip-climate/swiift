@@ -419,6 +419,26 @@ def test_run_basic(n_steps, delta_time):
         experiment, _ = setup_experiment_with_floe()
         experiment.run(time=time, delta_time=delta_time, dump_final=False)
         assert step_spy.calls == expected_n_steps
-        # expected number of steps.
-        # assert len(step_calls) in (n_steps, n_steps + 1)
-        assert step_spy.calls in (n_steps, n_steps + 1)
+
+
+def test_run_with_pbar(monkeypatch):
+    experiment, _ = setup_experiment_with_floe()
+
+    class DummyPbar:
+        def __init__(self):
+            self.updates = 0
+            self.closed = False
+
+        def update(self, n):
+            self.updates += n
+
+        def close(self):
+            self.closed = True
+
+        def write(self, msg):
+            pass
+
+    pbar = DummyPbar()
+    experiment.run(time=2.0, delta_time=1.0, pbar=pbar, dump_final=False)
+    assert pbar.updates == 2
+    assert pbar.closed
