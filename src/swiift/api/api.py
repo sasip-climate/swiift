@@ -6,6 +6,7 @@ import functools
 import operator
 import pathlib
 import pickle
+import typing
 from typing import Any
 
 import attrs
@@ -17,6 +18,17 @@ from ..model import frac_handlers as fh, model as md
 
 # TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
+
+
+class _ProgressBarProtocol(typing.Protocol):
+    def update(self, n): ...
+
+    def close(self): ...
+
+
+class _VerboseProgressBarProtocol(_ProgressBarProtocol):
+    @classmethod
+    def write(self, *args): ...
 
 
 def _create_path(path: str | pathlib.Path) -> pathlib.Path:
@@ -371,7 +383,7 @@ class Experiment:
         break_time: float | None = None,
         chunk_size: int | None = None,
         verbose: int | None = None,
-        pbar=None,
+        pbar: _ProgressBarProtocol | None = None,
         path: str | pathlib.Path | None = None,
         dump_final: bool = True,
         dump_prefix: str | None = None,
