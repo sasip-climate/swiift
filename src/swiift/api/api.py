@@ -376,6 +376,8 @@ class Experiment:
         self._dump(prefix, _dir_path)
         self._clean_history()
 
+    # TODO: overload to handle expected type of pbar for different values of verbose.
+    # Improve logging, ideally get rid of print?.
     def run(
         self,
         time: float,
