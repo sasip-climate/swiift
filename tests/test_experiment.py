@@ -444,6 +444,7 @@ def test_run_with_pbar(monkeypatch):
     assert pbar.closed
 
 
+# TODO: hypothesis on n_step, chunk_size, delta_time
 @pytest.mark.parametrize("dump_final", (True, False))
 def test_run_with_chunk_size(tmp_path: pathlib.Path, dump_final: bool):
     experiment, _ = setup_experiment_with_floe()
