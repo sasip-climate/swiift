@@ -422,9 +422,9 @@ class Experiment:
         verbose : int | None
             Verbosity level. If 1, outputs for disk writes. If 2, additional
             outputs for fractures.
-        pbar : tqdm bar
+        pbar : progress bar | None
             Progress bar monitoring the experiment.
-        path : str | None
+        path : str | pathlib.Path | None
             Directory where files will be saved. If none is provided, files
             will be saved in the current directory.
         dump_final : bool
