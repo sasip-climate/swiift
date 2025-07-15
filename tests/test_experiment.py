@@ -2,7 +2,7 @@ import io
 import pathlib
 import pickle
 
-from hypothesis import given, strategies as st
+from hypothesis import HealthCheck, given, settings, strategies as st
 import numpy as np
 import pytest
 from pytest_mock import MockerFixture
@@ -15,7 +15,7 @@ import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 
-from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
+from .conftest import coupled_ocean_ice, float_kw, ocean_and_mono_spectrum, spec_mono
 
 epxeriment_targets_path = "tests/target/experiments"
 fname_pattern = "exper_test*"
@@ -30,6 +30,17 @@ growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
 loading_options = ("str", "path", "cwd")
+
+positive_float = st.floats(**float_kw)
+
+
+@st.composite
+def run_time_chunks_composite(draw: st.DrawFn) -> tuple[int, float, int]:
+    n_step = draw(st.integers(min_value=1, max_value=15))
+    delta_time = draw(st.floats(min_value=0.01, max_value=5.0, **float_kw))
+    chunk_size = draw(st.integers(min_value=1, max_value=n_step))
+
+    return n_step, delta_time, chunk_size
 
 
 def setup_experiment() -> api.Experiment:
@@ -56,7 +67,7 @@ def step_experiment(experiment: api.Experiment, delta_t: float) -> api.Experimen
     return experiment
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def experiment_with_history() -> api.Experiment:
     return api.load_pickles(fname_pattern, epxeriment_targets_path)
 
@@ -302,40 +313,181 @@ def test_pre_post_factures(experiment_with_history):
 
 
 @given(data=st.data())
-def test_get_states_various_types(data, experiment_with_history: api.Experiment):
+@settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
+def test_get_states_strict(data, experiment_with_history: api.Experiment):
     # Cast to list for hypothesis type correctness
     timesteps = experiment_with_history.timesteps.tolist()
+
+    # Draw a single time from timesteps
+    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
+    result_single = experiment_with_history.get_states(single_time)
+    assert isinstance(result_single, dict)
+    assert single_time in result_single
+    result_single_strict = experiment_with_history.get_states_strict(single_time)
+    assert isinstance(result_single_strict, dict)
+    assert result_single == result_single_strict
 
     # Draw a random subset of timesteps (could be empty, single, or multiple)
     subset = data.draw(
         st.lists(st.sampled_from(timesteps), min_size=1, max_size=len(timesteps)),
         label="subset",
     )
-    # Draw a single time from timesteps
-    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
-
-    # Test with a single float
-    result_single = experiment_with_history.get_states(single_time)
-    assert isinstance(result_single, dict)
-    assert single_time in result_single
-
-    # Test with a list of floats
     result_list = experiment_with_history.get_states(subset)
     assert isinstance(result_list, dict)
-    for t in subset:
-        assert t in result_list
+    assert np.all([t in result_list for t in subset])
+    result_list_strict = experiment_with_history.get_states(subset)
+    assert isinstance(result_list_strict, dict)
+    assert result_list == result_list_strict
 
     # Test with a numpy array of floats
-    arr = np.array(subset)
-    result_array = experiment_with_history.get_states(arr)
+    subset_as_array = np.array(subset)
+    result_array = experiment_with_history.get_states(subset_as_array)
     assert isinstance(result_array, dict)
-    for t in subset:
-        assert t in result_array
+    assert np.all([t in result_array for t in subset])
+    result_array_strict = experiment_with_history.get_states_strict(subset)
+    assert isinstance(result_array_strict, dict)
+    assert result_array == result_array_strict
 
 
-def test_history_dump(tmp_path: pathlib.Path, experiment_with_history: api.Experiment):
+@given(data=st.data())
+@settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
+def test_get_states_perturbated(data, experiment_with_history: api.Experiment):
+    perturbation = 1e-3  # delta_time := 5/6 ~ 0.833
+    # Cast to list for hypothesis type correctness
+    timesteps = experiment_with_history.timesteps.tolist()
+
+    # Draw a single time from timesteps
+    single_time = data.draw(st.sampled_from(timesteps), label="single_time")
+    perturbated_time = single_time + perturbation
+    result_single = experiment_with_history.get_states(perturbated_time)
+    assert isinstance(result_single, dict)
+    assert single_time in result_single
+    result_single = experiment_with_history.get_states_strict(perturbated_time)
+    assert isinstance(result_single, dict)
+    assert len(result_single) == 0
+
+    # Draw a random subset of timesteps (could be empty, single, or multiple)
+    subset = data.draw(
+        st.lists(st.sampled_from(timesteps), min_size=1, max_size=len(timesteps)),
+        label="subset",
+    )
+    perturbated_subset = [_v + perturbation for _v in subset]
+    result_list = experiment_with_history.get_states(perturbated_subset)  # type: ignore
+    assert isinstance(result_list, dict)
+    assert np.all([t in result_list for t in subset])
+    result_list = experiment_with_history.get_states_strict(perturbated_subset)  # type: ignore
+    assert isinstance(result_list, dict)
+    assert len(result_list) == 0
+
+    # Test with a numpy array of floats
+    perturbated_array = np.array(perturbated_subset)
+    result_array = experiment_with_history.get_states(perturbated_array)
+    assert isinstance(result_array, dict)
+    assert np.all([t in result_array for t in subset])
+    result_array = experiment_with_history.get_states_strict(perturbated_array)
+    assert isinstance(result_array, dict)
+    assert len(result_array) == 0
+
+
+@pytest.mark.parametrize("with_prefix", (True, False))
+def test_history_dump(
+    tmp_path: pathlib.Path,
+    experiment_with_history: api.Experiment,
+    with_prefix: bool,
+):
+    prefix = "test_prefix" if with_prefix else None
     last_timestep = experiment_with_history.timesteps[-1]
     assert len(experiment_with_history.history) > 1
-    experiment_with_history.dump_history(dir_path=tmp_path)
+    experiment_with_history.dump_history(prefix, dir_path=tmp_path)
     assert len(experiment_with_history.history) == 1
     assert last_timestep in experiment_with_history.history
+    if with_prefix:
+        assert len(list(tmp_path.glob(f"{prefix}*.pickle"))) == 1
+
+
+@given(
+    n_steps=st.integers(1, 5),
+    delta_time=st.floats(min_value=0.01, max_value=5.0, **float_kw),  # type: ignore
+)
+def test_run_basic(n_steps, delta_time):
+    time = n_steps * delta_time
+    expected_n_steps = np.ceil(time / delta_time).astype(int)
+    # Rounding errors can lead to the actual number of steps exceeding the
+    # expected number of steps.
+    assert expected_n_steps in (n_steps, n_steps + 1)
+
+    def step_spy(*args, **kwargs):
+        # Function attribute! Magic!
+        step_spy.calls += 1
+
+    step_spy.calls = 0
+
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        mp.setattr(api.Experiment, "step", step_spy)
+        experiment, _ = setup_experiment_with_floe()
+        experiment.run(time=time, delta_time=delta_time, dump_final=False)
+        assert step_spy.calls == expected_n_steps
+
+
+def test_run_with_pbar(monkeypatch):
+    experiment, _ = setup_experiment_with_floe()
+
+    class DummyPbar:
+        def __init__(self):
+            self.updates = 0
+            self.closed = False
+
+        def update(self, n):
+            self.updates += n
+
+        def close(self):
+            self.closed = True
+
+        def write(self, msg):
+            pass
+
+    pbar = DummyPbar()
+    experiment.run(time=2.0, delta_time=1.0, pbar=pbar, dump_final=False)
+    assert pbar.updates == 2
+    assert pbar.closed
+
+
+@given(args=run_time_chunks_composite())
+@settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
+@pytest.mark.parametrize("dump_final", (True, False))
+def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
+    n_steps, delta_time, chunk_size = args
+    time = n_steps * delta_time
+    # extra division to account for float errors
+    actual_n_steps = np.ceil(time / delta_time).astype(int)
+    if chunk_size == 1:
+        expected_chunks = actual_n_steps
+    else:
+        expected_chunks = actual_n_steps // chunk_size
+        # 1 removed from n_steps, because arithemtic done on iterator index,
+        # starting at 0 and ending at n_steps - 1
+        if dump_final and (((actual_n_steps - 1) % chunk_size) != (chunk_size - 1)):
+            expected_chunks += 1
+
+    def mock_breakup(*args):
+        return
+
+    # Give unique names depending on given + parametrize, as tmp_path has
+    # function scope and is not reinitialised for different @given cases.
+    prefix = f"test_{hash(args + (dump_final,)):x}"
+
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        mp.setattr(Domain, "breakup", mock_breakup)
+        experiment, _ = setup_experiment_with_floe()
+        experiment.run(
+            time=time,
+            delta_time=delta_time,
+            chunk_size=chunk_size,
+            path=tmp_path,
+            dump_final=dump_final,
+            dump_prefix=prefix,
+        )
+    saved_chunks = len(list(tmp_path.glob(f"{prefix}*pickle")))
+    assert saved_chunks == expected_chunks

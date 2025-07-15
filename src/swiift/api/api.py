@@ -6,6 +6,7 @@ import functools
 import operator
 import pathlib
 import pickle
+import typing
 from typing import Any
 
 import attrs
@@ -17,6 +18,17 @@ from ..model import frac_handlers as fh, model as md
 
 # TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
+
+
+class _ProgressBarProtocol(typing.Protocol):
+    def update(self, n): ...
+
+    def close(self): ...
+
+
+class _VerboseProgressBarProtocol(_ProgressBarProtocol):
+    @classmethod
+    def write(self, *args): ...
 
 
 def _create_path(path: str | pathlib.Path) -> pathlib.Path:
@@ -297,6 +309,29 @@ class Experiment:
         indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
         return {k: self.history[k] for k in timestep_keys[indexes]}
 
+    def get_states_strict(self, times: np.ndarray | float) -> dict[float, Step]:
+        """Return a subset of the history matching the given times.
+
+        Parameters
+        ----------
+        times : np.ndarray | float
+            Time, or sequence of times.
+
+        Returns
+        -------
+        dict[float, Step]
+            A dictionary containing the `Step`s matching exactly the input.
+
+        """
+        times, sort_idx = np.unique(np.ravel(times), return_index=True)
+        timestep_keys = _dct_keys_to_array(self.history)
+        # We `unsort' the output of np.unique with the index `sort_idx`,
+        # so that values are returned in the order they were passed.
+        filtered_times = times[
+            np.isin(times[np.argsort(sort_idx)], timestep_keys, assume_unique=True)
+        ]
+        return {_time: self.history[_time] for _time in filtered_times}
+
     def _time_interval_str(self):
         first_time = next(iter(self.history))
         return f"{first_time:.3f}--{self.time:.3f}"
@@ -341,6 +376,8 @@ class Experiment:
         self._dump(prefix, _dir_path)
         self._clean_history()
 
+    # TODO: overload to handle expected type of pbar for different values of verbose.
+    # Improve logging, ideally get rid of print?.
     def run(
         self,
         time: float,
@@ -348,8 +385,8 @@ class Experiment:
         break_time: float | None = None,
         chunk_size: int | None = None,
         verbose: int | None = None,
-        pbar=None,
-        path: str | None = None,
+        pbar: _ProgressBarProtocol | None = None,
+        path: str | pathlib.Path | None = None,
         dump_final: bool = True,
         dump_prefix: str | None = None,
     ):
@@ -387,9 +424,9 @@ class Experiment:
         verbose : int | None
             Verbosity level. If 1, outputs for disk writes. If 2, additional
             outputs for fractures.
-        pbar : tqdm bar
+        pbar : progress bar | None
             Progress bar monitoring the experiment.
-        path : str | None
+        path : str | pathlib.Path | None
             Directory where files will be saved. If none is provided, files
             will be saved in the current directory.
         dump_final : bool
@@ -409,19 +446,21 @@ class Experiment:
 
         def dump_and_print(
             dump_prefix: str | None,
-            path: str | None,
+            path: str | pathlib.Path | None,
             verbose: int | None,
             pbar,
         ):
             self.dump_history(dump_prefix, path)
             if verbose is not None and verbose >= 1:
                 msg = f"t = {self.time:.3f} s; history dumped"
-            pbar_print(msg, pbar)
+                pbar_print(msg, pbar)
 
         number_of_fragments0 = len(self.domain.subdomains)
         number_of_fragments = number_of_fragments0
         number_of_steps = np.ceil(time / delta_time).astype(int)
         time_since_fracture = 0.0
+        if chunk_size is not None:
+            modulo_target = chunk_size - 1
 
         for i in range(number_of_steps):
             self.step(delta_time)
@@ -436,11 +475,8 @@ class Experiment:
                 time_since_fracture += delta_time
 
             if chunk_size is not None:
-                if i > 0 and i % chunk_size == 0:
+                if i % chunk_size == modulo_target:
                     dump_and_print(dump_prefix, path, verbose, pbar)
-
-            if pbar is not None:
-                pbar.update(1)
 
             if (
                 break_time is not None
@@ -451,9 +487,14 @@ class Experiment:
                 pbar_print(msg, pbar)
                 break
 
+            if pbar is not None:
+                pbar.update(1)
+
         if pbar is not None:
             pbar.close()
 
-        if dump_final:
+        # If single item in history, either we just dump, either we did not
+        # step, and there is no need to dump again.
+        if dump_final and len(self.history) > 1:
             # No `pbar` passed as it should have been closed
             dump_and_print(dump_prefix, path, verbose, None)
