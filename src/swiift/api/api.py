@@ -463,10 +463,6 @@ class Experiment:
             modulo_target = chunk_size - 1
 
         for i in range(number_of_steps):
-            if chunk_size is not None:
-                if i % chunk_size == modulo_target:
-                    dump_and_print(dump_prefix, path, verbose, pbar)
-
             self.step(delta_time)
             new_nof = len(self.domain.subdomains)
             if new_nof > number_of_fragments:
@@ -490,6 +486,7 @@ class Experiment:
                 msg = f"No fracture in {break_time:.3f} s, stopping"
                 pbar_print(msg, pbar)
                 break
+
             if pbar is not None:
                 pbar.update(1)
 
