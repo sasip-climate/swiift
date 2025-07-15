@@ -489,6 +489,8 @@ class Experiment:
                 msg = f"No fracture in {break_time:.3f} s, stopping"
                 pbar_print(msg, pbar)
                 break
+            if pbar is not None:
+                pbar.update(1)
 
         if pbar is not None:
             pbar.close()
