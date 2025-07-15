@@ -34,6 +34,15 @@ loading_options = ("str", "path", "cwd")
 positive_float = st.floats(**float_kw)
 
 
+@st.composite
+def run_time_chunks_composite(draw: st.DrawFn) -> tuple[int, float, int]:
+    n_step = draw(st.integers(min_value=1, max_value=15))
+    delta_time = draw(st.floats(min_value=0.01, max_value=5.0, **float_kw))
+    chunk_size = draw(st.integers(min_value=1, max_value=n_step))
+
+    return n_step, delta_time, chunk_size
+
+
 def setup_experiment() -> api.Experiment:
     amplitude = 2
     period = 7
@@ -444,13 +453,41 @@ def test_run_with_pbar(monkeypatch):
     assert pbar.closed
 
 
-# TODO: hypothesis on n_step, chunk_size, delta_time
+@given(args=run_time_chunks_composite())
+@settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
 @pytest.mark.parametrize("dump_final", (True, False))
-def test_run_with_chunk_size(tmp_path: pathlib.Path, dump_final: bool):
-    experiment, _ = setup_experiment_with_floe()
-    # dump_spy = mocker.spy(experiment, "dump_history")
-    experiment.run(
-        time=4.0, delta_time=1.0, chunk_size=2, path=tmp_path, dump_final=dump_final
-    )
-    # Should call dump_history every 2 steps
-    assert len(list(tmp_path.glob("*pickle"))) == 2
+def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
+    n_steps, delta_time, chunk_size = args
+    time = n_steps * delta_time
+    # extra division to account for float errors
+    actual_n_steps = np.ceil(time / delta_time).astype(int)
+    if chunk_size == 1:
+        expected_chunks = actual_n_steps
+    else:
+        expected_chunks = actual_n_steps // chunk_size
+        # 1 removed from n_steps, because arithemtic done on iterator index,
+        # starting at 0 and ending at n_steps - 1
+        if dump_final and (((actual_n_steps - 1) % chunk_size) != (chunk_size - 1)):
+            expected_chunks += 1
+
+    def mock_breakup(*args):
+        return
+
+    # Give unique names depending on given + parametrize, as tmp_path has
+    # function scope and is not reinitialised for different @given cases.
+    prefix = f"test_{hash(args + (dump_final,)):x}"
+
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        mp.setattr(Domain, "breakup", mock_breakup)
+        experiment, _ = setup_experiment_with_floe()
+        experiment.run(
+            time=time,
+            delta_time=delta_time,
+            chunk_size=chunk_size,
+            path=tmp_path,
+            dump_final=dump_final,
+            dump_prefix=prefix,
+        )
+    saved_chunks = len(list(tmp_path.glob(f"{prefix}*pickle")))
+    assert saved_chunks == expected_chunks
