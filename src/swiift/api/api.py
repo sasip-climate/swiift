@@ -478,8 +478,9 @@ class Experiment:
             else:
                 time_since_fracture += delta_time
 
-            if pbar is not None:
-                pbar.update(1)
+            if chunk_size is not None:
+                if i % chunk_size == modulo_target:
+                    dump_and_print(dump_prefix, path, verbose, pbar)
 
             if (
                 break_time is not None
