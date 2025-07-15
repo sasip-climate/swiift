@@ -496,6 +496,8 @@ class Experiment:
         if pbar is not None:
             pbar.close()
 
-        if dump_final:
+        # If single item in history, either we just dump, either we did not
+        # step, and there is no need to dump again.
+        if dump_final and len(self.history) > 1:
             # No `pbar` passed as it should have been closed
             dump_and_print(dump_prefix, path, verbose, None)
