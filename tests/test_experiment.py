@@ -1,4 +1,5 @@
 import io
+import logging
 import pathlib
 import pickle
 
@@ -491,3 +492,36 @@ def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
         )
     saved_chunks = len(list(tmp_path.glob(f"{prefix}*pickle")))
     assert saved_chunks == expected_chunks
+
+
+@pytest.mark.parametrize("verbose", (None, 1, 2))
+def test_verbose_run(
+    verbose: int | None,
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    caplog.set_level(logging.INFO)
+    experiment, _ = setup_experiment_with_floe()
+
+    n_steps = 1
+    delta_time = 1
+    experiment.run(
+        time=n_steps * delta_time,
+        delta_time=delta_time,
+        chunk_size=1,
+        verbose=verbose,
+        path=tmp_path,
+        dump_final=True,
+    )
+    post_fracture_n_floes = len(experiment.get_final_state().subdomains)
+    assert post_fracture_n_floes == 2
+
+    if verbose is None:
+        assert len(caplog.text) == 0
+    elif verbose >= 1:
+        if verbose == 1:
+            assert len(caplog.messages) == 1
+        assert "history dumped" in caplog.text
+    elif verbose == 2:
+        assert len(caplog.messages) == 2
+        assert f"N_f = {post_fracture_n_floes}" in caplog.text
