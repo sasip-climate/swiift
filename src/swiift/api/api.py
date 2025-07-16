@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Sequence
 import functools
+import logging
 import operator
 import pathlib
 import pickle
@@ -18,6 +19,8 @@ from ..model import frac_handlers as fh, model as md
 
 # TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
+
+logger = logging.getLogger(__name__)
 
 
 class _ProgressBarProtocol(typing.Protocol):
@@ -40,7 +43,7 @@ def _create_path(path: str | pathlib.Path) -> pathlib.Path:
 
 def _load_pickle(fname: str | pathlib.Path) -> Experiment:
     with open(fname, "rb") as file:
-        print(f"Reading {fname}...")
+        logger.info(f"Reading {fname}...")
         instance = pickle.load(file)
         if not isinstance(instance, Experiment):
             raise TypeError("The pickled object is not an instance of `Experiment`.")
@@ -377,7 +380,6 @@ class Experiment:
         self._clean_history()
 
     # TODO: overload to handle expected type of pbar for different values of verbose.
-    # Improve logging, ideally get rid of print?.
     def run(
         self,
         time: float,
@@ -442,7 +444,7 @@ class Experiment:
             if pbar is not None:
                 pbar.write(msg)
             else:
-                print(msg)
+                logger.info(msg)
 
         def dump_and_print(
             dump_prefix: str | None,
