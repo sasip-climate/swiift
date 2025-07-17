@@ -528,3 +528,39 @@ def test_verbose_run(
     elif verbose == 2:
         assert len(caplog.messages) == 2
         assert f"N_f = {post_fracture_n_floes}" in caplog.text
+
+
+@pytest.mark.parametrize("verbose", (None, 1, 2))
+@pytest.mark.parametrize("chunk_size", (None, 2))
+@pytest.mark.parametrize("dump_final", (False, True))
+def test_verbose_run_with_pbar(
+    verbose: int | None,
+    chunk_size: int | None,
+    dump_final: bool,
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+):
+    time = 3
+    delta_time = 1
+    pbar = DummyPbar()
+    spy = mocker.spy(pbar, "write")
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        mp.setattr(Domain, "breakup", mock_breakup)
+        experiment, _ = setup_experiment_with_floe()
+        experiment.run(
+            time=time,
+            delta_time=delta_time,
+            chunk_size=chunk_size,
+            verbose=verbose,
+            pbar=pbar,
+            path=tmp_path,
+            dump_final=dump_final,
+        )
+    if verbose is None:
+        spy.assert_not_called()
+    else:
+        if chunk_size is None:
+            spy.assert_not_called()
+        else:
+            spy.assert_called_once()
