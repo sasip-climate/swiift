@@ -1,5 +1,5 @@
 attrs~=23.2
 matplotlib~=3.8
-numpy~=1.26
+numpy>=2
 scipy~=1.11
 sortedcontainers~=2.4
