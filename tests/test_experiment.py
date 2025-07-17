@@ -51,6 +51,10 @@ class DummyPbar:
         pass
 
 
+def mock_breakup(*args):
+    return
+
+
 @st.composite
 def run_time_chunks_composite(draw: st.DrawFn) -> tuple[int, float, int]:
     n_step = draw(st.integers(min_value=1, max_value=15))
@@ -472,9 +476,6 @@ def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
         # starting at 0 and ending at n_steps - 1
         if dump_final and (((actual_n_steps - 1) % chunk_size) != (chunk_size - 1)):
             expected_chunks += 1
-
-    def mock_breakup(*args):
-        return
 
     # Give unique names depending on given + parametrize, as tmp_path has
     # function scope and is not reinitialised for different @given cases.
