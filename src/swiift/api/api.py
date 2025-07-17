@@ -28,7 +28,7 @@ class _ProgressBarProtocol(typing.Protocol):
 
 class _VerboseProgressBarProtocol(_ProgressBarProtocol):
     @classmethod
-    def write(self, *args): ...
+    def write(cls, *args): ...
 
 
 def _create_path(path: str | pathlib.Path) -> pathlib.Path:
