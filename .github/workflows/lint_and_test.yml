@@ -53,4 +53,4 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Test with pytest
       run: |
-        python -m pytest
+        python -m pytest --slow -n auto
