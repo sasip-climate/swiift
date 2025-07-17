@@ -35,6 +35,22 @@ loading_options = ("str", "path", "cwd")
 positive_float = st.floats(**float_kw)
 
 
+class DummyPbar:
+    def __init__(self):
+        self.updates = 0
+        self.closed = False
+
+    def update(self, n):
+        self.updates += n
+
+    def close(self):
+        self.closed = True
+
+    @classmethod
+    def write(cls, msg):
+        pass
+
+
 @st.composite
 def run_time_chunks_composite(draw: st.DrawFn) -> tuple[int, float, int]:
     n_step = draw(st.integers(min_value=1, max_value=15))
@@ -433,20 +449,6 @@ def test_run_basic(n_steps, delta_time):
 
 def test_run_with_pbar(monkeypatch):
     experiment, _ = setup_experiment_with_floe()
-
-    class DummyPbar:
-        def __init__(self):
-            self.updates = 0
-            self.closed = False
-
-        def update(self, n):
-            self.updates += n
-
-        def close(self):
-            self.closed = True
-
-        def write(self, msg):
-            pass
 
     pbar = DummyPbar()
     experiment.run(time=2.0, delta_time=1.0, pbar=pbar, dump_final=False)
