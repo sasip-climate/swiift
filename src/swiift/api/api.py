@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Sequence
 import functools
+import logging
 import operator
 import pathlib
 import pickle
@@ -19,16 +20,19 @@ from ..model import frac_handlers as fh, model as md
 # TODO: make into an attrs class for more flexibility (repr of subdomains)
 Step = namedtuple("Step", ["subdomains", "growth_params"])
 
-
-class _ProgressBarProtocol(typing.Protocol):
-    def update(self, n): ...
-
-    def close(self): ...
+logger = logging.getLogger(__name__)
 
 
-class _VerboseProgressBarProtocol(_ProgressBarProtocol):
-    @classmethod
-    def write(cls, *args): ...
+if typing.TYPE_CHECKING:
+
+    class _ProgressBarProtocol(typing.Protocol):
+        def update(self, n): ...
+
+        def close(self): ...
+
+    class _VerboseProgressBarProtocol(_ProgressBarProtocol):
+        @classmethod
+        def write(self, *args): ...
 
 
 def _create_path(path: str | pathlib.Path) -> pathlib.Path:
@@ -40,7 +44,7 @@ def _create_path(path: str | pathlib.Path) -> pathlib.Path:
 
 def _load_pickle(fname: str | pathlib.Path) -> Experiment:
     with open(fname, "rb") as file:
-        print(f"Reading {fname}...")
+        logger.info(f"Reading {fname}...")
         instance = pickle.load(file)
         if not isinstance(instance, Experiment):
             raise TypeError("The pickled object is not an instance of `Experiment`.")
@@ -376,19 +380,58 @@ class Experiment:
         self._dump(prefix, _dir_path)
         self._clean_history()
 
-    # TODO: overload to handle expected type of pbar for different values of verbose.
-    # Improve logging, ideally get rid of print?.
+    def _should_terminate(
+        self,
+        initial_number_of_fragments: int,
+        number_of_fragments: int,
+        time_since_fracture: float,
+        break_time: float | None,
+    ):
+        return (
+            break_time is not None
+            and number_of_fragments > initial_number_of_fragments
+            and time_since_fracture > break_time
+        )
+
+    @typing.overload
+    def run(
+        self,
+        time: float,
+        delta_time: float,
+        break_time: float | None = ...,
+        chunk_size: int | None = ...,
+        verbose: None = ...,
+        pbar: _ProgressBarProtocol | None = ...,
+        path: str | pathlib.Path | None = ...,
+        dump_final: bool = ...,
+        dump_prefix: str | None = ...,
+    ): ...
+
+    @typing.overload
     def run(
         self,
         time: float,
         delta_time: float,
         break_time: float | None = None,
         chunk_size: int | None = None,
-        verbose: int | None = None,
-        pbar: _ProgressBarProtocol | None = None,
+        verbose: int = ...,
+        pbar: _VerboseProgressBarProtocol | None = None,
         path: str | pathlib.Path | None = None,
         dump_final: bool = True,
         dump_prefix: str | None = None,
+    ): ...
+
+    def run(
+        self,
+        time,
+        delta_time,
+        break_time=None,
+        chunk_size=None,
+        verbose=None,
+        pbar=None,
+        path=None,
+        dump_final=True,
+        dump_prefix=None,
     ):
         """Run the experiment for a specified duration.
 
@@ -438,16 +481,32 @@ class Experiment:
 
         """
 
-        def pbar_print(msg, pbar):
+        def pbar_print(msg: str, pbar: _VerboseProgressBarProtocol | None):
             if pbar is not None:
                 pbar.write(msg)
             else:
-                print(msg)
+                logger.info(msg)
 
+        @typing.overload
         def dump_and_print(
             dump_prefix: str | None,
             path: str | pathlib.Path | None,
-            verbose: int | None,
+            verbose: None,
+            pbar: _ProgressBarProtocol | None,
+        ): ...
+
+        @typing.overload
+        def dump_and_print(
+            dump_prefix: str | None,
+            path: str | pathlib.Path | None,
+            verbose: int,
+            pbar: _VerboseProgressBarProtocol | None,
+        ): ...
+
+        def dump_and_print(
+            dump_prefix,
+            path,
+            verbose,
             pbar,
         ):
             self.dump_history(dump_prefix, path)
@@ -455,8 +514,8 @@ class Experiment:
                 msg = f"t = {self.time:.3f} s; history dumped"
                 pbar_print(msg, pbar)
 
-        number_of_fragments0 = len(self.domain.subdomains)
-        number_of_fragments = number_of_fragments0
+        initial_number_of_fragments = len(self.domain.subdomains)
+        number_of_fragments = initial_number_of_fragments
         number_of_steps = np.ceil(time / delta_time).astype(int)
         time_since_fracture = 0.0
         if chunk_size is not None:
@@ -478,10 +537,11 @@ class Experiment:
                 if i % chunk_size == modulo_target:
                     dump_and_print(dump_prefix, path, verbose, pbar)
 
-            if (
-                break_time is not None
-                and number_of_fragments > number_of_fragments0
-                and time_since_fracture > break_time
+            if self._should_terminate(
+                initial_number_of_fragments,
+                number_of_fragments,
+                time_since_fracture,
+                break_time,
             ):
                 msg = f"No fracture in {break_time:.3f} s, stopping"
                 pbar_print(msg, pbar)

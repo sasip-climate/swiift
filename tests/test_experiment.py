@@ -1,4 +1,5 @@
 import io
+import logging
 import pathlib
 import pickle
 
@@ -32,6 +33,26 @@ growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 loading_options = ("str", "path", "cwd")
 
 positive_float = st.floats(**float_kw)
+
+
+class DummyPbar:
+    def __init__(self):
+        self.updates = 0
+        self.closed = False
+
+    def update(self, n):
+        self.updates += n
+
+    def close(self):
+        self.closed = True
+
+    @classmethod
+    def write(cls, msg):
+        pass
+
+
+def mock_breakup(*args):
+    return
 
 
 @st.composite
@@ -123,7 +144,7 @@ def test_load_pickles(loading_option: str, monkeypatch):
     experiments = [api._load_pickle(_p) for _p in sorted(path.glob(fname_pattern))]
     if loading_option == "str":
         experiment = api.load_pickles(fname_pattern, path_as_str)
-    elif loading_options == "path":
+    elif loading_option == "path":
         experiment = api.load_pickles(fname_pattern, path)
     else:
         # Reading from cwd. To be able to read, we chdir to the path we want
@@ -433,20 +454,6 @@ def test_run_basic(n_steps, delta_time):
 def test_run_with_pbar(monkeypatch):
     experiment, _ = setup_experiment_with_floe()
 
-    class DummyPbar:
-        def __init__(self):
-            self.updates = 0
-            self.closed = False
-
-        def update(self, n):
-            self.updates += n
-
-        def close(self):
-            self.closed = True
-
-        def write(self, msg):
-            pass
-
     pbar = DummyPbar()
     experiment.run(time=2.0, delta_time=1.0, pbar=pbar, dump_final=False)
     assert pbar.updates == 2
@@ -470,9 +477,6 @@ def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
         if dump_final and (((actual_n_steps - 1) % chunk_size) != (chunk_size - 1)):
             expected_chunks += 1
 
-    def mock_breakup(*args):
-        return
-
     # Give unique names depending on given + parametrize, as tmp_path has
     # function scope and is not reinitialised for different @given cases.
     prefix = f"test_{hash(args + (dump_final,)):x}"
@@ -491,3 +495,109 @@ def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
         )
     saved_chunks = len(list(tmp_path.glob(f"{prefix}*pickle")))
     assert saved_chunks == expected_chunks
+
+
+@pytest.mark.parametrize("verbose", (None, 1, 2))
+def test_verbose_run(
+    verbose: int | None,
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    caplog.set_level(logging.INFO)
+    experiment, _ = setup_experiment_with_floe()
+
+    n_steps = 1
+    delta_time = 1
+    experiment.run(
+        time=n_steps * delta_time,
+        delta_time=delta_time,
+        chunk_size=1,
+        verbose=verbose,
+        path=tmp_path,
+        dump_final=True,
+    )
+    post_fracture_n_floes = len(experiment.get_final_state().subdomains)
+    assert post_fracture_n_floes == 2
+
+    if verbose is None:
+        assert len(caplog.text) == 0
+    else:
+        if verbose == 1:
+            assert len(caplog.messages) == 1
+        assert "history dumped" in caplog.text
+
+    if verbose == 2:
+        assert len(caplog.messages) == 2
+        assert f"N_f = {post_fracture_n_floes}" in caplog.text
+
+
+@pytest.mark.parametrize("verbose", (None, 1, 2))
+@pytest.mark.parametrize("chunk_size", (None, 2))
+@pytest.mark.parametrize("dump_final", (False, True))
+def test_verbose_run_with_pbar(
+    verbose: int | None,
+    chunk_size: int | None,
+    dump_final: bool,
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+):
+    time = 3
+    delta_time = 1
+    pbar = DummyPbar()
+    spy = mocker.spy(pbar, "write")
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        mp.setattr(Domain, "breakup", mock_breakup)
+        experiment, _ = setup_experiment_with_floe()
+        experiment.run(
+            time=time,
+            delta_time=delta_time,
+            chunk_size=chunk_size,
+            verbose=verbose,
+            pbar=pbar,
+            path=tmp_path,
+            dump_final=dump_final,
+        )
+    if verbose is None:
+        spy.assert_not_called()
+    else:
+        if chunk_size is None:
+            spy.assert_not_called()
+        else:
+            spy.assert_called_once()
+
+
+@given(data=st.data())
+def test_run_early_termination(data):
+    n_steps = 5
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        orig_should_terminate = Experiment._should_terminate
+
+        def mock_should_terminate(self, *args):
+            return orig_should_terminate(self, 0, *args[1:])
+
+        mp.setattr(Experiment, "_should_terminate", mock_should_terminate)
+        mp.setattr(Domain, "breakup", mock_breakup)
+
+        experiment, _ = setup_experiment_with_floe()
+        time = 1 / experiment.domain.spectrum._freqs[0]
+        delta_time = time / n_steps
+        break_time = data.draw(st.floats(delta_time, max_value=2 * time, **float_kw))
+
+        expected_time = np.ceil(time / delta_time).astype(int) * delta_time
+        expected_time_with_break = (
+            np.ceil(np.nextafter(break_time / delta_time, np.inf)).astype(int)
+            * delta_time
+        )
+
+        experiment.run(
+            time=time,
+            delta_time=delta_time,
+            break_time=break_time,
+            dump_final=False,
+        )
+        if break_time < time:
+            assert experiment.time == expected_time_with_break
+        else:
+            assert experiment.time == expected_time
