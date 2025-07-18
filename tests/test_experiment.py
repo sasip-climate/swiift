@@ -564,3 +564,39 @@ def test_verbose_run_with_pbar(
             spy.assert_not_called()
         else:
             spy.assert_called_once()
+
+
+@given(data=st.data())
+def test_run_early_termination(data):
+    n_steps = 5
+    with pytest.MonkeyPatch().context() as mp:
+        # Patching the class, not the instance, because methods are read-only.
+        orig_should_terminate = Experiment._should_terminate
+
+        def mock_should_terminate(self, *args):
+            return orig_should_terminate(self, 0, *args[1:])
+
+        mp.setattr(Experiment, "_should_terminate", mock_should_terminate)
+        mp.setattr(Domain, "breakup", mock_breakup)
+
+        experiment, _ = setup_experiment_with_floe()
+        time = 1 / experiment.domain.spectrum._freqs[0]
+        delta_time = time / n_steps
+        break_time = data.draw(st.floats(delta_time, max_value=2 * time, **float_kw))
+
+        expected_time = np.ceil(time / delta_time).astype(int) * delta_time
+        expected_time_with_break = (
+            np.ceil(np.nextafter(break_time / delta_time, np.inf)).astype(int)
+            * delta_time
+        )
+
+        experiment.run(
+            time=time,
+            delta_time=delta_time,
+            break_time=break_time,
+            dump_final=False,
+        )
+        if break_time < time:
+            assert experiment.time == expected_time_with_break
+        else:
+            assert experiment.time == expected_time
