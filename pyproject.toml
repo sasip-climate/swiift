@@ -67,7 +67,7 @@ omit = ["src/swiift/__about__.py"]
 dynamic_context = "test_function"
 
 [tool.coverage.report]
-exclude_also = ["if typing.TYPE_CHECKING:"]
+exclude_also = ["if typing.TYPE_CHECKING:", "@typing.overload"]
 
 [tool.isort]
 profile = "black"
