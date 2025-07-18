@@ -144,7 +144,7 @@ def test_load_pickles(loading_option: str, monkeypatch):
     experiments = [api._load_pickle(_p) for _p in sorted(path.glob(fname_pattern))]
     if loading_option == "str":
         experiment = api.load_pickles(fname_pattern, path_as_str)
-    elif loading_options == "path":
+    elif loading_option == "path":
         experiment = api.load_pickles(fname_pattern, path)
     else:
         # Reading from cwd. To be able to read, we chdir to the path we want
