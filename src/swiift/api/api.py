@@ -379,6 +379,19 @@ class Experiment:
         self._dump(prefix, _dir_path)
         self._clean_history()
 
+    def _should_terminate(
+        self,
+        initial_number_of_fragments: int,
+        number_of_fragments: int,
+        time_since_fracture: float,
+        break_time: float | None,
+    ):
+        return (
+            break_time is not None
+            and number_of_fragments > initial_number_of_fragments
+            and time_since_fracture > break_time
+        )
+
     # TODO: overload to handle expected type of pbar for different values of verbose.
     def run(
         self,
@@ -457,8 +470,8 @@ class Experiment:
                 msg = f"t = {self.time:.3f} s; history dumped"
                 pbar_print(msg, pbar)
 
-        number_of_fragments0 = len(self.domain.subdomains)
-        number_of_fragments = number_of_fragments0
+        initial_number_of_fragments = len(self.domain.subdomains)
+        number_of_fragments = initial_number_of_fragments
         number_of_steps = np.ceil(time / delta_time).astype(int)
         time_since_fracture = 0.0
         if chunk_size is not None:
@@ -480,10 +493,11 @@ class Experiment:
                 if i % chunk_size == modulo_target:
                     dump_and_print(dump_prefix, path, verbose, pbar)
 
-            if (
-                break_time is not None
-                and number_of_fragments > number_of_fragments0
-                and time_since_fracture > break_time
+            if self._should_terminate(
+                initial_number_of_fragments,
+                number_of_fragments,
+                time_since_fracture,
+                break_time,
             ):
                 msg = f"No fracture in {break_time:.3f} s, stopping"
                 pbar_print(msg, pbar)
