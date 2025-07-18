@@ -23,15 +23,16 @@ Step = namedtuple("Step", ["subdomains", "growth_params"])
 logger = logging.getLogger(__name__)
 
 
-class _ProgressBarProtocol(typing.Protocol):
-    def update(self, n): ...
+if typing.TYPE_CHECKING:
 
-    def close(self): ...
+    class _ProgressBarProtocol(typing.Protocol):
+        def update(self, n): ...
 
+        def close(self): ...
 
-class _VerboseProgressBarProtocol(_ProgressBarProtocol):
-    @classmethod
-    def write(self, *args): ...
+    class _VerboseProgressBarProtocol(_ProgressBarProtocol):
+        @classmethod
+        def write(self, *args): ...
 
 
 def _create_path(path: str | pathlib.Path) -> pathlib.Path:
@@ -392,18 +393,45 @@ class Experiment:
             and time_since_fracture > break_time
         )
 
-    # TODO: overload to handle expected type of pbar for different values of verbose.
+    @typing.overload
+    def run(
+        self,
+        time: float,
+        delta_time: float,
+        break_time: float | None = ...,
+        chunk_size: int | None = ...,
+        verbose: None = ...,
+        pbar: _ProgressBarProtocol | None = ...,
+        path: str | pathlib.Path | None = ...,
+        dump_final: bool = ...,
+        dump_prefix: str | None = ...,
+    ): ...
+
+    @typing.overload
     def run(
         self,
         time: float,
         delta_time: float,
         break_time: float | None = None,
         chunk_size: int | None = None,
-        verbose: int | None = None,
-        pbar: _ProgressBarProtocol | None = None,
+        verbose: int = ...,
+        pbar: _VerboseProgressBarProtocol | None = None,
         path: str | pathlib.Path | None = None,
         dump_final: bool = True,
         dump_prefix: str | None = None,
+    ): ...
+
+    def run(
+        self,
+        time,
+        delta_time,
+        break_time=None,
+        chunk_size=None,
+        verbose=None,
+        pbar=None,
+        path=None,
+        dump_final=True,
+        dump_prefix=None,
     ):
         """Run the experiment for a specified duration.
 
@@ -453,16 +481,32 @@ class Experiment:
 
         """
 
-        def pbar_print(msg, pbar):
+        def pbar_print(msg: str, pbar: _VerboseProgressBarProtocol | None):
             if pbar is not None:
                 pbar.write(msg)
             else:
                 logger.info(msg)
 
+        @typing.overload
         def dump_and_print(
             dump_prefix: str | None,
             path: str | pathlib.Path | None,
-            verbose: int | None,
+            verbose: None,
+            pbar: _ProgressBarProtocol | None,
+        ): ...
+
+        @typing.overload
+        def dump_and_print(
+            dump_prefix: str | None,
+            path: str | pathlib.Path | None,
+            verbose: int,
+            pbar: _VerboseProgressBarProtocol | None,
+        ): ...
+
+        def dump_and_print(
+            dump_prefix,
+            path,
+            verbose,
             pbar,
         ):
             self.dump_history(dump_prefix, path)
