@@ -521,11 +521,12 @@ def test_verbose_run(
 
     if verbose is None:
         assert len(caplog.text) == 0
-    elif verbose >= 1:
+    else:
         if verbose == 1:
             assert len(caplog.messages) == 1
         assert "history dumped" in caplog.text
-    elif verbose == 2:
+
+    if verbose == 2:
         assert len(caplog.messages) == 2
         assert f"N_f = {post_fracture_n_floes}" in caplog.text
 
