@@ -12,8 +12,8 @@ class FloatsKWA(typing.TypedDict, total=False):
     allow_infinity: bool
     allow_subnormal: bool
     exclude_min: bool
-    min_value: float
-    max_value: float
+    # min_value: float
+    # max_value: float
 
 
 # Generic float options
@@ -40,12 +40,14 @@ def ice_thickness(draw, ocean_density, ocean_depth, ice_density):
 
 
 @st.composite
-def floe_length(draw: st.DrawFn, ice: Ice) -> float:
+def floe_length(draw: st.DrawFn, ice: st.SearchStrategy[Ice]) -> float:
     return draw(st.floats(2 * draw(ice).thickness, 1000e3, **float_kw))
 
 
 # All SI units
-physical_strategies = {
+physical_strategies: dict[
+    str, st.SearchStrategy[float] | dict[str, st.SearchStrategy[float]]
+] = {
     "floe": {
         "left_edge": st.floats(0, 5e3, **float_kw),
     },
@@ -78,6 +80,11 @@ physical_strategies = {
 }
 
 
+coupled_physical_strategies = {
+    "floe_length": floe_length,
+    "ice_density": ice_density,
+    "ice_thickness": ice_thickness,
+}
 physical_strategies["floe"]["length"] = floe_length
 physical_strategies["ice"]["density_coupled"] = ice_density
 physical_strategies["ice"]["thickness_coupled"] = ice_thickness

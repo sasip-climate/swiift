@@ -640,7 +640,7 @@ class WavesUnderFloe(_Subdomain):
     # TODO: method to return the local wave forcing
 
 
-@attrs.define(init=False)
+@attrs.frozen(init=False)
 class DiscreteSpectrum:
     amplitudes: np.ndarray
     frequencies: np.ndarray
@@ -648,15 +648,15 @@ class DiscreteSpectrum:
 
     def __init__(
         self,
-        amplitudes: np.ndarray | float,
-        frequencies: np.ndarray | float,
-        phases: np.ndarray | float = 0,
+        amplitudes: Sequence[float] | float,
+        frequencies: Sequence[float] | float,
+        phases: Sequence[float] | float = 0,
     ):
 
         # np.ravel to force precisely 1D-arrays
         # Promote the map to list so the iterator can be used several times.
         # Eventual phases are modulo'd to 2pi rad.
-        args = list(map(np.ravel, (amplitudes, frequencies, phases % PI_2)))
+        args = list(map(np.ravel, (amplitudes, frequencies, phases)))
         (size,) = np.broadcast_shapes(*(arr.shape for arr in args))
 
         # If size is one, all the arguments are scalar and the "spectrum" is
@@ -675,10 +675,19 @@ class DiscreteSpectrum:
         args = [arr[~nan_mask] for arr in args]
         # Sort arrays by the frequency values
         sk = np.argsort(args[1])
-        amplitudes, frequencies, phases = (arr[sk] for arr in args)
-        phases = phases % PI_2
+        _amplitudes, _frequencies, _phases = (arr[sk] for arr in args)
+        _phases = _phases % PI_2
 
-        self.__attrs_init__(amplitudes, frequencies, phases)
+        self.__attrs_init__(_amplitudes, _frequencies, _phases)
+
+    @classmethod
+    def from_periods(
+        cls,
+        amplitudes: Sequence[float] | float,
+        periods: Sequence[float] | float,
+        phases: Sequence[float] | float = 0,
+    ):
+        return cls(amplitudes, 1 / np.asarray(periods), phases)
 
     @functools.cached_property
     def periods(self):

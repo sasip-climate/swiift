@@ -36,7 +36,6 @@ dependencies = [
     "pytest-xdist",
     "coverage",
     "hypothesis",
-    "primefac",
     "scipy-stubs",
 ]
 
