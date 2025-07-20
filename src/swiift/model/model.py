@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import functools
-import itertools
 from numbers import Real
 import operator
 import typing
