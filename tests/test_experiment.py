@@ -581,7 +581,7 @@ def test_run_early_termination(data):
         mp.setattr(Domain, "breakup", mock_breakup)
 
         experiment, _ = setup_experiment_with_floe()
-        time = 1 / experiment.domain.spectrum._freqs[0]
+        time = 1 / experiment.domain.spectrum.frequencies[0]
         delta_time = time / n_steps
         break_time = data.draw(st.floats(delta_time, max_value=2 * time, **float_kw))
 

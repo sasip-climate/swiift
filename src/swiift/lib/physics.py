@@ -139,7 +139,7 @@ class FluidSurfaceHandler:
     def from_domain(cls, domain: model.Domain, growth_params: tuple | None = None):
         return cls(
             (
-                domain.spectrum._amps * np.exp(1j * domain.spectrum._phases),
+                domain.spectrum.amplitudes * np.exp(1j * domain.spectrum.phases),
                 domain.fsw.wavenumbers,
             ),
             growth_params,

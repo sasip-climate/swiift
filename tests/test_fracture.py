@@ -125,7 +125,7 @@ def test_binary_energy_no_growth(row):
     wuf = make_wuf(row[:-1], growth_params)
     xf = binary_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
-        assert np.allclose(row[-1] - xf, 0)
+        assert np.allclose(row[-1], xf)
     else:
         assert np.isnan(row[-1])
 
@@ -140,7 +140,7 @@ def test_binary_energy_with_growth(row):
     wuf = make_wuf(row[:-3], growth_params)
     xf = binary_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
-        assert np.allclose(row[-1] - xf, 0)
+        assert np.allclose(row[-1], xf)
     else:
         assert np.isnan(row[-1])
 
@@ -154,7 +154,7 @@ def test_binary_strain_no_growth(row):
     wuf = make_wuf(row[:-1], growth_params)
     xf = binary_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
-        assert np.allclose(row[-1] - xf, 0)
+        assert np.allclose(row[-1], xf)
     else:
         assert np.isnan(row[-1])
 
@@ -168,7 +168,7 @@ def test_binary_strain_with_growth(row):
     wuf = make_wuf(row[:-3], growth_params)
     xf = binary_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
-        assert np.allclose(row[-1] - xf, 0)
+        assert np.allclose(row[-1], xf)
     else:
         assert np.isnan(row[-1])
 
@@ -182,7 +182,7 @@ def test_multi_strain_no_growth(row, target):
     wuf = make_wuf(row, growth_params)
     xfs = handler.search(wuf, growth_params, an_sol, None)
     if xfs is not None:
-        assert np.allclose(target - xfs, 0)
+        assert np.allclose(target, xfs)
     else:
         assert np.isnan(target)
 
@@ -197,6 +197,6 @@ def test_multi_strain_with_growth(row, target):
     wuf = make_wuf(row[:-2], growth_params)
     xfs = handler.search(wuf, growth_params, an_sol, None)
     if xfs is not None:
-        assert np.allclose(target - xfs, 0)
+        assert np.allclose(target, xfs)
     else:
         assert np.isnan(target)

@@ -40,7 +40,7 @@ def _surface_segments(
     # TODO: replace numerical.free_surface by a FluidSurfaceHandler
     yfs = numerical.free_surface(
         xfs,
-        (domain.spectrum._amps, domain.ocean.wavenumbers, domain.spectrum._phases),
+        (domain.spectrum.amplitudes, domain.ocean.wavenumbers, domain.spectrum.phases),
         growth_params,
     )
     segments = [np.vstack((xfs, yfs)).T] + [np.full((nx, 2), np.nan) for nx in nxs]
@@ -115,7 +115,7 @@ def plot_displacement(
         left_bound = domain.subdomains[0].left_edge
     if ax is None:
         ax = plt.gca()
-        wave_height = np.sum(domain.spectrum._amps**2) ** 0.5 * 1.1
+        wave_height = np.sum(domain.spectrum.amplitudes**2) ** 0.5 * 1.1
         ax.axis(
             [left_bound, domain.subdomains[-1].right_edge, -wave_height, wave_height]
         )
@@ -146,7 +146,7 @@ def animate_displacement(
     total_time = times[-1]
     # experiment = read_experiment(0, True, True)
     n_ts = np.ceil(total_time / dt).astype(int)
-    vertical_range = np.sqrt(np.sum(experiment.domain.spectrum._amps**2)) * 1.1
+    vertical_range = np.sqrt(np.sum(experiment.domain.spectrum.amplitudes**2)) * 1.1
 
     def animate(i, lines):
         fig.suptitle(f"t = {times[i]:.2f} s, µ_max = {growth_params[i][0].max():.2f} m")

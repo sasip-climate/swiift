@@ -1,11 +1,23 @@
+import typing
+
 from hypothesis import strategies as st
 import numpy as np
 
 from swiift.lib.constants import PI_2
 from swiift.model.model import DiscreteSpectrum, Floe, Ice, Ocean
 
+
+class FloatsKWA(typing.TypedDict, total=False):
+    allow_nan: bool
+    allow_infinity: bool
+    allow_subnormal: bool
+    exclude_min: bool
+    min_value: float
+    max_value: float
+
+
 # Generic float options
-float_kw = {
+float_kw: FloatsKWA = {
     "allow_nan": False,
     "allow_subnormal": False,
 }
@@ -28,7 +40,7 @@ def ice_thickness(draw, ocean_density, ocean_depth, ice_density):
 
 
 @st.composite
-def floe_length(draw, ice: Ice) -> float:
+def floe_length(draw: st.DrawFn, ice: Ice) -> float:
     return draw(st.floats(2 * draw(ice).thickness, 1000e3, **float_kw))
 
 

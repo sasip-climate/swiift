@@ -711,66 +711,65 @@ class WavesUnderFloe(_Subdomain):
     # TODO: method to return the local wave forcing
 
 
+@attrs.define(init=False)
 class DiscreteSpectrum:
+    amplitudes: np.ndarray
+    frequencies: np.ndarray
+    phases: np.ndarray
+
     def __init__(
         self,
-        amplitudes,
-        frequencies,
-        phases=0,
+        amplitudes: np.ndarray | float,
+        frequencies: np.ndarray | float,
+        phases: np.ndarray | float = 0,
     ):
 
         # np.ravel to force precisely 1D-arrays
-        # Promote the map to list so the iterator can be used several times
-        args = list(map(np.ravel, (amplitudes, frequencies, phases)))
+        # Promote the map to list so the iterator can be used several times.
+        # Eventual phases are modulo'd to 2pi rad.
+        args = list(map(np.ravel, (amplitudes, frequencies, phases % PI_2)))
         (size,) = np.broadcast_shapes(*(arr.shape for arr in args))
-
-        # TODO: sort waves by frequencies or something
-        # TODO: sanity checks on nan, etc. that could be returned
-        #       by the Spectrum objects
 
         # If size is one, all the arguments are scalar and the "spectrum" is
         # monochromatic. Otherwise, there is at least one argument with
         # different components. The eventual other arguments with a single
-        # component are repeated for instantiating as many Wave objects as
-        # needed.
+        # component are repeated so that the three arrays have the same size.
         if size != 1:
             for i, arr in enumerate(args):
                 if arr.size == 0:
-                    raise ValueError
+                    raise ValueError(f"The spectral argument {i} is empty.")
                 if arr.size == 1:
-                    args[i] = itertools.repeat(arr[0], size)
+                    args[i] = args[i] * np.ones(size)
 
-        self.__waves = [
-            Wave.from_frequency(_a, _f, phase=_ph) for _a, _f, _ph in zip(*args)
-        ]
+        # Remove entries corresponding to nan in any of the array
+        nan_mask = functools.reduce(operator.or_, (np.isnan(arr) for arr in args))
+        args = [arr[~nan_mask] for arr in args]
+        # Sort arrays by the frequency values
+        sk = np.argsort(args[1])
+        amplitudes, frequencies, phases = (arr[sk] for arr in args)
+        phases = phases % PI_2
 
-    @property
-    def waves(self):
-        return self.__waves
+        self.__attrs_init__(amplitudes, frequencies, phases)
+
+    @functools.cached_property
+    def periods(self):
+        return 1 / self.frequencies
+
+    @functools.cached_property
+    def angular_frequencies(self):
+        return self.frequencies * PI_2
 
     @functools.cached_property
     def _ang_freqs_pow2(self):
-        return self._ang_freqs**2
-
-    @functools.cached_property
-    def _amps(self):
-        return np.asarray([wave.amplitude for wave in self.waves])
-
-    @functools.cached_property
-    def _freqs(self):
-        return np.asarray([wave.frequency for wave in self.waves])
-
-    @functools.cached_property
-    def _ang_freqs(self):
-        return np.asarray([wave.angular_frequency for wave in self.waves])
-
-    @functools.cached_property
-    def _phases(self):
-        return np.asarray([wave.phase for wave in self.waves])
+        return self.angular_frequencies**2
 
     @functools.cached_property
     def nf(self):
-        return len(self.waves)
+        return len(self.frequencies)
+
+    @functools.cached_property
+    def energy(self):
+        return np.sum(self.amplitudes**2) / 2
 
 
 # TODO: docstrings
@@ -871,12 +870,14 @@ class Domain:
                         f"({self.spectrum.nf} components)"
                     )
             if growth_std is None:
-                growth_std = self.fsw.wavelengths[self.spectrum._amps.argmax()]
+                growth_std = self.fsw.wavelengths[self.spectrum.amplitudes.argmax()]
             self.growth_params = [growth_means, growth_std]
 
     def _compute_phase_shifts(self, delta_time: float):
         if delta_time not in self.cached_phases:
-            self.cached_phases[delta_time] = delta_time * self.spectrum._ang_freqs
+            self.cached_phases[delta_time] = (
+                delta_time * self.spectrum.angular_frequencies
+            )
         return self.cached_phases[delta_time]
 
     def _compute_wui(self, ice: Ice):
@@ -942,7 +943,7 @@ class Domain:
 
     def _init_phases(self, floes: Sequence[Floe]) -> np.ndarray:
         phases = np.full((len(floes), self.spectrum.nf), np.nan)
-        phases[0] = self.spectrum._phases + floes[0].left_edge * self.fsw.wavenumbers
+        phases[0] = self.spectrum.phases + floes[0].left_edge * self.fsw.wavenumbers
         for i, floe in enumerate(floes[1:], 1):
             wui = self._compute_wui(floe.ice)
             prev = floes[i - 1]
@@ -955,7 +956,7 @@ class Domain:
 
     def _init_amplitudes(self, floes: Sequence[Floe]) -> np.ndarray:
         amplitudes = np.full((len(floes), self.spectrum.nf), np.nan)
-        amplitudes[0, :] = self.spectrum._amps
+        amplitudes[0, :] = self.spectrum.amplitudes
         for i, floe in enumerate(floes[1:], 1):
             amplitudes[i, :] = amplitudes[i - 1, :] * np.exp(
                 -self._compute_wui(floe.ice).attenuations * floe.length
