@@ -4,13 +4,13 @@ import numpy as np
 
 import swiift.lib.att as att
 from swiift.model.model import FloatingIce, WavesUnderElasticPlate, WavesUnderIce
-
-from .conftest import coupled_ocean_ice, physical_strategies
+from tests.physical_strategies import PHYSICAL_STRATEGIES
+from tests.model_strategies import coupled_ocean_ice
 
 wavenumbers_strategy = npst.arrays(
     float,
     npst.array_shapes(min_dims=1, max_dims=1, min_side=1, max_side=10),
-    elements=physical_strategies["wave"]["wavenumber"],
+    elements=PHYSICAL_STRATEGIES[("wave", "wavenumber")],
 )
 
 
@@ -31,7 +31,7 @@ class TestNoAttenuation:
 class TestParam01:
     @staticmethod
     @given(
-        thickness=physical_strategies["ice"]["thickness"],
+        thickness=PHYSICAL_STRATEGIES[("ice", "thickness")],
         wavenumbers=wavenumbers_strategy,
     )
     def test_unit(thickness, wavenumbers):

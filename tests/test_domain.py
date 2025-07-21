@@ -11,7 +11,7 @@ from swiift.model.model import (
     Ocean,
 )
 
-from .conftest import ocean_and_spectrum, simple_objects
+from tests.model_strategies import ocean_and_spectrum, simple_objects
 
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 

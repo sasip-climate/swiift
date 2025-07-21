@@ -15,8 +15,8 @@ import swiift.lib.att as att
 import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
-
-from .conftest import coupled_ocean_ice, float_kw, ocean_and_mono_spectrum, spec_mono
+from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
+from tests.utils import float_kw
 
 epxeriment_targets_path = "tests/target/experiments"
 fname_pattern = "exper_test*"
@@ -31,8 +31,6 @@ growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
 loading_options = ("str", "path", "cwd")
-
-positive_float = st.floats(**float_kw)
 
 
 class DummyPbar:

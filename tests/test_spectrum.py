@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from swiift.model.model import DiscreteSpectrum
-from tests.conftest import physical_strategies
+from tests.physical_strategies import PHYSICAL_STRATEGIES
 
 # Valid cases: all sizes the same, or some are 1
 valid_cases = [
@@ -56,9 +56,9 @@ def spectrum_arguments(
         for size, strategy in zip(
             sizes,
             (
-                physical_strategies["wave"]["amplitude"],
-                physical_strategies["wave"]["frequency"],
-                physical_strategies["wave"]["phase"],
+                PHYSICAL_STRATEGIES[("wave", "amplitude")],
+                PHYSICAL_STRATEGIES[("wave", "frequency")],
+                PHYSICAL_STRATEGIES[("wave", "phase")],
             ),
         )
     ]
@@ -73,9 +73,9 @@ def spectrum_arguments_periods(
         for size, strategy in zip(
             sizes,
             (
-                physical_strategies["wave"]["amplitude"],
-                physical_strategies["wave"]["period"],
-                physical_strategies["wave"]["phase"],
+                PHYSICAL_STRATEGIES[("wave", "amplitude")],
+                PHYSICAL_STRATEGIES[("wave", "period")],
+                PHYSICAL_STRATEGIES[("wave", "phase")],
             ),
         )
     ]

@@ -9,7 +9,7 @@ from swiift.model.model import (
     WavesUnderElasticPlate,
 )
 
-from .conftest import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
+from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 
 
 def free_surface(wavenumber, depth):
