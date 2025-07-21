@@ -16,16 +16,11 @@ import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
-from tests.utils import float_kw
+from tests.utils import float_kw, fracture_handlers
 
 epxeriment_targets_path = "tests/target/experiments"
 fname_pattern = "exper_test*"
 
-fracture_handlers = (
-    fh.BinaryFracture,
-    fh.BinaryStrainFracture,
-    fh.MultipleStrainFracture,
-)
 attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
