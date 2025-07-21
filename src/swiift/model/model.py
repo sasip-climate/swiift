@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import functools
+import itertools
 from numbers import Real
 import operator
 import typing
@@ -954,6 +955,23 @@ class Domain:
         for old, new in dct.values():
             self._pop_c_floe(old)
             self._add_c_floes(new)
+
+    def new_breakup(
+        self,
+        fracture_handler: fh._FractureHandler,
+        an_sol=None,
+        num_params=None,
+    ):
+        def get_broken_wufs(wuf: WavesUnderFloe) -> list[WavesUnderFloe]:
+            xf = fracture_handler.search(wuf, self.growth_params, an_sol, num_params)
+            if xf is None:
+                return [wuf]
+            else:
+                return fracture_handler.split(wuf, xf)
+
+        self.subdomains = list(
+            itertools.chain(*(get_broken_wufs(wuf) for wuf in self.subdomains))
+        )
 
     def plot(
         self,
