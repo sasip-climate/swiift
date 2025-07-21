@@ -1,5 +1,7 @@
 """Define strategies to construct model objects."""
 
+import typing
+
 from hypothesis import strategies as st
 
 from swiift.model.model import DiscreteSpectrum, Floe, Ice, Ocean
@@ -115,7 +117,18 @@ coupled_floe = {
     )
 } | coupled_ocean_ice
 
-simple_objects = {
+
+class TestingConstants(typing.TypedDict):
+    ocean: Ocean
+    ice: Ice
+    spec_mono: DiscreteSpectrum
+    spec_poly: DiscreteSpectrum
+    gravity: float
+    length: float
+    left_edge: float
+
+
+simple_objects: TestingConstants = {
     "ocean": Ocean(),
     "ice": Ice(),
     "spec_mono": DiscreteSpectrum(0.5, 1 / 7),
@@ -124,4 +137,3 @@ simple_objects = {
     "length": 101.5,
     "left_edge": 13.8,
 }
-
