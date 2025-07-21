@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 import swiift.lib.att as att
+import swiift.model.frac_handlers as fh
 from swiift.model.model import (
     DiscreteSpectrum,
     Domain,
@@ -97,3 +98,66 @@ def test_promote():
 
     with pytest.raises(ValueError):
         Domain._promote_floe(1)
+
+
+@pytest.mark.parametrize("is_mono", (True, False))
+@pytest.mark.parametrize("att_spec", att.AttenuationParameterisation)
+@pytest.mark.parametrize("fracture_handler_type", fracture_handlers)
+def test_breakup(
+    att_spec: att.AttenuationParameterisation,
+    is_mono: bool,
+    fracture_handler_type: type[fh._FractureHandler],
+):
+    fracture_handler = fracture_handler_type()
+    domain = instantiate_domain(att_spec, is_mono)
+    floe = instantiate_floe()
+    domain.add_floes(floe)
+    wuf0 = domain.subdomains[0]
+    assert len(domain.subdomains) == 1
+
+    domain.breakup(fracture_handler, an_sol=True)
+
+    # Check we did have some breakup
+    match fracture_handler:
+        case fh.BinaryFracture() | fh.BinaryStrainFracture():
+            assert len(domain.subdomains) == 2
+        case fh.MultipleStrainFracture():
+            assert len(domain.subdomains) >= 2
+        case _:  # pragma: no cover
+            raise ValueError("Unknown fracture handler")
+    # Check the edge has not moved
+    assert domain.subdomains[0].left_edge == wuf0.left_edge
+
+    # Check all new floes except the last have had their generation counter incremented. The last one should have the same generation counter.
+    for _wuf in domain.subdomains[:-1]:
+        assert _wuf.generation == wuf0.generation + 1
+    assert domain.subdomains[-1].generation == wuf0.generation
+
+    # Check individual fragment lengths are less than that of the original floe.
+    lengths = np.array([_wuf.length for _wuf in domain.subdomains])
+    assert np.all(lengths < wuf0.length)
+
+    # Check floes are in order of their left edges.
+    left_edges = np.array([_wuf.left_edge for _wuf in domain.subdomains])
+    assert np.all(np.ediff1d(left_edges) > 0)
+
+    # Check the two definitions are equivalent
+    relative_new_edges = left_edges[1:] - left_edges[0]
+    assert np.allclose(relative_new_edges, lengths[:-1].cumsum())
+
+    # Checked the complex amplitude at the edge is identical, as it should be
+    # modified at a later step
+    assert np.all(domain.subdomains[0].edge_amplitudes == wuf0.edge_amplitudes)
+    # Check new fragments have the expected complex amplitudes at their left
+    # edges. As there is no random scattering here, these amplitudes are
+    # obtained by "propagating" spatially the original edge amplitudes over the
+    # fragment lengths.
+    phase_diffs = relative_new_edges[:, None] * (
+        wuf0.wui.wavenumbers + 1j * wuf0.wui.attenuations
+    )
+    assert np.all(
+        np.isclose(
+            np.vstack([_wuf.edge_amplitudes for _wuf in domain.subdomains[1:]]),
+            wuf0.edge_amplitudes * np.exp(1j * phase_diffs),
+        )
+    )
