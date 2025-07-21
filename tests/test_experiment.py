@@ -461,7 +461,9 @@ def test_run_with_pbar(monkeypatch):
 @given(args=run_time_chunks_composite())
 @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
 @pytest.mark.parametrize("dump_final", (True, False))
-def test_run_with_chunk_size(args, tmp_path: pathlib.Path, dump_final: bool):
+def test_run_with_chunk_size(
+    args: tuple[int, float, int], tmp_path: pathlib.Path, dump_final: bool
+):
     n_steps, delta_time, chunk_size = args
     time = n_steps * delta_time
     # extra division to account for float errors
