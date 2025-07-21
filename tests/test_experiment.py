@@ -104,9 +104,6 @@ def test_create_directory(tmp_path: pathlib.Path, dir_to_create: str | pathlib.P
 def test_simple_read(mocker: MockerFixture, step):
     experiment = setup_experiment()
     step_size = 10  # simply to test we do recover different instance properties
-    # HACK: remove this line once DiscreteSpectrum has been attrs'd.
-    # For now, needed for equality test.
-    experiment.domain = None
     if step:
         experiment.time = 10
     file_content = io.BytesIO(pickle.dumps(experiment))
