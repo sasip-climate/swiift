@@ -10,13 +10,13 @@ from swiift.model.model import (
     FreeSurfaceWaves,
     Ocean,
 )
-
 from tests.model_strategies import ocean_and_spectrum, simple_objects
+from tests.utils import fracture_handlers
 
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
 
-def instantiate_domain(att_spec, is_mono) -> None:
+def instantiate_domain(att_spec: att.Attenuation, is_mono: bool) -> Domain:
     ocean = simple_objects["ocean"]
     if is_mono:
         spectrum = simple_objects["spec_mono"]
@@ -66,12 +66,11 @@ def test_failing(gravity: float, spectrum: DiscreteSpectrum, ocean: Ocean):
         Domain.with_growth_means(gravity, spectrum, ocean, growth_means=means)
 
 
-def instantiate_floe() -> None:
-    ice = simple_objects["ice"]
+def instantiate_floe() -> Floe:
     return Floe(
         left_edge=simple_objects["left_edge"],
         length=simple_objects["length"],
-        ice=ice,
+        ice=simple_objects["ice"],
     )
 
 
