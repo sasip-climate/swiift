@@ -47,33 +47,35 @@ class _FractureHandler(abc.ABC):
     def split(
         self,
         wuf: model.WavesUnderFloe,
-        xf: float | np.ndarray,
+        xf: float | Sequence[float],
         is_searching: bool = False,
     ) -> list[model.WavesUnderFloe]:
-        xf = np.hstack((0, xf))
-        lengths = np.ediff1d(np.hstack((xf, wuf.length)))
-        edges = wuf.left_edge + xf
+        new_relative_edges = np.hstack((0, xf))
+        new_absolute_edges = wuf.left_edge + new_relative_edges
+        new_lengths = np.ediff1d(np.hstack((new_absolute_edges, wuf.right_edge)))
 
         if is_searching:
             post_breakup_amplitudes = (
                 ps.ContinuousScatteringHandler().compute_edge_amplitudes(
-                    wuf.edge_amplitudes, wuf.wui._c_wavenumbers, xf
+                    wuf.edge_amplitudes, wuf.wui._c_wavenumbers, new_relative_edges
                 )
             )
         else:
             post_breakup_amplitudes = np.full(
-                (xf.size, wuf.edge_amplitudes.size), np.nan, dtype=complex
+                (new_relative_edges.size, wuf.edge_amplitudes.size),
+                np.nan,
+                dtype=complex,
             )
             post_breakup_amplitudes[0] = wuf.edge_amplitudes.copy()
             post_breakup_amplitudes[1:] = (
                 self.scattering_handler.compute_edge_amplitudes(
-                    wuf.edge_amplitudes, wuf.wui._c_wavenumbers, xf[1:]
+                    wuf.edge_amplitudes, wuf.wui._c_wavenumbers, new_relative_edges[1:]
                 )
             )
         # edge_amplitudes = wuf.edge_amplitudes * np.exp(
         #     1j * wuf.wui._c_wavenumbers * xf[:, None]
         # )
-        gens = wuf.generation * np.ones(xf.size, dtype=int)
+        gens = wuf.generation * np.ones(new_relative_edges.size, dtype=int)
         gens[:-1] += 1
         return [
             model.WavesUnderFloe(
@@ -84,7 +86,7 @@ class _FractureHandler(abc.ABC):
                 generation=gen,
             )
             for edge, lgth, amplitudes, gen in zip(
-                edges, lengths, post_breakup_amplitudes, gens
+                new_absolute_edges, new_lengths, post_breakup_amplitudes, gens
             )
         ]
 
