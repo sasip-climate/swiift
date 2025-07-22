@@ -16,7 +16,7 @@ float_kw: FloatsKWA = {
     "allow_nan": False,
     "allow_subnormal": False,
 }
-fracture_handlers = (
+fracture_handler_types = (
     fh.BinaryFracture,
     fh.BinaryStrainFracture,
     fh.MultipleStrainFracture,
