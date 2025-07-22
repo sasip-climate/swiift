@@ -736,7 +736,7 @@ class Domain:
     spectrum: DiscreteSpectrum
     fsw: FreeSurfaceWaves
     attenuation: att.Attenuation = attrs.field(repr=False)
-    growth_params: list[np.array, float] | None = None
+    growth_params: list[np.ndarray, float] | None = None
     subdomains: SortedList = attrs.field(repr=False, init=False, factory=SortedList)
     cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(
         repr=False, init=False, factory=dict
