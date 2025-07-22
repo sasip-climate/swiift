@@ -1,5 +1,5 @@
 import pathlib
-from typing import Type
+from typing import Sequence
 
 import numpy as np
 import pytest
@@ -88,8 +88,8 @@ def test_abstract():
 @pytest.mark.parametrize("fracture_handler_type", fracture_handler_types)
 @pytest.mark.parametrize("scattering_spec_type", scattering_handler_types)
 def test_initialisation_scattering(
-    fracture_handler_type: Type[fh._FractureHandler],
-    scattering_spec_type: Type[ps._ScatteringHandler],
+    fracture_handler_type: type[fh._FractureHandler],
+    scattering_spec_type: type[ps._ScatteringHandler],
 ):
     def make_handler_from_spec(scattering_spec_type):
         rng_seed = 13
@@ -112,18 +112,29 @@ def test_initialisation_scattering(
     assert isinstance(fracture_handler.scattering_handler, scattering_spec_type)
 
 
+def check_no_overlap(
+    fracture_handler: fh._FractureHandler,
+    xf: float | Sequence[float],
+    wuf: model.WavesUnderFloe,
+):
+    post_fracture_wufs = fracture_handler.split(wuf, xf)
+    for wuf_left, wuf_right in zip(post_fracture_wufs[:-1], post_fracture_wufs[1:]):
+        assert wuf_left.right_edge == wuf_right.left_edge
+
+
 # Stability tests
 @pytest.mark.slow
 @pytest.mark.parametrize("row", binary_energy_no_growth_target)
 def test_binary_energy_no_growth(row: np.ndarray):
     growth_params = None
     an_sol = True
-    binary_handler = fh.BinaryFracture()
+    fracture_handler = fh.BinaryFracture()
 
     wuf = make_wuf(row[:-1], growth_params)
-    xf = binary_handler.search(wuf, growth_params, an_sol, None)
+    xf = fracture_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
         assert np.allclose(row[-1], xf)
+        check_no_overlap(fracture_handler, xf, wuf)
     else:
         assert np.isnan(row[-1])
 
@@ -131,14 +142,15 @@ def test_binary_energy_no_growth(row: np.ndarray):
 @pytest.mark.slow
 @pytest.mark.parametrize("row", binary_energy_with_growth_target)
 def test_binary_energy_with_growth(row: np.ndarray):
-    binary_handler = fh.BinaryFracture()
+    fracture_handler = fh.BinaryFracture()
     growth_params = np.atleast_2d(row[-3]), row[-2]
     an_sol = None
 
     wuf = make_wuf(row[:-3], growth_params)
-    xf = binary_handler.search(wuf, growth_params, an_sol, None)
+    xf = fracture_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
         assert np.allclose(row[-1], xf)
+        check_no_overlap(fracture_handler, xf, wuf)
     else:
         assert np.isnan(row[-1])
 
@@ -147,26 +159,28 @@ def test_binary_energy_with_growth(row: np.ndarray):
 def test_binary_strain_no_growth(row: np.ndarray):
     growth_params = None
     an_sol = True
-    binary_handler = fh.BinaryStrainFracture()
+    fracture_handler = fh.BinaryStrainFracture()
 
     wuf = make_wuf(row[:-1], growth_params)
-    xf = binary_handler.search(wuf, growth_params, an_sol, None)
+    xf = fracture_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
         assert np.allclose(row[-1], xf)
+        check_no_overlap(fracture_handler, xf, wuf)
     else:
         assert np.isnan(row[-1])
 
 
 @pytest.mark.parametrize("row", binary_strain_with_growth_target)
 def test_binary_strain_with_growth(row: np.ndarray):
-    binary_handler = fh.BinaryStrainFracture()
+    fracture_handler = fh.BinaryStrainFracture()
     growth_params = np.atleast_2d(row[-3]), row[-2]
     an_sol = None
 
     wuf = make_wuf(row[:-3], growth_params)
-    xf = binary_handler.search(wuf, growth_params, an_sol, None)
+    xf = fracture_handler.search(wuf, growth_params, an_sol, None)
     if xf is not None:
         assert np.allclose(row[-1], xf)
+        check_no_overlap(fracture_handler, xf, wuf)
     else:
         assert np.isnan(row[-1])
 
@@ -175,26 +189,28 @@ def test_binary_strain_with_growth(row: np.ndarray):
 def test_multi_strain_no_growth(row: np.ndarray, target: np.ndarray):
     growth_params = None
     an_sol = True
-    handler = fh.MultipleStrainFracture()
+    fracture_handler = fh.MultipleStrainFracture()
 
     wuf = make_wuf(row, growth_params)
-    xfs = handler.search(wuf, growth_params, an_sol, None)
+    xfs = fracture_handler.search(wuf, growth_params, an_sol, None)
     if xfs is not None:
         assert np.allclose(target, xfs)
+        check_no_overlap(fracture_handler, xfs, wuf)
     else:
         assert np.isnan(target)
 
 
 @pytest.mark.parametrize("row, target", multi_strain_with_growth_target)
 def test_multi_strain_with_growth(row: np.ndarray, target: np.ndarray):
-    handler = fh.MultipleStrainFracture()
+    fracture_handler = fh.MultipleStrainFracture()
     # xf not part of the array here, so slightly different slicing
     growth_params = np.atleast_2d(row[-2]), row[-1]
     an_sol = None
 
     wuf = make_wuf(row[:-2], growth_params)
-    xfs = handler.search(wuf, growth_params, an_sol, None)
+    xfs = fracture_handler.search(wuf, growth_params, an_sol, None)
     if xfs is not None:
         assert np.allclose(target, xfs)
+        check_no_overlap(fracture_handler, xfs, wuf)
     else:
         assert np.isnan(target)
