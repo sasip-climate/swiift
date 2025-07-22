@@ -20,6 +20,7 @@ scattering_handler_types = (
     ps.PerturbationScatteringHandler,
 )
 
+# Data for stability tests
 PATH_FRACTURE_TARGETS = pathlib.Path("tests/target/fracture")
 binary_energy_no_growth_target = np.loadtxt(
     PATH_FRACTURE_TARGETS.joinpath("binary_fracture.ssv")
@@ -115,9 +116,10 @@ def test_initialisation_scattering(
     assert isinstance(fracture_handler.scattering_handler, scattering_spec_type)
 
 
+# Stability tests
 @pytest.mark.slow
 @pytest.mark.parametrize("row", binary_energy_no_growth_target)
-def test_binary_energy_no_growth(row):
+def test_binary_energy_no_growth(row: np.ndarray):
     growth_params = None
     an_sol = True
     binary_handler = fh.BinaryFracture()
@@ -132,7 +134,7 @@ def test_binary_energy_no_growth(row):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("row", binary_energy_with_growth_target)
-def test_binary_energy_with_growth(row):
+def test_binary_energy_with_growth(row: np.ndarray):
     binary_handler = fh.BinaryFracture()
     growth_params = np.atleast_2d(row[-3]), row[-2]
     an_sol = None
@@ -146,7 +148,7 @@ def test_binary_energy_with_growth(row):
 
 
 @pytest.mark.parametrize("row", binary_strain_no_growth_target)
-def test_binary_strain_no_growth(row):
+def test_binary_strain_no_growth(row: np.ndarray):
     growth_params = None
     an_sol = True
     binary_handler = fh.BinaryStrainFracture()
@@ -160,7 +162,7 @@ def test_binary_strain_no_growth(row):
 
 
 @pytest.mark.parametrize("row", binary_strain_with_growth_target)
-def test_binary_strain_with_growth(row):
+def test_binary_strain_with_growth(row: np.ndarray):
     binary_handler = fh.BinaryStrainFracture()
     growth_params = np.atleast_2d(row[-3]), row[-2]
     an_sol = None
@@ -174,7 +176,7 @@ def test_binary_strain_with_growth(row):
 
 
 @pytest.mark.parametrize("row, target", multi_strain_no_growth_target)
-def test_multi_strain_no_growth(row, target):
+def test_multi_strain_no_growth(row: np.ndarray, target: np.ndarray):
     growth_params = None
     an_sol = True
     handler = fh.MultipleStrainFracture()
@@ -188,7 +190,7 @@ def test_multi_strain_no_growth(row, target):
 
 
 @pytest.mark.parametrize("row, target", multi_strain_with_growth_target)
-def test_multi_strain_with_growth(row, target):
+def test_multi_strain_with_growth(row: np.ndarray, target: np.ndarray):
     handler = fh.MultipleStrainFracture()
     # xf not part of the array here, so slightly different slicing
     growth_params = np.atleast_2d(row[-2]), row[-1]
