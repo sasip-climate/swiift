@@ -8,12 +8,8 @@ import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 import swiift.model.model as model
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
+from tests.utils import fracture_handler_types
 
-fracture_handler_types = (
-    fh.BinaryFracture,
-    fh.BinaryStrainFracture,
-    fh.MultipleStrainFracture,
-)
 scattering_handler_types = (
     ps.ContinuousScatteringHandler,
     ps.UniformScatteringHandler,
