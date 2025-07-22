@@ -6,10 +6,10 @@ import itertools
 from numbers import Real
 import operator
 import typing
+from typing import Self
 
 import attrs
 import numpy as np
-from sortedcontainers import SortedList
 
 from ..lib import att, dr, physics as ph
 from ..lib.constants import PI_2, SQR2
@@ -40,8 +40,7 @@ class Ocean:
     density: float = 1025
 
 
-@attrs.define(frozen=True, eq=False)
-@functools.total_ordering
+@attrs.frozen
 class _Subdomain:
     """A segment localised in space.
 
@@ -57,48 +56,10 @@ class _Subdomain:
     right_edge : float
         Coordinate of the right edge of the domain in m
 
-    Notes
-    -----
-    To be used within sorted collections, instances of `_Subdomain` and its
-    subclasses need to be sortable. The order is defined with respect to the
-    left edge. Therefore, an equality test between two instances of
-    `_Subdomain` with the same `left_edge` attribute, and differing `length`
-    attributes, would hold. This unfortunately differs from the behaviour of
-    all other `attrs`-defined class, and can be surprising.
-
     """
-
-    # TODO: total_ordering and SortedList are nice and all, but the surprise
-    # element of `==` not behaving as expected is not. Maybe consider a
-    # rewrite/perf comparison, doing without, and reinstatiating a list in
-    # order after breakup events, à la swisib.
 
     left_edge: float
     length: float
-
-    def __eq__(self, other: _Subdomain | Real) -> bool:
-        match other:
-            case _Subdomain():
-                return self.left_edge == other.left_edge
-            case Real():
-                return self.left_edge == other
-            case _:
-                raise TypeError(
-                    "Comparison not supported between instance of "
-                    f"{type(self)} and {type(other)}"
-                )
-
-    def __lt__(self, other: _Subdomain | Real) -> bool:
-        match other:
-            case _Subdomain():
-                return self.left_edge < other.left_edge
-            case Real():
-                return self.left_edge < other
-            case _:
-                raise TypeError(
-                    "Comparison not supported between instance of "
-                    f"{type(self)} and {type(other)}"
-                )
 
     @functools.cached_property
     def right_edge(self):
@@ -527,7 +488,7 @@ class FreeSurfaceWaves:
 
 
 # TODO: docstring inheritance
-@attrs.define(kw_only=True, eq=False)
+@attrs.define(kw_only=True)
 class Floe(_Subdomain):
     """An ice floe localised in space.
 
@@ -541,7 +502,7 @@ class Floe(_Subdomain):
     ice: Ice
 
 
-@attrs.define(kw_only=True, eq=False)
+@attrs.define(kw_only=True)
 class WavesUnderFloe(_Subdomain):
     """A localised zone characetrised by wave action under floating ice.
 
@@ -581,13 +542,14 @@ class WavesUnderFloe(_Subdomain):
         )
 
     @typing.overload
-    def shift_waves(self, phase_shifts: np.ndarray, inplace: typing.Literal[True]): ...
+    def shift_waves(
+        self, phase_shifts: np.ndarray, inplace: typing.Literal[True] = ...
+    ): ...
 
-    # TODO: typing.Self
     @typing.overload
     def shift_waves(
-        self, phase_shifts: np.ndarray, inplace: typing.Literal[False]
-    ) -> WavesUnderFloe: ...
+        self, phase_shifts: np.ndarray, inplace: typing.Literal[False] = ...
+    ) -> Self: ...
 
     # TODO: docstring
     def shift_waves(self, phase_shifts: np.ndarray, inplace: bool = True):
@@ -726,7 +688,7 @@ class Domain:
     fsw : FreeSurfaceWaves
     attenuation: flexrac1d.lib.att.Attenuation
     growth_params : list
-    subdomains : SortedList of WavesUnderFloe
+    subdomains : list of WavesUnderFloe
     cached_wuis :
     cached_phases :
 
@@ -737,7 +699,7 @@ class Domain:
     fsw: FreeSurfaceWaves
     attenuation: att.Attenuation = attrs.field(repr=False)
     growth_params: list[np.ndarray, float] | None = None
-    subdomains: SortedList = attrs.field(repr=False, init=False, factory=SortedList)
+    subdomains: list[WavesUnderFloe] = attrs.field(repr=False, init=False, factory=list)
     cached_wuis: dict[Ice, WavesUnderIce] = attrs.field(
         repr=False, init=False, factory=dict
     )
@@ -812,7 +774,7 @@ class Domain:
                 growth_std = self.fsw.wavelengths[self.spectrum.amplitudes.argmax()]
             self.growth_params = [growth_means, growth_std]
 
-    def _compute_phase_shifts(self, delta_time: float):
+    def _compute_phase_shifts(self, delta_time: float) -> np.ndarray:
         if delta_time not in self.cached_phases:
             self.cached_phases[delta_time] = (
                 delta_time * self.spectrum.angular_frequencies
@@ -858,8 +820,7 @@ class Domain:
             )
 
     def add_floes(self, floes: Floe | Sequence[Floe]):
-        subdomains = self._init_subdomains(floes)
-        self._add_c_floes(subdomains)
+        self.subdomains = self._init_subdomains(floes)
 
     @staticmethod
     def _promote_floe(floes: Floe | Sequence[Floe]) -> Sequence[Floe]:
@@ -902,7 +863,7 @@ class Domain:
             )
         return amplitudes
 
-    def _init_subdomains(self, floes: Sequence[Floe]) -> list[WavesUnderFloe]:
+    def _init_subdomains(self, floes: Floe | Sequence[Floe]) -> list[WavesUnderFloe]:
         # TODO: look for already existing floes. In the present state, only
         # valid for starting from scratch, not for adding floes to a domain
         # that already has some.
@@ -934,29 +895,7 @@ class Domain:
             # Phases are only modulo'd in the setter
             self._shift_growth_means(phase_shifts)
 
-    def _pop_c_floe(self, wuf: WavesUnderFloe):
-        self.subdomains.remove(wuf)
-
-    def _add_c_floes(self, wuf: Sequence[WavesUnderFloe]):
-        # It is assume no overlap will occur, and phases have been properly
-        # set, as these method should only be called after a fracture event
-        self.subdomains.update(wuf)
-
     def breakup(
-        self, fracture_handler: fh._FractureHandler, an_sol=None, num_params=None
-    ):
-        dct = {}
-        for i, wuf in enumerate(self.subdomains):
-            xf = fracture_handler.search(wuf, self.growth_params, an_sol, num_params)
-            if xf is not None:
-                old = wuf
-                new = fracture_handler.split(wuf, xf)
-                dct[i] = old, new
-        for old, new in dct.values():
-            self._pop_c_floe(old)
-            self._add_c_floes(new)
-
-    def new_breakup(
         self,
         fracture_handler: fh._FractureHandler,
         an_sol=None,

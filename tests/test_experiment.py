@@ -7,7 +7,6 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 import numpy as np
 import pytest
 from pytest_mock import MockerFixture
-from sortedcontainers import SortedList
 
 import swiift.api.api as api
 from swiift.api.api import Experiment
@@ -19,7 +18,7 @@ from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, s
 from tests.utils import float_kw, fracture_handler_types
 
 epxeriment_targets_path = "tests/target/experiments"
-fname_pattern = "exper_test*"
+fname_pattern = "exper_test_no_sortedlist*"
 
 attenuation_parameterisations = att.AttenuationParameterisation
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
@@ -171,7 +170,7 @@ def test_initialisation(gravity, spectrum, ocean):
     assert isinstance(experiment.domain, Domain)
     assert experiment.domain.growth_params is None
     assert (
-        isinstance(experiment.domain.subdomains, SortedList)
+        isinstance(experiment.domain.subdomains, list)
         and len(experiment.domain.subdomains) == 0
     )
     assert (
