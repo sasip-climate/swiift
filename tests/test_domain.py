@@ -12,7 +12,7 @@ from swiift.model.model import (
     Ocean,
 )
 from tests.model_strategies import ocean_and_spectrum, simple_objects
-from tests.utils import fracture_handlers
+from tests.utils import fracture_handler_types
 
 growth_params = (None, (-13, None), (-28, 75), (np.array([-45]), None))
 
@@ -102,7 +102,7 @@ def test_promote():
 
 @pytest.mark.parametrize("is_mono", (True, False))
 @pytest.mark.parametrize("att_spec", att.AttenuationParameterisation)
-@pytest.mark.parametrize("fracture_handler_type", fracture_handlers)
+@pytest.mark.parametrize("fracture_handler_type", fracture_handler_types)
 def test_breakup(
     att_spec: att.AttenuationParameterisation,
     is_mono: bool,
