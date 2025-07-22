@@ -125,8 +125,13 @@ def test_breakup(
             assert len(domain.subdomains) >= 2
         case _:  # pragma: no cover
             raise ValueError("Unknown fracture handler")
+
     # Check the edge has not moved
     assert domain.subdomains[0].left_edge == wuf0.left_edge
+
+    # Check we did not duplicate WUIs
+    for _wuf in domain.subdomains[1:]:
+        assert _wuf.wui is wuf0.wui
 
     # Check all new floes except the last have had their generation counter incremented. The last one should have the same generation counter.
     for _wuf in domain.subdomains[:-1]:
