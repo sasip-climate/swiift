@@ -1,7 +1,6 @@
 import abc
 from collections.abc import Iterator, Sequence
 import functools
-from numbers import Real
 
 import attrs
 import numpy as np
@@ -48,7 +47,7 @@ class _FractureHandler(abc.ABC):
     def split(
         self,
         wuf: model.WavesUnderFloe,
-        xf: Real | np.ndarray,
+        xf: float | np.ndarray,
         is_searching: bool = False,
     ) -> list[model.WavesUnderFloe]:
         xf = np.hstack((0, xf))
