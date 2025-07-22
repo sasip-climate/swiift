@@ -16,7 +16,7 @@ import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
-from tests.utils import float_kw, fracture_handlers
+from tests.utils import float_kw, fracture_handler_types
 
 epxeriment_targets_path = "tests/target/experiments"
 fname_pattern = "exper_test*"
@@ -187,7 +187,7 @@ def test_initialisation(gravity, spectrum, ocean):
 
 @given(**ocean_and_mono_spectrum)
 @pytest.mark.parametrize("growth_params", growth_params)
-@pytest.mark.parametrize("fracture_handler_type", fracture_handlers)
+@pytest.mark.parametrize("fracture_handler_type", fracture_handler_types)
 @pytest.mark.parametrize("att_spec", att.AttenuationParameterisation)
 def test_initialisation_with_opt_params(
     gravity,
