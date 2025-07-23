@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+import typing
 import warnings
 
 import numpy as np
@@ -6,6 +9,10 @@ import scipy.integrate as integrate
 import scipy.interpolate as interpolate
 
 from ._ph_utils import _unit_wavefield
+
+IV = typing.TypeVar(
+    "IV", float, np.ndarray[tuple[int], np.dtype[np.float64]]
+)  # Integration variable.
 
 
 def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
@@ -144,20 +151,41 @@ def _extract_dis_poly(sol: interpolate.PPoly) -> interpolate.PPoly:
     return _extract_from_poly(sol, 0)
 
 
+def _non_lin_curv(sol: interpolate.PPoly) -> Callable[[IV], np.ndarray]:
+    def non_lin_curv(x: IV) -> np.ndarray:
+        return (
+            _extract_from_poly(sol, 2)(x)
+            / (1 + _extract_from_poly(sol, 1)(x) ** 2) ** 1.5
+        )
+
+    return non_lin_curv
+
+
+@typing.overload
 def _extract_cur_poly(
-    sol: interpolate.PPoly, is_linear: bool = True
-) -> interpolate.PPoly | Callable[[float | np.ndarray], np.ndarray]:
+    sol: interpolate.PPoly,
+    is_linear: typing.Literal[True] = ...,
+) -> interpolate.PPoly: ...
+
+
+@typing.overload
+def _extract_cur_poly(
+    sol: interpolate.PPoly,
+    is_linear: typing.Literal[False] = ...,
+) -> Callable[[IV], np.ndarray]: ...
+
+
+@typing.overload
+def _extract_cur_poly(
+    sol: interpolate.PPoly, is_linear: bool = ...
+) -> interpolate.PPoly | Callable[[IV], np.ndarray]: ...
+
+
+def _extract_cur_poly(sol: interpolate.PPoly, is_linear: bool = True):
     if is_linear:
         return _extract_from_poly(sol, 2)
     else:
-
-        def non_lin_curv(x: float | np.ndarray) -> np.ndarray:
-            return (
-                _extract_from_poly(sol, 2)(x)
-                / (1 + _extract_from_poly(sol, 1)(x) ** 2) ** 1.5
-            )
-
-        return non_lin_curv
+        return _non_lin_curv(sol)
 
 
 def displacement(x, floe_params, wave_params, growth_params, num_params):
@@ -172,25 +200,85 @@ def curvature(
     return _extract_cur_poly(opt.sol, is_linear)(x)
 
 
-def energy(
-    floe_params, wave_params, growth_params, num_params, linear_curvature: bool = True
-) -> tuple[float, float]:
-    """Numerically evaluate the energy
+def _prepare_integrand(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params,
+    num_params,
+    linear_curvature: bool,
+) -> tuple[Callable[[IV], IV], tuple[float, float]]:
+    opt = _get_result(floe_params, wave_params, growth_params, num_params)
+    curvature_poly = _extract_cur_poly(opt.sol, linear_curvature)
+
+    def unit_energy(x):
+        return curvature_poly(x) ** 2
+
+    return unit_energy, (opt.x[0], opt.x[-1])
+
+
+def _quad_integration(
+    integrand: Callable[[float], float],
+    bounds: tuple[float, float],
+    **kwargs,
+) -> float:
+    result = integrate.quad(integrand, *bounds, **kwargs)
+    return result[0]
+
+
+def _tanhsinh_integration(
+    integrand: Callable[[np.ndarray], np.ndarray],
+    bounds: tuple[float, float],
+    **kwargs,
+) -> float:
+    try:
+        result = integrate.tanhsinh(integrand, *bounds, **kwargs)
+    except AttributeError:
+        warnings.warn(
+            "tanhsinh integration was made public in scipy 1.15.0. "
+            "Proceeding anyway, but you might want to upgrade if possible, "
+            "or use another method."
+        )
+        result = integrate._tanhsinh.tanhsinh(integrand, *bounds, **kwargs)
+
+    return result.integral
+
+
+def unit_energy(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params,
+    num_params,
+    integration_method: str | None = None,
+    linear_curvature: bool = True,
+    **kwargs,
+) -> float:
+    """Numerically evaluate the energy.
 
     The energy is up to a prefactor.
 
     """
-    # TODO: enable different integrators, for example, tanhsinh seems to work great
 
     # TODO: actually pass the options to the integrator. For quad, there might
     # be convergence issues if many oscillations wrt the length of the floe. A
     # usual heuristic seems to be fixing `limit` to L / lambda * N with N
     # between 10 to 20. Choosing a big number doesn't hurt computing time, as
     # the integration stops when reaching the desired tolerance anyway.
-    opt = _get_result(floe_params, wave_params, growth_params, num_params)
-    curvature_poly = _extract_cur_poly(opt.sol, linear_curvature)
+    if integration_method is None:
+        if hasattr(integrate, "tanhsinh"):
+            integration_method = "tanhsinh"
+        else:
+            integration_method = "quad"
+    integrand, bounds = _prepare_integrand(
+        floe_params,
+        wave_params,
+        growth_params,
+        num_params,
+        linear_curvature,
+    )
 
-    def unit_energy(x: float):
-        return curvature_poly(x) ** 2
-
-    return integrate.quad(unit_energy, *opt.x[[0, -1]])
+    if integration_method == "quad":
+        return _quad_integration(integrand, bounds, **kwargs)
+    elif integration_method == "tanhsinh":
+        return _tanhsinh_integration(integrand, bounds, **kwargs)
+    else:
+        raise ValueError("Integration method should be `quad` or `tanhsinh`")
