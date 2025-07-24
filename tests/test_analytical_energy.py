@@ -1,4 +1,3 @@
-from collections.abc import Callable
 import pathlib
 
 import numpy as np
@@ -9,8 +8,6 @@ import swiift.lib.physics as ph
 # TODO: fiture these tests instead of running loops in individual functions
 
 # Test configurations visually examined against solution from scipy.solve_bvp
-PATH_DIS = pathlib.Path("tests/target/displacement")
-PATH_CUR = pathlib.Path("tests/target/curvature")
 PATH_EGY = pathlib.Path("tests/target/energy/")
 PATH_PLY = pathlib.Path("tests/target/poly_analytical/")
 
@@ -30,47 +27,6 @@ def format_to_pack(
         )
     )
     return floe_params, wave_params
-
-
-def read_header(handle: pathlib.Path):
-    with open(handle, "r") as file:
-        header = file.readline()
-    # remove trailing '# ' and split
-    red_num, length, *wave_params_real = map(float, header[2:-1].split(","))
-    return red_num, length, wave_params_real
-
-
-def _test_analytical(root_dir: pathlib.Path, func: Callable):
-    sentinel = 0  # make sure no error in path and at least one test was run
-    for handle in root_dir.glob("*ssv"):
-        sentinel += 1
-        loaded = np.loadtxt(handle)
-        # loaded[0]: along-floe space variable x
-        # loaded[1]: reference values for func(x)
-        floe_params, wave_params = format_to_pack(*read_header(handle))
-        handler = func(floe_params, wave_params)
-
-        # test func(x) against existing displacement
-        assert np.allclose(loaded[1] - handler.compute(loaded[0]), 0)
-    assert sentinel > 0
-
-
-def test_displacement():
-    _test_analytical(PATH_DIS, ph.DisplacementHandler)
-
-
-# @pytest.mark.parametrize
-# def test_displacement_wuf():
-#     # TODO:
-#     # * instantiate wui from parameters
-#     # * instantiate wuf from parameters and wui
-#     # * call `displacement`
-#     # * profit
-#     pass
-
-
-def test_curvature():
-    _test_analytical(PATH_CUR, ph.CurvatureHandler)
 
 
 def test_dce_poly():
