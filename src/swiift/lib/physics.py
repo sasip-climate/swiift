@@ -187,7 +187,9 @@ class DisplacementHandler:
         an_sol: bool | None = None,
         num_params: dict | None = None,
     ):
-        if numerical._use_an_sol(an_sol, self.floe_params[1], self.growth_params):
+        if numerical._use_an_sol(
+            an_sol, self.floe_params[1], self.growth_params, linear_curvature=None
+        ):
             return self._dis(np.asarray(x))
         return numerical.displacement(
             x, self.floe_params, self.wave_params, self.growth_params, num_params
@@ -518,6 +520,7 @@ class EnergyHandler:
         num_params: dict | None = None,
         integration_method: str | None = None,
         linear_curvature: bool | None = None,
+        **kwargs,
     ) -> float:
         do_use_an_sol = numerical._use_an_sol(
             an_sol, self.floe_params[1], self.growth_params, linear_curvature
@@ -525,7 +528,7 @@ class EnergyHandler:
         if do_use_an_sol:
             unit_energy = self._egy_hom() + 2 * self._egy_m() + self._egy_par()
         else:
-            linear_curvature = True if linear_curvature else False
+            linear_curvature = True if linear_curvature is None else False
             # TODO: documenter le comportement par défault.
             # Inclure un comportement différent en mono (systématique) et poly
             # (stochastic), avec un warning si l'utilisation d'une méthode
@@ -538,6 +541,7 @@ class EnergyHandler:
                 num_params,
                 integration_method,
                 linear_curvature,
+                **kwargs,
             )
 
         return self.factor * unit_energy

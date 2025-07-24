@@ -5,8 +5,11 @@ import typing
 import warnings
 
 import numpy as np
+from scipy._lib._util import _RichResult
 import scipy.integrate as integrate
 import scipy.interpolate as interpolate
+
+from swiift.lib.constants import PI_2
 
 from ._ph_utils import _unit_wavefield
 
@@ -95,7 +98,7 @@ def _use_an_sol(
     analytical_solution: bool | None,
     length: float,
     growth_params: tuple | None,
-    linear_curvature: bool | None = None,
+    linear_curvature: bool | None,
 ) -> bool:
     """Determine whether to use an analytical solution.
 
@@ -138,8 +141,11 @@ def _use_an_sol(
         if linear_curvature is None or linear_curvature:
             # If the wave growth kernel mean is to the right of the floe
             # for every wave component, the wave is fully developed
-            # and the analytical solution can be used
-            return np.all(growth_params[0] > length)
+            # and the analytical solution can be used.
+            # Alternatively, if there is a single component of the kernel whose
+            # mean is to the left of the right edge, the numerical solution
+            # must be used.
+            return not np.any(growth_params[0] < length)
         return False
 
 
@@ -216,33 +222,120 @@ def _prepare_integrand(
     return unit_energy, (opt.x[0], opt.x[-1])
 
 
+def _estimate_quad_limit(
+    floe_length: float, wave_params: tuple[np.ndarray, np.ndarray]
+) -> int:
+    # wave_params := complex amplitudes, complex wavenumbers
+    # When using `quad`, there might be convergence issues if the integrand
+    # observes many oscillations wrt the range of integration, that is the
+    # length of the floe. A usual heuristic seems to be fixing `limit` to L /
+    # lambda * N with N between 10 to 20. Choosing a big number doesn't hurt
+    # computing time, as the integration stops when reaching the desired
+    # tolerance anyway.
+    factor = 20 / (PI_2)  # high N, scaled by 2pi to get a wavelength
+    # We arbitrarily choose the wavenumber associated with the largest spectral
+    # component.
+    most_significant_wavenumber = np.real(
+        wave_params[1][np.abs(wave_params[0]).argmax()]
+    )
+    # 50 is the default
+    return max(
+        50, np.ceil(factor * floe_length * most_significant_wavenumber).astype(int)
+    )
+
+
+@typing.overload
 def _quad_integration(
     integrand: Callable[[float], float],
     bounds: tuple[float, float],
+    limit: int,
+    debug: typing.Literal[True],
     **kwargs,
-) -> float:
-    result = integrate.quad(integrand, *bounds, **kwargs)
+) -> tuple[float, float]: ...
+
+
+@typing.overload
+def _quad_integration(
+    integrand: Callable[[float], float],
+    bounds: tuple[float, float],
+    limit: int,
+    debug: typing.Literal[False],
+    **kwargs,
+) -> float: ...
+
+
+@typing.overload
+def _quad_integration(
+    integrand: Callable[[float], float],
+    bounds: tuple[float, float],
+    limit: int,
+    debug: bool,
+    **kwargs,
+) -> float | tuple[float, float]: ...
+
+
+def _quad_integration(
+    integrand: Callable[[float], float],
+    bounds: tuple[float, float],
+    limit: int,
+    debug: bool,
+    **kwargs,
+) -> float | tuple[float, float]:
+    result = integrate.quad(integrand, *bounds, limit=limit, **kwargs)
+    if debug:
+        return result
     return result[0]
+
+
+@typing.overload
+def _tanhsinh_integration(
+    integrand: Callable[[np.ndarray], np.ndarray],
+    bounds: tuple[float, float],
+    debug: typing.Literal[True],
+    **kwargs,
+) -> _RichResult[float]: ...
+
+
+@typing.overload
+def _tanhsinh_integration(
+    integrand: Callable[[np.ndarray], np.ndarray],
+    bounds: tuple[float, float],
+    debug: typing.Literal[False],
+    **kwargs,
+) -> float: ...
+
+
+@typing.overload
+def _tanhsinh_integration(
+    integrand: Callable[[np.ndarray], np.ndarray],
+    bounds: tuple[float, float],
+    debug: bool,
+    **kwargs,
+) -> float | _RichResult[float]: ...
 
 
 def _tanhsinh_integration(
     integrand: Callable[[np.ndarray], np.ndarray],
     bounds: tuple[float, float],
+    debug: bool,
     **kwargs,
-) -> float:
+) -> float | _RichResult[float]:
     try:
         result = integrate.tanhsinh(integrand, *bounds, **kwargs)
     except AttributeError:
         warnings.warn(
             "tanhsinh integration was made public in scipy 1.15.0. "
             "Proceeding anyway, but you might want to upgrade if possible, "
-            "or use another method."
+            "or use another integration method."
         )
         result = integrate._tanhsinh.tanhsinh(integrand, *bounds, **kwargs)
+    if debug:
+        return result
 
     return result.integral
 
 
+# TODO: improve docstring
 def unit_energy(
     floe_params: tuple[float, float],
     wave_params: tuple[np.ndarray, np.ndarray],
@@ -258,11 +351,6 @@ def unit_energy(
 
     """
 
-    # TODO: actually pass the options to the integrator. For quad, there might
-    # be convergence issues if many oscillations wrt the length of the floe. A
-    # usual heuristic seems to be fixing `limit` to L / lambda * N with N
-    # between 10 to 20. Choosing a big number doesn't hurt computing time, as
-    # the integration stops when reaching the desired tolerance anyway.
     if integration_method is None:
         if hasattr(integrate, "tanhsinh"):
             integration_method = "tanhsinh"
@@ -277,8 +365,11 @@ def unit_energy(
     )
 
     if integration_method == "quad":
-        return _quad_integration(integrand, bounds, **kwargs)
+        limit = kwargs.pop("limit", None)
+        if limit is None:
+            limit = _estimate_quad_limit(floe_params[1], wave_params)
+        return _quad_integration(integrand, bounds, limit=limit, debug=False, **kwargs)
     elif integration_method == "tanhsinh":
-        return _tanhsinh_integration(integrand, bounds, **kwargs)
+        return _tanhsinh_integration(integrand, bounds, debug=False, **kwargs)
     else:
-        raise ValueError("Integration method should be `quad` or `tanhsinh`")
+        raise ValueError("Integration method should be `quad` or `tanhsinh`.")
