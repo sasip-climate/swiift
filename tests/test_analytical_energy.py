@@ -1,4 +1,5 @@
 import pathlib
+import typing
 
 import numpy as np
 import pytest
@@ -11,10 +12,76 @@ import swiift.lib.physics as ph
 PATH_EGY = pathlib.Path("tests/target/energy/")
 PATH_PLY = pathlib.Path("tests/target/poly_analytical/")
 
+TARGET_DIR = pathlib.Path("tests/target/physics_monochromatic")
+X_AXES = np.load(TARGET_DIR.joinpath("x.npy"))
+FLOE_PARAMS = np.load(TARGET_DIR.joinpath("floe_params.npy"))
+C_AMPLITUDES = np.load(TARGET_DIR.joinpath("c_amplitudes.npy"))
+C_WAVENUMBERS = np.load(TARGET_DIR.joinpath("c_wavenumbers.npy"))
+DISPLACEMENTS_MONO = np.load(TARGET_DIR.joinpath("displacement_mono.npy"))
+CURVATURES_MONO = np.load(TARGET_DIR.joinpath("curvature_mono.npy"))
+ENERGIES_MONO = np.load(TARGET_DIR.joinpath("energy_mono.npy"))
+
+T = typing.TypeVar("T", ph.DisplacementHandler, ph.CurvatureHandler, ph.EnergyHandler)
+
+
+def _init_handler(i: int, handler_type: type[T], has_growth_params: bool = False) -> T:
+    floe_params = FLOE_PARAMS[i]
+    wave_params = (C_AMPLITUDES[i], C_WAVENUMBERS[i])
+    if not has_growth_params:
+        growth_params = None
+    handler = handler_type(floe_params, wave_params, growth_params)
+    return handler
+
+
+def _test_mono(
+    i: int,
+    handler_type: type[ph.DisplacementHandler] | type[ph.CurvatureHandler],
+    an_sol: bool,
+    target: np.ndarray,
+):
+    x = X_AXES[i]
+    handler = _init_handler(i, handler_type, False)
+    computed = handler.compute(x, an_sol)
+    if an_sol:
+        assert np.allclose(computed, target[0, i])
+    else:
+        assert np.allclose(computed, target[1, i])
+
+
+@pytest.mark.parametrize("test_case_idx", range(len(X_AXES)))
+@pytest.mark.parametrize("an_sol", (True, False))
+def test_displacement_mono(test_case_idx: int, an_sol: bool):
+    _test_mono(test_case_idx, ph.DisplacementHandler, an_sol, DISPLACEMENTS_MONO)
+
+
+@pytest.mark.parametrize("test_case_idx", range(len(X_AXES)))
+@pytest.mark.parametrize("an_sol", (True, False))
+def test_curvature_mono(test_case_idx: int, an_sol: bool):
+    _test_mono(test_case_idx, ph.CurvatureHandler, an_sol, CURVATURES_MONO)
+
+
+@pytest.mark.parametrize("test_case_idx", range(len(X_AXES)))
+@pytest.mark.parametrize("params", ((True, None), (False, "tanhsinh"), (False, "quad")))
+def test_energy_mono(test_case_idx: int, params: tuple[bool, str | None]):
+    i = test_case_idx
+    handler = _init_handler(test_case_idx, ph.EnergyHandler, False)
+
+    an_sol, integration_method = params
+    computed = handler.compute(an_sol=an_sol, integration_method=integration_method)
+    if an_sol:
+        assert np.allclose(computed, ENERGIES_MONO[0, i])
+    else:
+        if integration_method == "tanhsinh":
+            assert np.allclose(computed, ENERGIES_MONO[1, i])
+        elif integration_method == "quad":
+            assert np.allclose(computed, ENERGIES_MONO[2, i])
+        else:
+            raise ValueError
+
 
 def format_to_pack(
     red_num, length, wave_params_real
-) -> tuple[tuple[float], tuple[np.ndarray]]:
+) -> tuple[tuple[float, float], tuple[np.ndarray, np.ndarray]]:
     # format raw floats to fields of Handlers
     floe_params = red_num, length
     wave_params = tuple(
