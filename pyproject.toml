@@ -33,6 +33,7 @@ path = "src/swiift/__about__.py"
 [tool.hatch.envs.hatch-test]
 dependencies = [
     "pytest",
+    "pytest-benchmark",
     "pytest-mock",
     "pytest-skip-slow",
     "pytest-xdist",
@@ -58,7 +59,7 @@ extra-dependencies = ["mypy>=1.0.0"]
 check = "mypy --install-types --non-interactive {args:src/swiift tests}"
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib"]
+addopts = "--import-mode=importlib --benchmark-disable"
 markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
 [tool.coverage.run]

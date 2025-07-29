@@ -38,10 +38,11 @@ def _test_mono(
     handler_type: type[ph.DisplacementHandler] | type[ph.CurvatureHandler],
     an_sol: bool,
     target: np.ndarray,
+    benchmark,
 ):
     x = X_AXES[i]
     handler = _init_handler(i, handler_type, False)
-    computed = handler.compute(x, an_sol)
+    computed = benchmark(handler.compute, x, an_sol)
     if an_sol:
         assert np.allclose(computed, target[0, i])
     else:
@@ -50,24 +51,44 @@ def _test_mono(
 
 @pytest.mark.parametrize("test_case_idx", range(len(X_AXES)))
 @pytest.mark.parametrize("an_sol", (True, False))
-def test_displacement_mono(test_case_idx: int, an_sol: bool):
-    _test_mono(test_case_idx, ph.DisplacementHandler, an_sol, DISPLACEMENTS_MONO)
+@pytest.mark.benchmark(group="Displacement mono: ")
+def test_displacement_mono(benchmark, test_case_idx: int, an_sol: bool):
+    benchmark.group += f"case: {test_case_idx:02d}"
+    _test_mono(
+        test_case_idx, ph.DisplacementHandler, an_sol, DISPLACEMENTS_MONO, benchmark
+    )
 
 
 @pytest.mark.parametrize("test_case_idx", range(len(X_AXES)))
 @pytest.mark.parametrize("an_sol", (True, False))
-def test_curvature_mono(test_case_idx: int, an_sol: bool):
-    _test_mono(test_case_idx, ph.CurvatureHandler, an_sol, CURVATURES_MONO)
+@pytest.mark.benchmark(group="Curvature mono: ")
+def test_curvature_mono(benchmark, test_case_idx: int, an_sol: bool):
+    benchmark.group += f"case: {test_case_idx:02d}"
+    _test_mono(test_case_idx, ph.CurvatureHandler, an_sol, CURVATURES_MONO, benchmark)
 
 
 @pytest.mark.parametrize("test_case_idx", range(len(X_AXES)))
-@pytest.mark.parametrize("params", ((True, None), (False, "tanhsinh"), (False, "quad")))
-def test_energy_mono(test_case_idx: int, params: tuple[bool, str | None]):
+@pytest.mark.parametrize(
+    "integration_method",
+    (
+        None,
+        "tanhsinh",
+        "quad",
+    ),
+)
+@pytest.mark.benchmark(group="Energy mono: ")
+def test_energy_mono(benchmark, test_case_idx: int, integration_method: str | None):
+    benchmark.group += f"case: {test_case_idx:02d}"
     i = test_case_idx
-    handler = _init_handler(test_case_idx, ph.EnergyHandler, False)
+    handler: ph.EnergyHandler = _init_handler(test_case_idx, ph.EnergyHandler, False)
 
-    an_sol, integration_method = params
-    computed = handler.compute(an_sol=an_sol, integration_method=integration_method)
+    if integration_method is None:
+        an_sol = True
+    else:
+        an_sol = False
+    computed = benchmark(
+        handler.compute, an_sol=an_sol, integration_method=integration_method
+    )
     if an_sol:
         assert np.allclose(computed, ENERGIES_MONO[0, i])
     else:
