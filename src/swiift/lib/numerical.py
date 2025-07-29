@@ -320,6 +320,10 @@ def _tanhsinh_integration(
     debug: bool,
     **kwargs,
 ) -> float | _RichResult[float]:
+    default_quad_tol = 1.49e-8
+    for key in ("atol", "rtol"):
+        if key not in kwargs:
+            kwargs[key] = default_quad_tol
     try:
         result = integrate.tanhsinh(integrand, *bounds, **kwargs)
     except AttributeError:
