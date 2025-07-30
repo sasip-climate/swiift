@@ -72,6 +72,7 @@ def test_curvature_mono(benchmark, test_case_idx: int, an_sol: bool):
     "integration_method",
     (
         None,
+        "pseudo_an",
         "tanhsinh",
         "quad",
     ),
@@ -80,7 +81,11 @@ def test_curvature_mono(benchmark, test_case_idx: int, an_sol: bool):
 def test_energy_mono(benchmark, test_case_idx: int, integration_method: str | None):
     benchmark.group += f"case: {test_case_idx:02d}"
     i = test_case_idx
-    handler: ph.EnergyHandler = _init_handler(test_case_idx, ph.EnergyHandler, False)
+    handler: ph.EnergyHandler = _init_handler(
+        test_case_idx,
+        ph.EnergyHandler,
+        False,
+    )
 
     if integration_method is None:
         an_sol = True
@@ -92,12 +97,15 @@ def test_energy_mono(benchmark, test_case_idx: int, integration_method: str | No
     if an_sol:
         assert np.allclose(computed, ENERGIES_MONO[0, i])
     else:
-        if integration_method == "tanhsinh":
+        if integration_method == "pseudo_an":
             assert np.allclose(computed, ENERGIES_MONO[1, i])
-        elif integration_method == "quad":
+        elif integration_method == "tanhsinh":
             assert np.allclose(computed, ENERGIES_MONO[2, i])
+        elif integration_method == "quad":
+            assert np.allclose(computed, ENERGIES_MONO[3, i])
         else:
-            raise ValueError
+            print(integration_method)
+            raise ValueError(f"Invalid integration method: {integration_method}.")
 
 
 def format_to_pack(
