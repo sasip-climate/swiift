@@ -283,6 +283,8 @@ def _pseudo_analytical_integration(
     curvature_poly, bounds = _prepare_integrand0(
         floe_params, wave_params, growth_params, num_params, True
     )
+    # TODO: integral could be computed manually, without building the PPoly
+    # object first.
     squared_curvature = _square_cubic_poly(curvature_poly)
     bounds = 0, floe_params[1]
     return squared_curvature.integrate(*bounds).item()
