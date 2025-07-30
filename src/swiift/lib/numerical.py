@@ -17,6 +17,8 @@ IV = typing.TypeVar(
     "IV", float, np.ndarray[tuple[int], np.dtype[np.float64]]
 )  # Integration variable.
 
+CUBIC_BINOMIAL_COEFS = np.array([0, 0, 0, 1, 1, 2]), np.array([1, 2, 3, 2, 3, 3])
+
 
 def _growth_kernel(x: np.ndarray, mean: np.ndarray, std):
     kern = np.ones((mean.size, x.size))
@@ -206,20 +208,105 @@ def curvature(
     return _extract_cur_poly(opt.sol, is_linear)(x)
 
 
-def _prepare_integrand(
+@typing.overload
+def _prepare_integrand0(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params,
+    num_params,
+    linear_curvature: typing.Literal[True],
+) -> tuple[interpolate.PPoly, tuple[float, float]]: ...
+
+
+@typing.overload
+def _prepare_integrand0(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params,
+    num_params,
+    linear_curvature: typing.Literal[False],
+) -> tuple[typing.Callable[[IV], np.ndarray], tuple[float, float]]: ...
+
+
+@typing.overload
+def _prepare_integrand0(
     floe_params: tuple[float, float],
     wave_params: tuple[np.ndarray, np.ndarray],
     growth_params,
     num_params,
     linear_curvature: bool,
-) -> tuple[Callable[[IV], IV], tuple[float, float]]:
+) -> tuple[
+    interpolate.PPoly | typing.Callable[[IV], np.ndarray], tuple[float, float]
+]: ...
+
+
+def _prepare_integrand0(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params,
+    num_params,
+    linear_curvature: bool,
+):
     opt = _get_result(floe_params, wave_params, growth_params, num_params)
     curvature_poly = _extract_cur_poly(opt.sol, linear_curvature)
+    bounds = opt.x[0], opt.x[-1]
+    return curvature_poly, bounds
+
+
+def _square_cubic_poly(ppoly: interpolate.PPoly) -> interpolate.PPoly:
+    # PPoly object have coefficients ordered opposite wrt to powers. That is,
+    # for a cubic, c[0] is the coefficient of the cubic term, c[3] of the
+    # constant term.
+    new_cs = np.zeros((ppoly.c.shape[0] * 2 - 1, ppoly.c.shape[1]))
+    cs = ppoly.c
+    idx1, idx2 = CUBIC_BINOMIAL_COEFS
+    new_cs[::2, :] = cs**2
+    extra_terms = 2 * cs[idx1] * cs[idx2]
+
+    # Need to do them one by one to avoid silent errors, as idx1 + idx2 has
+    # values with multiplicity > 1.
+    for idx, term in zip(idx1 + idx2, extra_terms):
+        new_cs[idx] += term
+
+    return interpolate.PPoly(new_cs, ppoly.x)
+
+
+def _pseudo_analytical_integration(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params: tuple | None,
+    num_params: dict,
+) -> float:
+    # TODO: for now, only works with linear curvature. Could be adapted to
+    # nonlinear curvature, it would just require the partial fraction
+    # decomposition of the ratio of two 6th order polynomials.
+    curvature_poly, bounds = _prepare_integrand0(
+        floe_params, wave_params, growth_params, num_params, True
+    )
+    squared_curvature = _square_cubic_poly(curvature_poly)
+    bounds = 0, floe_params[1]
+    return squared_curvature.integrate(*bounds).item()
+
+
+def _prepare_integrand(
+    floe_params: tuple[float, float],
+    wave_params: tuple[np.ndarray, np.ndarray],
+    growth_params: tuple | None,
+    num_params: dict,
+    linear_curvature: bool,
+) -> tuple[Callable[[IV], IV], tuple[float, float]]:
+    curvature_poly, bounds = _prepare_integrand0(
+        floe_params,
+        wave_params,
+        growth_params,
+        num_params,
+        linear_curvature,
+    )
 
     def unit_energy(x):
         return curvature_poly(x) ** 2
 
-    return unit_energy, (opt.x[0], opt.x[-1])
+    return unit_energy, bounds
 
 
 def _estimate_quad_limit(
@@ -354,12 +441,27 @@ def unit_energy(
     The energy is up to a prefactor.
 
     """
+    if not linear_curvature and integration_method == "pseudo_an":
+        warnings.warn(
+            f"The method {integration_method} can only be used with linear curvature. "
+            "Using tanhsinh instead."
+        )
+        integration_method = "tanhsinh"
 
     if integration_method is None:
-        if hasattr(integrate, "tanhsinh"):
-            integration_method = "tanhsinh"
+        if linear_curvature:
+            integration_method = "pseudo_an"
         else:
-            integration_method = "quad"
+            if hasattr(integrate, "tanhsinh"):
+                integration_method = "tanhsinh"
+            else:
+                integration_method = "quad"
+
+    if integration_method == "pseudo_an":
+        return _pseudo_analytical_integration(
+            floe_params, wave_params, growth_params, num_params
+        )
+
     integrand, bounds = _prepare_integrand(
         floe_params,
         wave_params,
@@ -376,4 +478,6 @@ def unit_energy(
     elif integration_method == "tanhsinh":
         return _tanhsinh_integration(integrand, bounds, debug=False, **kwargs)
     else:
-        raise ValueError("Integration method should be `quad` or `tanhsinh`.")
+        raise ValueError(
+            "Integration method should be `pseudo_an`, `quad`, or `tanhsinh`."
+        )
