@@ -436,6 +436,7 @@ def unit_energy(
     num_params,
     integration_method: str | None = None,
     linear_curvature: bool = True,
+    debug: bool = False,
     **kwargs,
 ) -> float:
     """Numerically evaluate the energy.
@@ -476,9 +477,9 @@ def unit_energy(
         limit = kwargs.pop("limit", None)
         if limit is None:
             limit = _estimate_quad_limit(floe_params[1], wave_params)
-        return _quad_integration(integrand, bounds, limit=limit, debug=False, **kwargs)
+        return _quad_integration(integrand, bounds, limit=limit, debug=debug, **kwargs)
     elif integration_method == "tanhsinh":
-        return _tanhsinh_integration(integrand, bounds, debug=False, **kwargs)
+        return _tanhsinh_integration(integrand, bounds, debug=debug, **kwargs)
     else:
         raise ValueError(
             "Integration method should be `pseudo_an`, `quad`, or `tanhsinh`."
