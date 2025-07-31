@@ -6,8 +6,6 @@ import pytest
 
 import swiift.lib.physics as ph
 
-# TODO: fiture these tests instead of running loops in individual functions
-
 # Test configurations visually examined against solution from scipy.solve_bvp
 PATH_EGY = pathlib.Path("tests/target/energy/")
 PATH_PLY = pathlib.Path("tests/target/poly_analytical/")
