@@ -321,16 +321,11 @@ def _estimate_quad_limit(
     # lambda * N with N between 10 to 20. Choosing a big number doesn't hurt
     # computing time, as the integration stops when reaching the desired
     # tolerance anyway.
-    factor = 20 / (PI_2)  # high N, scaled by 2pi to get a wavelength
-    # We arbitrarily choose the wavenumber associated with the largest spectral
-    # component.
-    most_significant_wavenumber = np.real(
-        wave_params[1][np.abs(wave_params[0]).argmax()]
-    )
+    factor = 20 / PI_2  # high N, scaled by 2pi to get a wavelength
+    # We arbitrarily choose highest wavenumber.
+    highest_wave_number = np.real(wave_params[1]).max()
     # 50 is the default
-    return max(
-        50, np.ceil(factor * floe_length * most_significant_wavenumber).astype(int)
-    )
+    return max(50, np.ceil(factor * floe_length * highest_wave_number).astype(int))
 
 
 @typing.overload
