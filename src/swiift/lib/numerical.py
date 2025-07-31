@@ -283,6 +283,8 @@ def _pseudo_analytical_integration(
     curvature_poly, bounds = _prepare_integrand0(
         floe_params, wave_params, growth_params, num_params, True
     )
+    # TODO: integral could be computed manually, without building the PPoly
+    # object first.
     squared_curvature = _square_cubic_poly(curvature_poly)
     bounds = 0, floe_params[1]
     return squared_curvature.integrate(*bounds).item()
@@ -319,16 +321,11 @@ def _estimate_quad_limit(
     # lambda * N with N between 10 to 20. Choosing a big number doesn't hurt
     # computing time, as the integration stops when reaching the desired
     # tolerance anyway.
-    factor = 20 / (PI_2)  # high N, scaled by 2pi to get a wavelength
-    # We arbitrarily choose the wavenumber associated with the largest spectral
-    # component.
-    most_significant_wavenumber = np.real(
-        wave_params[1][np.abs(wave_params[0]).argmax()]
-    )
+    factor = 20 / PI_2  # high N, scaled by 2pi to get a wavelength
+    # We arbitrarily choose highest wavenumber.
+    highest_wave_number = np.real(wave_params[1]).max()
     # 50 is the default
-    return max(
-        50, np.ceil(factor * floe_length * most_significant_wavenumber).astype(int)
-    )
+    return max(50, np.ceil(factor * floe_length * highest_wave_number).astype(int))
 
 
 @typing.overload
@@ -434,6 +431,7 @@ def unit_energy(
     num_params,
     integration_method: str | None = None,
     linear_curvature: bool = True,
+    debug: bool = False,
     **kwargs,
 ) -> float:
     """Numerically evaluate the energy.
@@ -474,9 +472,9 @@ def unit_energy(
         limit = kwargs.pop("limit", None)
         if limit is None:
             limit = _estimate_quad_limit(floe_params[1], wave_params)
-        return _quad_integration(integrand, bounds, limit=limit, debug=False, **kwargs)
+        return _quad_integration(integrand, bounds, limit=limit, debug=debug, **kwargs)
     elif integration_method == "tanhsinh":
-        return _tanhsinh_integration(integrand, bounds, debug=False, **kwargs)
+        return _tanhsinh_integration(integrand, bounds, debug=debug, **kwargs)
     else:
         raise ValueError(
             "Integration method should be `pseudo_an`, `quad`, or `tanhsinh`."
