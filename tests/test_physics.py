@@ -23,6 +23,7 @@ N_CASES_MONO = 49
 N_N_FREQS = 8  # number of different spectral lengths (2 to 100)
 N_TRIES = 5  # number of tries per spectral length
 N_CASES_POLY = N_N_FREQS * N_TRIES
+INTEGRATION_METHODS = "pseudo_an", "tanhsinh", "quad"
 
 
 def _flatten_and_squeeze(array: np.ndarray, size: int):
@@ -326,6 +327,7 @@ class _TestPhysics(abc.ABC):
     @pytest.mark.parametrize(
         "integration_method", (None, "pseudo_an", "tanhsinh", "quad")
     )
+    @pytest.mark.parametrize("integration_method", (None, *INTEGRATION_METHODS))
     @pytest.mark.filterwarnings("ignore::scipy.integrate.IntegrationWarning")
     def test_energy(
         self,
@@ -369,17 +371,7 @@ class _TestPhysics(abc.ABC):
             i = 0
         else:
             an_sol = False
-            match integration_method:
-                case "pseudo_an":
-                    i = 1
-                case "tanhsinh":
-                    i = 2
-                case "quad":
-                    i = 3
-                case _:
-                    raise ValueError(
-                        f"Invalid integration method: {integration_method}."
-                    )
+            i = 1 + INTEGRATION_METHODS.index(integration_method)
 
         computed = benchmark(
             handler.compute, an_sol=an_sol, integration_method=integration_method
