@@ -362,7 +362,7 @@ def _quad_integration(
     integrand: Callable[[float], float],
     bounds: tuple[float, float],
     limit: int,
-    debug: bool,
+    debug: bool = False,
     **kwargs,
 ) -> float | tuple[float, float]:
     result = integrate.quad(integrand, *bounds, limit=limit, **kwargs)
@@ -401,7 +401,7 @@ def _tanhsinh_integration(
 def _tanhsinh_integration(
     integrand: Callable[[np.ndarray], np.ndarray],
     bounds: tuple[float, float],
-    debug: bool,
+    debug: bool = False,
     **kwargs,
 ) -> float | _RichResult[float]:
     default_quad_tol = 1.49e-8
@@ -431,7 +431,6 @@ def unit_energy(
     num_params,
     integration_method: str | None = None,
     linear_curvature: bool = True,
-    debug: bool = False,
     **kwargs,
 ) -> float:
     """Numerically evaluate the energy.
@@ -472,9 +471,9 @@ def unit_energy(
         limit = kwargs.pop("limit", None)
         if limit is None:
             limit = _estimate_quad_limit(floe_params[1], wave_params)
-        return _quad_integration(integrand, bounds, limit=limit, debug=debug, **kwargs)
+        return _quad_integration(integrand, bounds, limit=limit, **kwargs)
     elif integration_method == "tanhsinh":
-        return _tanhsinh_integration(integrand, bounds, debug=debug, **kwargs)
+        return _tanhsinh_integration(integrand, bounds, **kwargs)
     else:
         raise ValueError(
             "Integration method should be `pseudo_an`, `quad`, or `tanhsinh`."
