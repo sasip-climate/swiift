@@ -5,3 +5,4 @@
 __pycache__
 tests/.coverage*
 .benchmarks/*
+ReadMeOar.txt
