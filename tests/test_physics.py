@@ -203,6 +203,9 @@ class _TestPhysics(abc.ABC):
     def displacements(self) -> np.ndarray:
         """Vertical displacement targets.
 
+        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
+        solution (0) or numerical solution (1).
+
         Returns
         -------
         np.ndarray
@@ -214,6 +217,9 @@ class _TestPhysics(abc.ABC):
     def curvatures(self) -> np.ndarray:
         """Curvature targets.
 
+        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
+        solution (0) or numerical solution (1).
+
         Returns
         -------
         np.ndarray
@@ -224,6 +230,9 @@ class _TestPhysics(abc.ABC):
     @pytest.fixture(scope="class")
     def energies(self) -> np.ndarray:
         """Energy targets.
+
+        Shape: (4, n_cases). The first dimension is for analytical solution (0)
+        or numerical solution: pseudo_an (1), tanhsinh (2), quad (3).
 
         Returns
         -------
