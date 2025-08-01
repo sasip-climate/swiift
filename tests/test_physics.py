@@ -25,7 +25,71 @@ N_TRIES = 5  # number of tries per spectral length
 N_CASES_POLY = N_N_FREQS * N_TRIES
 
 
-def _flatten_and_squeeze(array, size):
+def _flatten_and_squeeze(array: np.ndarray, size: int):
+    """Reshape an array by contracting middle dimensions.
+
+    This function is intented to be flexible enough to transform
+    different-shaped targets of mono- and polychromatic parameters to a
+    standard shape that can be interpreted (and looped over) by the test
+    functions.
+
+    The reshaping outputs an array of dimension 3. However, its axes of length
+    1 are removed before returning it. Therefore, the returned array is at most
+    of dimension 3.
+
+    The first dimension of the array is preserved. If the reshaping is expected
+    to happen over that first dimension, expand the array by adding a dimension
+    before passing it to this function (see example).
+
+    Parameters
+    ----------
+    array : np.ndarray
+        ND-array to reshape.
+    size : int
+        Size several dimensions will be reshaped to.
+
+    Returns
+    -------
+    np.ndarray
+        The reshaped array, squeezed to remove remaining axes of size 1.
+
+    Examples
+    --------
+    Situation corresponding to the polychromatic displacement and curvature
+    targets. The two middle dimensions are contracted into one, preserving the
+    first and last original dimensions.
+
+    >>> arr1 = np.empty((2, 8, 5, 20))
+    >>> arr1.shape
+    (2, 8, 5, 20)
+    >>> _flatten_and_squeeze(arr1, 40).shape
+    (2, 40, 20)
+
+    Situation corresponding to the polychromatic energy target. The two last
+    dimensions are contracted into one. The initial reshaped array has shape
+    (4, 40, 1). That last axis is squeezed out.
+
+    >>> arr2 = np.empty((4, 8, 5))
+    >>> arr2.shape
+    (4, 8, 5)
+    >>> _flatten_and_squeeze(arr2, 40).shape
+    (4, 40)
+
+    Situation corresponding to the monochromatic floe_params input. No
+    contraction is necessary, but the function handles that case for
+    genericity; provided the user takes care to add an extra dimension to the
+    array before passing it. The argument received by the function therefore
+    has shape (1, 49, 2). After the initial reshaping, the array has shape
+    (1, 49, 2, 1). The first and last axes are squeezed out, returing exactly
+    the initial array.
+
+    >>> arr3 = np.empty((49, 2))
+    >>> arr3.shape
+    (49, 2)
+    >>> _flatten_and_squeeze(np.expand_dims(arr3, 0), 49).shape
+    (49, 2)
+
+    """
     return np.squeeze(np.reshape(array, (array.shape[0], size, -1)))
 
 
