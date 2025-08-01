@@ -102,7 +102,7 @@ class _TestPhysics(abc.ABC):
             (ph.CurvatureHandler, "curvatures"),
         ),
     )
-    @pytest.mark.benchmark(group="Local: ")
+    @pytest.mark.benchmark(group=": ")
     def test_local(
         self,
         request: pytest.FixtureRequest,
@@ -115,6 +115,9 @@ class _TestPhysics(abc.ABC):
         j: int,
         benchmark: BenchmarkFixture,
     ):
+        benchmark.group = (
+            f"{str(self.target_dir).split()[-1]}_{target_name}:case_{j:02d}"
+        )
         i = 0 if an_sol else 1
         target = request.getfixturevalue(target_name)
         x = x_axes[j]
@@ -133,7 +136,7 @@ class _TestPhysics(abc.ABC):
             "quad",
         ),
     )
-    @pytest.mark.benchmark(group="Energy: ")
+    @pytest.mark.benchmark(group="")
     def test_energy(
         self,
         floe_params_all: np.ndarray,
@@ -143,7 +146,7 @@ class _TestPhysics(abc.ABC):
         j: int,
         benchmark,
     ):
-        benchmark.group += f"case: {j:02d}"
+        benchmark.group = f"{str(self.target_dir).split()[-1]}_energy:case_{j:02d}"
         floe_params = floe_params_all[j]
         wave_params = wave_params_all[j]
         handler = ph.EnergyHandler(floe_params, wave_params)
