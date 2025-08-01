@@ -10,18 +10,17 @@ import pytest
 import swiift.lib.physics as ph
 
 if typing.TYPE_CHECKING:
-    from pytest_benchmark.fixture import BenchmarkFixture
+    from pytest_benchmark.fixture import BenchmarkFixture  # type: ignore
 
-# Test configurations visually examined against solution from scipy.solve_bvp
+# Test configurations visually examined against solution from scipy.solve_bvp.
 TARGET_DIR_MONO = pathlib.Path("tests/target/physics_monochromatic")
 TARGET_DIR_POLY = pathlib.Path("tests/target/physics_polychromatic")
 
-T = typing.TypeVar("T", ph.DisplacementHandler, ph.CurvatureHandler, ph.EnergyHandler)
-
-# Hard-coded for ease of use within parametrize decorators. Tests ensure these
-# numbers match the dimensions of the targets.
+# Hard-coded for ease of use within parametrize decorators.
+# Tests ensure these numbers match the dimensions of the targets
+# (specifically, _TestPhysics::test_dimensions).
 N_CASES_MONO = 49
-N_N_FREQS = 8  # number of different spectral lengths
+N_N_FREQS = 8  # number of different spectral lengths (2 to 100)
 N_TRIES = 5  # number of tries per spectral length
 N_CASES_POLY = N_N_FREQS * N_TRIES
 
@@ -136,7 +135,7 @@ class _TestPhysics(abc.ABC):
             "quad",
         ),
     )
-    @pytest.mark.benchmark(group="")
+    @pytest.mark.filterwarnings("ignore::scipy.integrate.IntegrationWarning")
     def test_energy(
         self,
         floe_params_all: np.ndarray,
