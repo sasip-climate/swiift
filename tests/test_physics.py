@@ -32,20 +32,15 @@ def _flatten_and_squeeze(array: np.ndarray, n_dims_to_keep: int, expected_size: 
     This function is intented to be flexible enough to transform
     different-shaped targets of mono- and polychromatic parameters to a
     standard shape that can be interpreted (and looped over) by the test
-    functions.
-
-    The reshaping outputs an array of dimension 3. However, its axes of length
-    1 are removed before returning it. Therefore, the returned array is at most
-    of dimension 3.
-
-    The first dimension of the array is preserved. If the reshaping is expected
-    to happen over that first dimension, expand the array by adding a dimension
-    before passing it to this function (see example).
+    functions. The first `n_dims_to_keep` dimensions of the array are
+    preserved.
 
     Parameters
     ----------
     array : np.ndarray
         ND-array to reshape.
+    n_dims_to_keep : int
+        Number of leading dimensions to preserve.
     size : int
         Size several dimensions will be reshaped to.
 
@@ -63,7 +58,7 @@ def _flatten_and_squeeze(array: np.ndarray, n_dims_to_keep: int, expected_size: 
     >>> arr1 = np.empty((2, 8, 5, 20))
     >>> arr1.shape
     (2, 8, 5, 20)
-    >>> _flatten_and_squeeze(arr1, 40).shape
+    >>> _flatten_and_squeeze(arr1, 1, 40).shape
     (2, 40, 20)
 
     Situation corresponding to the polychromatic energy target. The two last
@@ -73,22 +68,29 @@ def _flatten_and_squeeze(array: np.ndarray, n_dims_to_keep: int, expected_size: 
     >>> arr2 = np.empty((4, 8, 5))
     >>> arr2.shape
     (4, 8, 5)
-    >>> _flatten_and_squeeze(arr2, 40).shape
+    >>> _flatten_and_squeeze(arr2, 1, 40).shape
     (4, 40)
 
     Situation corresponding to the monochromatic floe_params input. No
     contraction is necessary, but the function handles that case for
-    genericity; provided the user takes care to add an extra dimension to the
-    array before passing it. The argument received by the function therefore
-    has shape (1, 49, 2). After the initial reshaping, the array has shape
-    (1, 49, 2, 1). The first and last axes are squeezed out, returing exactly
-    the initial array.
+    genericity, returing exactly the initial array.
 
     >>> arr3 = np.empty((49, 2))
     >>> arr3.shape
     (49, 2)
-    >>> _flatten_and_squeeze(np.expand_dims(arr3, 0), 49).shape
+    >>> _flatten_and_squeeze(arr3, 0, 49).shape
     (49, 2)
+
+    Situation corresponding to the polychromatic floe_params input. This time,
+    contraction is necessary and behaves as expected. This spares us from
+    overriding the `floe_params_all` in the concrete classes, which can rely on
+    the behaviour of the abstract class, to produce the same kinds of ouputs.
+
+    >>> arr4 = np.empty((8, 5, 2))
+    >>> arr4.shape
+    (8, 5, 2)
+    >>> _flatten_and_squeeze(arr4, 0, 40).shape
+    (40, 2)
 
     """
     return np.squeeze(
@@ -132,7 +134,6 @@ class _TestPhysics(abc.ABC):
         if "j" in metafunc.fixturenames:
             metafunc.parametrize("j", range(self.n_cases))
 
-    # TODO:docstring
     def _flatten_and_squeeze(
         self, array: np.ndarray, n_dims_to_keep: int = 0
     ) -> np.ndarray:
@@ -142,6 +143,8 @@ class _TestPhysics(abc.ABC):
         ----------
         array : np.ndarray
             Array to be reshaped.
+        n_dims_to_keep : int
+            Number of leading dimensions to preserve.
 
         Returns
         -------
@@ -207,12 +210,14 @@ class _TestPhysics(abc.ABC):
     def displacements(self) -> np.ndarray:
         """Vertical displacement targets.
 
-        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
-        solution (0) or numerical solution (1).
-
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
+        solution (0) or numerical solution (1).
 
         """
         return self._flatten_and_squeeze(self._load("displacements.npy"), 1)
@@ -227,6 +232,10 @@ class _TestPhysics(abc.ABC):
         -------
         np.ndarray
 
+        Notes
+        -----
+        Shape: (n_cases, len(x_axes)).
+
         """
         return self._flatten_and_squeeze(self._load("displacements_growth.npy"))
 
@@ -234,12 +243,14 @@ class _TestPhysics(abc.ABC):
     def curvatures(self) -> np.ndarray:
         """Curvature targets.
 
-        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
-        solution (0) or numerical solution (1).
-
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
+        solution (0) or numerical solution (1).
 
         """
         return self._flatten_and_squeeze(self._load("curvatures.npy"), 1)
@@ -248,11 +259,13 @@ class _TestPhysics(abc.ABC):
     def curvatures_growth(self) -> np.ndarray:
         """Curvature targets, with wave growth.
 
-        Shape: (n_cases, len(x_axes)).
-
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (n_cases, len(x_axes)).
 
         """
         return self._flatten_and_squeeze(self._load("curvatures_growth.npy"))
@@ -261,12 +274,14 @@ class _TestPhysics(abc.ABC):
     def energies(self) -> np.ndarray:
         """Energy targets.
 
-        Shape: (4, n_cases). The first dimension is for analytical solution (0)
-        or numerical solution: pseudo_an (1), tanhsinh (2), quad (3).
-
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (4, n_cases). The first dimension is for analytical solution (0)
+        or numerical solution: pseudo_an (1), tanhsinh (2), quad (3).
 
         """
         return self._flatten_and_squeeze(self._load("energies.npy"), 1)
@@ -275,12 +290,14 @@ class _TestPhysics(abc.ABC):
     def energies_growth(self) -> np.ndarray:
         """Energy targets.
 
-        Shape: (3, n_cases). The first dimension corresponds to an entry in
-        INTEGRATION_METHODS.
-
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (3, n_cases). The first dimension corresponds to an entry in
+        INTEGRATION_METHODS.
 
         """
         return self._flatten_and_squeeze(self._load("energies_growth.npy"), 1)
@@ -335,7 +352,6 @@ class _TestPhysics(abc.ABC):
             (ph.CurvatureHandler, "curvatures"),
         ),
     )
-    @pytest.mark.benchmark(group=": ")
     def test_local(
         self,
         request: pytest.FixtureRequest,
@@ -381,7 +397,9 @@ class _TestPhysics(abc.ABC):
         floe_params = floe_params_all[j]
         wave_params = wave_params_all[j]
         handler = handler_type(floe_params, wave_params)
+
         computed = benchmark(handler.compute, x, an_sol=an_sol)
+
         assert np.allclose(computed, target[i, j])
 
     @pytest.mark.parametrize(
@@ -401,7 +419,6 @@ class _TestPhysics(abc.ABC):
         handler_type: type[ph.DisplacementHandler] | type[ph.CurvatureHandler],
         target_name: str,
         j: int,
-        benchmark: BenchmarkFixture,
     ):
         """Compare local quantities (displacement, curvature) to targets.
 
@@ -418,12 +435,8 @@ class _TestPhysics(abc.ABC):
             The name of the fixture providing the target.
         j : int
             Index of the test case.
-        benchmark : BenchmarkFixture
 
         """
-        benchmark.group = (
-            f"{str(self.target_dir).split()[-1]}_{target_name}:case_{j:02d}"
-        )
         # Pytest magic, get fixture by name as fixtures cannot be used directly
         # in parametrize.
         target = request.getfixturevalue(target_name)
@@ -432,7 +445,9 @@ class _TestPhysics(abc.ABC):
         wave_params = wave_params_all[j]
         growth_params = growth_params_all[j]
         handler = handler_type(floe_params, wave_params, growth_params)
-        computed = benchmark(handler.compute, x)
+
+        computed = handler.compute(x)
+
         assert np.allclose(computed, target[j])
 
     @pytest.mark.parametrize("integration_method", (None, *INTEGRATION_METHODS))
@@ -484,9 +499,11 @@ class _TestPhysics(abc.ABC):
         computed = benchmark(
             handler.compute, an_sol=an_sol, integration_method=integration_method
         )
+
         assert np.allclose(computed, energies[i, j])
 
     @pytest.mark.parametrize("integration_method", INTEGRATION_METHODS)
+    @pytest.mark.filterwarnings("ignore::scipy.integrate.IntegrationWarning")
     def test_energy_with_growth(
         self,
         floe_params_all: np.ndarray,
@@ -511,6 +528,15 @@ class _TestPhysics(abc.ABC):
             Index of the test case.
         benchmark : BenchmarkFixture
 
+        Warns
+        -----
+        Two cases (j in {7, 29}) raise an IntegrationWarning when
+        using the quad method, for the polychromatic case. This is expected and
+        non consequantial; the issue ("[...] The error may be underestimated.")
+        happens when generating the test cases, and the accuracy (when compared
+        to other methods) is correct. We thus filter the warnings when running
+        the test to avoid clutter.
+
         """
         benchmark.group = (
             f"{str(self.target_dir).split()[-1]}_energy_with_growth:case_{j:02d}"
@@ -522,6 +548,7 @@ class _TestPhysics(abc.ABC):
         handler = ph.EnergyHandler(floe_params, wave_params, growth_params)
 
         computed = benchmark(handler.compute, integration_method=integration_method)
+
         assert np.allclose(computed, energies_growth[i_im, j])
 
 
