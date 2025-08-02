@@ -200,12 +200,8 @@ class _TestPhysics(abc.ABC):
         """
         ...
 
-    @pytest.fixture(scope="class")
-    def growth_params_all(self) -> list[tuple[np.ndarray, float]]:
-        arr = self._load("growth_params.npy")
-        means = arr[:, 0]
-        stds = arr[:, 1]
-        return [(np.atleast_2d(mean), std) for mean, std in zip(means, stds)]
+    @abc.abstractmethod
+    def growth_params_all(self) -> list[tuple[np.ndarray, float | np.ndarray]]: ...
 
     @pytest.fixture(scope="class")
     def displacements(self) -> np.ndarray:
@@ -287,7 +283,7 @@ class _TestPhysics(abc.ABC):
         np.ndarray
 
         """
-        return self._load("energies_growth.npy")
+        return self._flatten_and_squeeze(self._load("energies_growth.npy"), 1)
 
     def test_dimensions(
         self,
@@ -546,6 +542,13 @@ class TestPhysicsMono(_TestPhysics):
             )
         )
 
+    @pytest.fixture(scope="class")
+    def growth_params_all(self) -> list[tuple[np.ndarray, float]]:
+        arr = self._load("growth_params.npy")
+        means = arr[:, 0]
+        stds = arr[:, 1]
+        return [(np.atleast_2d(mean), std) for mean, std in zip(means, stds)]
+
 
 class TestPhysicsPoly(_TestPhysics):
     """Class dealing with polychromatic physics."""
@@ -568,4 +571,23 @@ class TestPhysicsPoly(_TestPhysics):
                 assert len(slice) == 2
                 assert len(slice[0]) == nfreqs  # complex amplitudes
                 assert len(slice[1]) == nfreqs  # complex wavenumbers
+        return flat_list
+
+    @pytest.fixture(scope="class")
+    def growth_params_all(self) -> list[tuple[np.ndarray, np.ndarray]]:
+        growth_params = np.load(self.target_dir.joinpath("growth_params.npz"))
+        assert len(growth_params) == N_N_FREQS
+        flat_list = [
+            (v[:, 0, None], v[:, 1, None])
+            for vals in growth_params.values()
+            for v in vals
+        ]
+        for i, nfreqs in enumerate(map(int, growth_params.keys())):
+            # Sanity check: we do have the expected number of frequencies
+            # (as provided by the keys of the Npz object).
+            for j in range(N_TRIES):
+                slice = flat_list[i * N_TRIES : (i + 1) * N_TRIES][j]
+                assert len(slice) == 2
+                for _s in slice:
+                    assert _s.shape == (nfreqs, 1)
         return flat_list
