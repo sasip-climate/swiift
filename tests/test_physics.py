@@ -23,30 +23,24 @@ N_CASES_MONO = 49
 N_N_FREQS = 8  # number of different spectral lengths (2 to 100)
 N_TRIES = 5  # number of tries per spectral length
 N_CASES_POLY = N_N_FREQS * N_TRIES
-GROWTH_MEAN_KEYS = "before", "within", "after"
 INTEGRATION_METHODS = "pseudo_an", "tanhsinh", "quad"
 
 
-def _flatten_and_squeeze(array: np.ndarray, size: int):
+def _flatten_and_squeeze(array: np.ndarray, n_dims_to_keep: int, expected_size: int):
     """Reshape an array by contracting middle dimensions.
 
     This function is intented to be flexible enough to transform
     different-shaped targets of mono- and polychromatic parameters to a
     standard shape that can be interpreted (and looped over) by the test
-    functions.
-
-    The reshaping outputs an array of dimension 3. However, its axes of length
-    1 are removed before returning it. Therefore, the returned array is at most
-    of dimension 3.
-
-    The first dimension of the array is preserved. If the reshaping is expected
-    to happen over that first dimension, expand the array by adding a dimension
-    before passing it to this function (see example).
+    functions. The first `n_dims_to_keep` dimensions of the array are
+    preserved.
 
     Parameters
     ----------
     array : np.ndarray
         ND-array to reshape.
+    n_dims_to_keep : int
+        Number of leading dimensions to preserve.
     size : int
         Size several dimensions will be reshaped to.
 
@@ -64,7 +58,7 @@ def _flatten_and_squeeze(array: np.ndarray, size: int):
     >>> arr1 = np.empty((2, 8, 5, 20))
     >>> arr1.shape
     (2, 8, 5, 20)
-    >>> _flatten_and_squeeze(arr1, 40).shape
+    >>> _flatten_and_squeeze(arr1, 1, 40).shape
     (2, 40, 20)
 
     Situation corresponding to the polychromatic energy target. The two last
@@ -74,29 +68,34 @@ def _flatten_and_squeeze(array: np.ndarray, size: int):
     >>> arr2 = np.empty((4, 8, 5))
     >>> arr2.shape
     (4, 8, 5)
-    >>> _flatten_and_squeeze(arr2, 40).shape
+    >>> _flatten_and_squeeze(arr2, 1, 40).shape
     (4, 40)
 
     Situation corresponding to the monochromatic floe_params input. No
     contraction is necessary, but the function handles that case for
-    genericity; provided the user takes care to add an extra dimension to the
-    array before passing it. The argument received by the function therefore
-    has shape (1, 49, 2). After the initial reshaping, the array has shape
-    (1, 49, 2, 1). The first and last axes are squeezed out, returing exactly
-    the initial array.
+    genericity, returing exactly the initial array.
 
     >>> arr3 = np.empty((49, 2))
     >>> arr3.shape
     (49, 2)
-    >>> _flatten_and_squeeze(np.expand_dims(arr3, 0), 49).shape
+    >>> _flatten_and_squeeze(arr3, 0, 49).shape
     (49, 2)
 
+    Situation corresponding to the polychromatic floe_params input. This time,
+    contraction is necessary and behaves as expected. This spares us from
+    overriding the `floe_params_all` in the concrete classes, which can rely on
+    the behaviour of the abstract class, to produce the same kinds of ouputs.
+
+    >>> arr4 = np.empty((8, 5, 2))
+    >>> arr4.shape
+    (8, 5, 2)
+    >>> _flatten_and_squeeze(arr4, 0, 40).shape
+    (40, 2)
+
     """
-    return np.squeeze(np.reshape(array, (array.shape[0], size, -1)))
-
-
-def _expand(array):
-    return np.expand_dims(array, 0)
+    return np.squeeze(
+        np.reshape(array, (*array.shape[:n_dims_to_keep], expected_size, -1))
+    )
 
 
 class _TestPhysics(abc.ABC):
@@ -135,20 +134,24 @@ class _TestPhysics(abc.ABC):
         if "j" in metafunc.fixturenames:
             metafunc.parametrize("j", range(self.n_cases))
 
-    def _flatten_and_squeeze(self, array: np.ndarray) -> np.ndarray:
+    def _flatten_and_squeeze(
+        self, array: np.ndarray, n_dims_to_keep: int = 0
+    ) -> np.ndarray:
         """Wrapper over the module-level function, setting the size parameters.
 
         Parameters
         ----------
         array : np.ndarray
             Array to be reshaped.
+        n_dims_to_keep : int
+            Number of leading dimensions to preserve.
 
         Returns
         -------
         np.ndarray
 
         """
-        return _flatten_and_squeeze(array, self.n_cases)
+        return _flatten_and_squeeze(array, n_dims_to_keep, self.n_cases)
 
     def _load(self, filename: str) -> np.ndarray:
         """Helper function loading arrays with respect to class attribute.
@@ -176,7 +179,7 @@ class _TestPhysics(abc.ABC):
         np.ndarray
 
         """
-        return self._flatten_and_squeeze(_expand(self._load("x.npy")))
+        return self._flatten_and_squeeze(self._load("x.npy"))
 
     @pytest.fixture(scope="class")
     def floe_params_all(self) -> np.ndarray:
@@ -187,7 +190,7 @@ class _TestPhysics(abc.ABC):
         np.ndarray
 
         """
-        return self._flatten_and_squeeze(_expand(self._load("floe_params.npy")))
+        return self._flatten_and_squeeze(self._load("floe_params.npy"))
 
     @abc.abstractmethod
     def wave_params_all(self) -> list[tuple[np.ndarray, np.ndarray]]:
@@ -200,43 +203,38 @@ class _TestPhysics(abc.ABC):
         """
         ...
 
-    @pytest.fixture(scope="class")
-    def growth_params_all(self) -> list[list[tuple[np.ndarray, float]]]:
-        npz = np.load(self.target_dir.joinpath("growth_params.npz"))
-        stds = npz["stds"]
-        means = (npz[k] for k in GROWTH_MEAN_KEYS)
-        params_list = [
-            [(np.atleast_2d(_mu), _sig) for _mu, _sig in zip(means_, stds, strict=True)]
-            for means_ in means
-        ]
-        for _l in params_list:
-            assert len(_l) == self.n_cases
-        return params_list
+    @abc.abstractmethod
+    def growth_params_all(self) -> list[tuple[np.ndarray, float | np.ndarray]]: ...
 
     @pytest.fixture(scope="class")
     def displacements(self) -> np.ndarray:
         """Vertical displacement targets.
 
-        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
-        solution (0) or numerical solution (1).
-
         Returns
         -------
         np.ndarray
 
+        Notes
+        -----
+        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
+        solution (0) or numerical solution (1).
+
         """
-        return self._flatten_and_squeeze(self._load("displacements.npy"))
+        return self._flatten_and_squeeze(self._load("displacements.npy"), 1)
 
     @pytest.fixture(scope="class")
     def displacements_growth(self) -> np.ndarray:
         """Vertical displacement targets, with wave growth.
 
-        Shape: (3, n_cases, len(x_axes)). The first dimension corresponds to an
-        entry in GROWTH_MEAN_KEYS.
+        Shape: (n_cases, len(x_axes)).
 
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (n_cases, len(x_axes)).
 
         """
         return self._flatten_and_squeeze(self._load("displacements_growth.npy"))
@@ -245,26 +243,29 @@ class _TestPhysics(abc.ABC):
     def curvatures(self) -> np.ndarray:
         """Curvature targets.
 
-        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
-        solution (0) or numerical solution (1).
-
         Returns
         -------
         np.ndarray
 
+        Notes
+        -----
+        Shape: (2, n_cases, len(x_axes)). The first dimension is for analytical
+        solution (0) or numerical solution (1).
+
         """
-        return self._flatten_and_squeeze(self._load("curvatures.npy"))
+        return self._flatten_and_squeeze(self._load("curvatures.npy"), 1)
 
     @pytest.fixture(scope="class")
     def curvatures_growth(self) -> np.ndarray:
         """Curvature targets, with wave growth.
 
-        Shape: (3, n_cases, len(x_axes)). The first dimension corresponds to an
-        entry in GROWTH_MEAN_KEYS.
-
         Returns
         -------
         np.ndarray
+
+        Notes
+        -----
+        Shape: (n_cases, len(x_axes)).
 
         """
         return self._flatten_and_squeeze(self._load("curvatures_growth.npy"))
@@ -273,29 +274,33 @@ class _TestPhysics(abc.ABC):
     def energies(self) -> np.ndarray:
         """Energy targets.
 
-        Shape: (4, n_cases). The first dimension is for analytical solution (0)
-        or numerical solution: pseudo_an (1), tanhsinh (2), quad (3).
-
         Returns
         -------
         np.ndarray
 
+        Notes
+        -----
+        Shape: (4, n_cases). The first dimension is for analytical solution (0)
+        or numerical solution: pseudo_an (1), tanhsinh (2), quad (3).
+
         """
-        return self._flatten_and_squeeze(self._load("energies.npy"))
+        return self._flatten_and_squeeze(self._load("energies.npy"), 1)
 
     @pytest.fixture(scope="class")
     def energies_growth(self) -> np.ndarray:
         """Energy targets.
 
-        Shape: (3, 3, n_cases). The first dimension corresponds to an entry in
-        GROWTH_MEAN_KEYS, the second to an entry in INTEGRATION_METHODS.
-
         Returns
         -------
         np.ndarray
 
+        Notes
+        -----
+        Shape: (3, n_cases). The first dimension corresponds to an entry in
+        INTEGRATION_METHODS.
+
         """
-        return self._load("energies_growth.npy")
+        return self._flatten_and_squeeze(self._load("energies_growth.npy"), 1)
 
     def test_dimensions(
         self,
@@ -307,6 +312,7 @@ class _TestPhysics(abc.ABC):
         curvatures: np.ndarray,
         curvatures_growth: np.ndarray,
         energies: np.ndarray,
+        energies_growth: np.ndarray,
     ):
         """Check that the dimensions match the expected number of cases.
 
@@ -325,11 +331,8 @@ class _TestPhysics(abc.ABC):
         for arr in (x_axes, floe_params_all, wave_params_all):
             assert len(arr) == self.n_cases
         for arr in (
-            displacements,
-            displacements_growth,
-            curvatures,
-            curvatures_growth,
             energies,
+            energies_growth,
         ):
             assert arr.shape[1] == self.n_cases
         for arr in (
@@ -338,7 +341,8 @@ class _TestPhysics(abc.ABC):
             curvatures,
             curvatures_growth,
         ):
-            assert x_axes.shape[-1] == arr.shape[-1]
+            assert arr.shape[-2] == self.n_cases
+            assert arr.shape[-1] == x_axes.shape[-1]
 
     @pytest.mark.parametrize("an_sol", (True, False))
     @pytest.mark.parametrize(
@@ -348,7 +352,6 @@ class _TestPhysics(abc.ABC):
             (ph.CurvatureHandler, "curvatures"),
         ),
     )
-    @pytest.mark.benchmark(group=": ")
     def test_local(
         self,
         request: pytest.FixtureRequest,
@@ -394,10 +397,11 @@ class _TestPhysics(abc.ABC):
         floe_params = floe_params_all[j]
         wave_params = wave_params_all[j]
         handler = handler_type(floe_params, wave_params)
+
         computed = benchmark(handler.compute, x, an_sol=an_sol)
+
         assert np.allclose(computed, target[i, j])
 
-    @pytest.mark.parametrize("growth_key", GROWTH_MEAN_KEYS)
     @pytest.mark.parametrize(
         "handler_type, target_name",
         (
@@ -411,12 +415,10 @@ class _TestPhysics(abc.ABC):
         x_axes: np.ndarray,
         floe_params_all: np.ndarray,
         wave_params_all: list[tuple[np.ndarray, np.ndarray]],
-        growth_params_all: list[list[tuple[np.ndarray, float]]],
+        growth_params_all: list[tuple[np.ndarray, float]],
         handler_type: type[ph.DisplacementHandler] | type[ph.CurvatureHandler],
         target_name: str,
-        growth_key: str,
         j: int,
-        benchmark: BenchmarkFixture,
     ):
         """Compare local quantities (displacement, curvature) to targets.
 
@@ -426,67 +428,27 @@ class _TestPhysics(abc.ABC):
         x_axes : np.ndarray
         floe_params_all : np.ndarray
         wave_params_all : list[tuple[np.ndarray, np.ndarray]]
-        growth_params_all: list[list[tuple[np.ndarray, float]]],
+        growth_params_all: list[tuple[np.ndarray, float]],
         handler_type : type[ph.DisplacementHandler] | type[ph.CurvatureHandler]
             The type of handler to use.
         target_name : str
             The name of the fixture providing the target.
-        growth_key : str
-            Which growth parameter mean to use.
         j : int
             Index of the test case.
-        benchmark : BenchmarkFixture
 
         """
-        benchmark.group = (
-            f"{str(self.target_dir).split()[-1]}_{target_name}:case_{j:02d}"
-        )
-        # The first dimension of the target has size 2.
-        # The first entry (i := 0) corresponds to the analytical solution, the
-        # second entry (i := 1) to the numerical solution.
-        i = GROWTH_MEAN_KEYS.index(growth_key)
         # Pytest magic, get fixture by name as fixtures cannot be used directly
         # in parametrize.
         target = request.getfixturevalue(target_name)
         x = x_axes[j]
         floe_params = floe_params_all[j]
         wave_params = wave_params_all[j]
-        growth_params = growth_params_all[i][j]
+        growth_params = growth_params_all[j]
         handler = handler_type(floe_params, wave_params, growth_params)
-        computed = benchmark(handler.compute, x)
-        assert np.allclose(computed, target[i, j])
 
-    @pytest.mark.parametrize(
-        "target_an_name, target_growth_name",
-        (
-            ("displacements", "displacements_growth"),
-            ("curvatures", "curvatures_growth"),
-        ),
-    )
-    def test_an_sol_vs_growth(
-        self,
-        request: pytest.FixtureRequest,
-        target_an_name: str,
-        target_growth_name: str,
-    ):
-        """Compare analytical and with growth solutions.
+        computed = handler.compute(x)
 
-        If the growth parameter mean is beyond the floe, that is, greater than
-        its right edge, the wave is fully developed all along the floe, and the
-        model is expected to fall back on the analytical solution.
-
-        Parameters
-        ----------
-        request : pytest.FixtureRequest
-        target_an_name : str
-            The name of the figure providing the analytical target.
-        target_growth_name : str
-            The name of the fixture providing the target with growth.
-
-        """
-        target_an = request.getfixturevalue(target_an_name)
-        target_growth = request.getfixturevalue(target_growth_name)
-        assert np.all(target_an[0] == target_growth[-1])
+        assert np.allclose(computed, target[j])
 
     @pytest.mark.parametrize("integration_method", (None, *INTEGRATION_METHODS))
     @pytest.mark.filterwarnings("ignore::scipy.integrate.IntegrationWarning")
@@ -537,18 +499,18 @@ class _TestPhysics(abc.ABC):
         computed = benchmark(
             handler.compute, an_sol=an_sol, integration_method=integration_method
         )
+
         assert np.allclose(computed, energies[i, j])
 
-    @pytest.mark.parametrize("growth_key", GROWTH_MEAN_KEYS)
     @pytest.mark.parametrize("integration_method", INTEGRATION_METHODS)
+    @pytest.mark.filterwarnings("ignore::scipy.integrate.IntegrationWarning")
     def test_energy_with_growth(
         self,
         floe_params_all: np.ndarray,
         wave_params_all: list[tuple[np.ndarray, np.ndarray]],
-        growth_params_all: list[list[tuple[np.ndarray, float]]],
+        growth_params_all: list[tuple[np.ndarray, float]],
         energies_growth: np.ndarray,
         integration_method: str | None,
-        growth_key: str,
         j: int,
         benchmark: BenchmarkFixture,
     ):
@@ -558,29 +520,36 @@ class _TestPhysics(abc.ABC):
         ----------
         floe_params_all : np.ndarray
         wave_params_all : list[tuple[np.ndarray, np.ndarray]]
-        growth_params_all: list[list[tuple[np.ndarray, float]]],
+        growth_params_all: list[tuple[np.ndarray, float]],
         energies_growth : np.ndarray
         integration_method : str
             Which integration method to use.
-        growth_key : str
-            Which growth parameter mean to use.
         j : int
             Index of the test case.
         benchmark : BenchmarkFixture
+
+        Warns
+        -----
+        Two cases (j in {7, 29}) raise an IntegrationWarning when
+        using the quad method, for the polychromatic case. This is expected and
+        non consequantial; the issue ("[...] The error may be underestimated.")
+        happens when generating the test cases, and the accuracy (when compared
+        to other methods) is correct. We thus filter the warnings when running
+        the test to avoid clutter.
 
         """
         benchmark.group = (
             f"{str(self.target_dir).split()[-1]}_energy_with_growth:case_{j:02d}"
         )
-        i = GROWTH_MEAN_KEYS.index(growth_key)
         i_im = INTEGRATION_METHODS.index(integration_method)
         floe_params = floe_params_all[j]
         wave_params = wave_params_all[j]
-        growth_params = growth_params_all[i][j]
+        growth_params = growth_params_all[j]
         handler = ph.EnergyHandler(floe_params, wave_params, growth_params)
 
         computed = benchmark(handler.compute, integration_method=integration_method)
-        assert np.allclose(computed, energies_growth[i, i_im, j])
+
+        assert np.allclose(computed, energies_growth[i_im, j])
 
 
 class TestPhysicsMono(_TestPhysics):
@@ -599,6 +568,13 @@ class TestPhysicsMono(_TestPhysics):
                 np.load(self.target_dir.joinpath("c_wavenumbers.npy")),
             )
         )
+
+    @pytest.fixture(scope="class")
+    def growth_params_all(self) -> list[tuple[np.ndarray, float]]:
+        arr = self._load("growth_params.npy")
+        means = arr[:, 0]
+        stds = arr[:, 1]
+        return [(np.atleast_2d(mean), std) for mean, std in zip(means, stds)]
 
 
 class TestPhysicsPoly(_TestPhysics):
@@ -622,4 +598,23 @@ class TestPhysicsPoly(_TestPhysics):
                 assert len(slice) == 2
                 assert len(slice[0]) == nfreqs  # complex amplitudes
                 assert len(slice[1]) == nfreqs  # complex wavenumbers
+        return flat_list
+
+    @pytest.fixture(scope="class")
+    def growth_params_all(self) -> list[tuple[np.ndarray, np.ndarray]]:
+        growth_params = np.load(self.target_dir.joinpath("growth_params.npz"))
+        assert len(growth_params) == N_N_FREQS
+        flat_list = [
+            (v[:, 0, None], v[:, 1, None])
+            for vals in growth_params.values()
+            for v in vals
+        ]
+        for i, nfreqs in enumerate(map(int, growth_params.keys())):
+            # Sanity check: we do have the expected number of frequencies
+            # (as provided by the keys of the Npz object).
+            for j in range(N_TRIES):
+                slice = flat_list[i * N_TRIES : (i + 1) * N_TRIES][j]
+                assert len(slice) == 2
+                for _s in slice:
+                    assert _s.shape == (nfreqs, 1)
         return flat_list
