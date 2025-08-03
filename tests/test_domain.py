@@ -133,7 +133,8 @@ def test_breakup(
     for _wuf in domain.subdomains[1:]:
         assert _wuf.wui is wuf0.wui
 
-    # Check all new floes except the last have had their generation counter incremented. The last one should have the same generation counter.
+    # Check all new floes except the last have had their generation counter
+    # incremented. The last one should have the same generation counter.
     for _wuf in domain.subdomains[:-1]:
         assert _wuf.generation == wuf0.generation + 1
     assert domain.subdomains[-1].generation == wuf0.generation
