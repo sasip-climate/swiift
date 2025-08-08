@@ -376,6 +376,21 @@ class WavesUnderIce:
         )
 
     @classmethod
+    def with_attenuation_yu2022(
+        cls,
+        waves_under_ep: WavesUnderElasticPlate,
+        gravity: float,
+        angular_frequencies: np.ndarray,
+    ) -> typing.Self:
+        return cls(
+            waves_under_ep.ice,
+            waves_under_ep.wavenumbers,
+            att.parameterisation_yu2022(
+                waves_under_ep.ice.thickness, gravity, angular_frequencies
+            ),
+        )
+
+    @classmethod
     def with_generic_attenuation(
         cls,
         waves_under_ep: WavesUnderElasticPlate,
@@ -791,6 +806,10 @@ class Domain:
                     wui = WavesUnderIce.without_attenuation(wup)
                 elif self.attenuation == att.AttenuationParameterisation.PARAM_01:
                     wui = WavesUnderIce.with_attenuation_01(wup)
+                elif self.attenuation == att.AttenuationParameterisation.PARAM_YU_2022:
+                    wui = WavesUnderIce.with_attenuation_yu2022(
+                        wup, self.gravity, self.spectrum.angular_frequencies
+                    )
             else:
                 wui = WavesUnderIce.with_generic_attenuation(
                     wup,
