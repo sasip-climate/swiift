@@ -4,7 +4,6 @@ import numpy as np
 
 import swiift.lib.att as att
 from swiift.model.model import FloatingIce, WavesUnderElasticPlate, WavesUnderIce
-from tests.physical_strategies import PHYSICAL_STRATEGIES
 from tests.model_strategies import coupled_ocean_ice
 
 wavenumbers_strategy = npst.arrays(
