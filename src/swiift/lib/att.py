@@ -64,6 +64,8 @@ def parameterisation_yu2022(
 
     This parameterisation is issued from Yu et al. (2022) [1]_.
 
+    .. versionadded:: 0.16.0
+
     Parameters
     ----------
     thickness : float
