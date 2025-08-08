@@ -323,7 +323,7 @@ class WavesUnderIce:
 
     ice: FloatingIce
     wavenumbers: np.ndarray = attrs.field(repr=False)
-    attenuations: np.ndarray | Real = attrs.field(repr=False)
+    attenuations: np.ndarray | float = attrs.field(repr=False)
 
     @classmethod
     def without_attenuation(cls, waves_under_ep: WavesUnderElasticPlate) -> typing.Self:
