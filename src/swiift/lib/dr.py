@@ -44,7 +44,7 @@ class FreeSurfaceSolver:
             )
         return res.root
 
-    def compute_wavenumbers(self) -> np.ndarray:
+    def _compute_real_wavenumbers(self):
         if np.isposinf(self.depth):
             return self.alphas
 
@@ -62,6 +62,16 @@ class FreeSurfaceSolver:
             roots[i] = find_k_i(_d0)
 
         return roots / self.depth
+
+    def compute_wavenumbers(
+        self, real: bool = True, n: int | None = None
+    ) -> np.ndarray:
+        if real:
+            return self._compute_real_wavenumbers()
+        else:
+            raise NotImplementedError(
+                "Solving imaginary wavenumbers has not been implemented yet."
+            )
 
 
 @attrs.define
@@ -98,7 +108,7 @@ class ElasticMassLoadingSolver:
             )
         return res.root
 
-    def compute_wavenumbers(self) -> np.ndarray:
+    def _compute_real_wavenumbers(self):
         roots = np.full(self.alphas.size, np.nan)
 
         for i, (alpha, _d0, _d1) in enumerate(zip(self.alphas, self.deg0, self.deg1)):
@@ -136,3 +146,13 @@ class ElasticMassLoadingSolver:
                     roots[i] = find_k_i(k0_)
 
         return roots
+
+    def compute_wavenumbers(
+        self, real: bool = True, n: int | None = None
+    ) -> np.ndarray:
+        if real:
+            return self._compute_real_wavenumbers()
+        else:
+            raise NotImplementedError(
+                "Solving complex wavenumbers has not been implemented yet."
+            )
