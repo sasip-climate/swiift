@@ -1,6 +1,7 @@
 from hypothesis import given, settings
 import numpy as np
 
+from swiift.api.utils import compute_free_surface_wavenumbers
 from swiift.model.model import (
     DiscreteSpectrum,
     FreeSurfaceWaves,
@@ -8,11 +9,11 @@ from swiift.model.model import (
     Ocean,
     WavesUnderElasticPlate,
 )
-
 from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
 
 
-def free_surface(wavenumber, depth):
+def _free_surface(wavenumber, depth):
+    # RHS of alpha = k*tanh(kH), avec alpha := omega**2 / g
     return wavenumber * np.tanh(wavenumber * depth)
 
 
@@ -34,8 +35,16 @@ def elas_mass_surface(
 def test_free_surface(ocean, spectrum, gravity):
     angfreqs2 = spectrum._ang_freqs_pow2
     fsw = FreeSurfaceWaves.from_ocean(ocean, spectrum, gravity)
-    x = free_surface(fsw.wavenumbers, ocean.depth)
+    x = _free_surface(fsw.wavenumbers, ocean.depth)
     y = angfreqs2 / gravity
+    assert np.allclose(x * ocean.depth, y * ocean.depth)
+
+
+@given(**ocean_and_mono_spectrum)
+def test_free_surface_utils(ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
+    wavenumbers = compute_free_surface_wavenumbers(ocean, spectrum, gravity)
+    x = _free_surface(wavenumbers, ocean.depth)
+    y = spectrum._ang_freqs_pow2 / gravity
     assert np.allclose(x * ocean.depth, y * ocean.depth)
 
 
