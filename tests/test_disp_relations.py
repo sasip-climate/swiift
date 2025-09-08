@@ -51,12 +51,12 @@ def test_free_surface_utils(ocean: Ocean, spectrum: DiscreteSpectrum, gravity: f
 @given(**(coupled_ocean_ice | {"spec": spec_mono()}))
 @settings(max_examples=500)
 def test_elas_mass_loading(
-    ocean: Ocean, spec: DiscreteSpectrum, ice: Ice, gravity: float
+    ocean: Ocean, spectrum: DiscreteSpectrum, ice: Ice, gravity: float
 ):
     assert ocean.density > ice.density
     assert ocean.depth - ice.density / ocean.density * ice.thickness > 0
-    angfreqs2 = spec._ang_freqs_pow2
-    wui = WavesUnderElasticPlate.from_ocean(ice, ocean, spec, gravity)
+    angfreqs2 = spectrum._ang_freqs_pow2
+    wui = WavesUnderElasticPlate.from_ocean(ice, ocean, spectrum, gravity)
     x = elas_mass_surface(wui.wavenumbers, ice, ocean, gravity)
     y = angfreqs2 / gravity
     assert np.allclose(x, y)
