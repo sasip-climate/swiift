@@ -264,15 +264,8 @@ class WavesUnderElasticPlate:
         WavesUnderElasticPlate
 
         """
-        alphas = spectrum._ang_freqs_pow2 / gravity
-        deg1 = 1 - alphas * ice.draft
-        deg0 = -alphas * ice.elastic_length
-        scaled_ratio = ice.dud / ice.elastic_length
-
-        solver = dr.ElasticMassLoadingSolver(alphas, deg1, deg0, scaled_ratio)
-        # NOTE: `solver` returns non-dimensional wavenumbers
-        wavenumbers = solver.compute_wavenumbers() / ice.elastic_length
-
+        solver = dr.ElasticMassLoadingSolver.from_floating(ice, spectrum, gravity)
+        wavenumbers = solver.compute_wavenumbers()
         return cls(ice, wavenumbers)
 
     @classmethod

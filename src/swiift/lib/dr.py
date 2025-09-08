@@ -9,10 +9,7 @@ import numpy as np
 import scipy.optimize as optimize
 
 if typing.TYPE_CHECKING:
-    import swiift.model.model as md
-
-# TODO: add from_ocean, from_ice class methods, use them model.Domain where
-# relevant
+    from ..model.model import DiscreteSpectrum, FloatingIce, Ocean
 
 
 @attrs.define
@@ -21,7 +18,7 @@ class FreeSurfaceSolver:
     depth: float
 
     @classmethod
-    def from_ocean(cls, ocean: md.Ocean, spectrum: md.DiscreteSpectrum, gravity: float):
+    def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
         alphas = spectrum._ang_freqs_pow2 / gravity
         return cls(alphas, ocean.depth)
 
@@ -80,6 +77,19 @@ class ElasticMassLoadingSolver:
     deg1: np.ndarray
     deg0: np.ndarray
     scaled_ratio: float
+
+    @classmethod
+    def from_floating(
+        cls,
+        ice: FloatingIce,
+        spectrum: DiscreteSpectrum,
+        gravity: float,
+    ):
+        alphas = spectrum._ang_freqs_pow2 / gravity
+        deg1 = 1 - alphas * ice.draft
+        deg0 = -alphas * ice.elastic_length
+        scaled_ratio = ice.dud / ice.elastic_length
+        return cls(alphas, deg1, deg0, scaled_ratio)
 
     def f(self, kk: float, d0: float, d1: float, rr: float) -> float:
         return (kk**5 + d1 * kk) * np.tanh(rr * kk) + d0
@@ -145,7 +155,8 @@ class ElasticMassLoadingSolver:
                     k0_ = (k0_sw + k0_dw) / 2
                     roots[i] = find_k_i(k0_)
 
-        return roots
+        # -d_0 / alpha == L_D
+        return roots / (-self.deg0 / self.alphas)
 
     def compute_wavenumbers(
         self, real: bool = True, n: int | None = None
