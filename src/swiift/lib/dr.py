@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 import functools
+import typing
 import warnings
 
 import attrs
 import numpy as np
 import scipy.optimize as optimize
+
+if typing.TYPE_CHECKING:
+    import swiift.model.model as md
 
 # TODO: add from_ocean, from_ice class methods, use them model.Domain where
 # relevant
@@ -13,6 +19,11 @@ import scipy.optimize as optimize
 class FreeSurfaceSolver:
     alphas: np.ndarray
     depth: float
+
+    @classmethod
+    def from_ocean(cls, ocean: md.Ocean, spectrum: md.DiscreteSpectrum, gravity: float):
+        alphas = spectrum._ang_freqs_pow2 / gravity
+        return cls(alphas, ocean.depth)
 
     def f(self, kk: float, alpha: float) -> float:
         # Dispersion relation (form f(k) = 0), for a free surface,

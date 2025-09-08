@@ -492,8 +492,7 @@ class FreeSurfaceWaves:
     @classmethod
     def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
         """Build an instance by combining properties of existing objects."""
-        alphas = spectrum._ang_freqs_pow2 / gravity
-        solver = dr.FreeSurfaceSolver(alphas, ocean.depth)
+        solver = dr.FreeSurfaceSolver.from_ocean(ocean, spectrum, gravity)
         wavenumbers = solver.compute_wavenumbers()
         return cls(ocean, wavenumbers)
 
