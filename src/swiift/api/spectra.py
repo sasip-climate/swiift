@@ -20,6 +20,7 @@ import attrs
 import numpy as np
 
 from ..lib.constants import PI_2
+from ..lib.physics import _demote_to_scalar
 
 """Constant appearing in the definition of the PM family spectra."""
 _ALPHA = 8.1e-3
@@ -362,9 +363,14 @@ class JONSWAP(_UnimodalSpectrum):
         pm_spectrum = PiersonMoskowitz.from_peak_frequency(peak_frequency, gravity)
         return cls(peakedness, pm_spectrum)
 
+    # Decoratar actually mandatory for integrate.quad not to error out
+    # on this method.
+    @_demote_to_scalar
     def density(self, frequencies):
-        peak_width = np.ones_like(frequencies) * _PEAK_WIDTH_LEQ
-        peak_width[frequencies > self._base_spectrum.peak_frequency] = _PEAK_WIDTH_GT
+        # The dimension of `frequencies` cannot be 0,
+        # to allow for masking/assignement.
+        peak_width = np.ones_like(np.atleast_1d(frequencies)) * _PEAK_WIDTH_LEQ
+        peak_width[frequencies > self.peak_frequency] = _PEAK_WIDTH_GT
         peak_enhancement = self.peakedness ** np.exp(
             -((frequencies - self.peak_frequency) ** 2)
             / (2 * peak_width**2 * self.peak_frequency**2)
