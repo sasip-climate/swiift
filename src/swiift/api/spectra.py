@@ -47,7 +47,6 @@ class _ParametrisedSpectrum(abc.ABC):
            The density in m^2 s.
 
         """
-        pass
 
     def discrete_energy(self, frequencies: np.ndarray) -> float:
         r"""Spectral density integrated over the input frequencies.
