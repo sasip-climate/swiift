@@ -103,7 +103,62 @@ class _ParametrisedSpectrum(abc.ABC):
 
 
 @attrs.define
-class _PMFamily(_ParametrisedSpectrum):
+class _UnimodalSpectrum(_ParametrisedSpectrum):
+    @property
+    @abc.abstractmethod
+    def peak_frequency(self) -> float:
+        """Peak frequency.
+
+        Returns
+        -------
+        float
+            Peak frequency, in Hz.
+
+        """
+
+    @property
+    @abc.abstractmethod
+    def swh(self) -> float:
+        r"""Significant wave height.
+
+        We use the spectral definition,
+
+        .. math:: H_s = 4\sqrt{\int_0^{+\infty} S(f) df}.
+
+        Returns
+        -------
+        float
+            Significant wave height, in m.
+
+        """
+
+    @functools.cached_property
+    def peak_period(self) -> float:
+        """Spectral peak (modal) period.
+
+        Returns
+        -------
+        float
+            Peak period, in s.
+
+        """
+        return 1 / self.peak_frequency
+
+    @functools.cached_property
+    def peak_ang_frequency(self) -> float:
+        """Spectral peak angular frequency.
+
+        Returns
+        -------
+        float
+            Peak angular frequency, in rad s^-1.
+
+        """
+        return PI_2 * self.peak_frequency
+
+
+@attrs.define
+class _PMFamily(_UnimodalSpectrum):
     r"""Base class for spectra of the Bretschneider family.
 
     These spectra are of the form
@@ -139,55 +194,11 @@ class _PMFamily(_ParametrisedSpectrum):
     exp_scale: float
 
     @functools.cached_property
-    def peak_period(self) -> float:
-        """Spectral peak (modal) period.
-
-        Returns
-        -------
-        float
-            Peak period, in s.
-
-        """
-        return 1 / self.peak_frequency
-
-    @functools.cached_property
-    def peak_ang_frequency(self) -> float:
-        """Spectral peak angular frequency.
-
-        Returns
-        -------
-        float
-            Peak angular frequency, in rad s^-1.
-
-        """
-        return PI_2 * self.peak_frequency
-
-    @functools.cached_property
     def swh(self) -> float:
-        r"""Significant wave height.
-
-        We use the spectral definition,
-
-        .. math:: H_s = 4\sqrt{\int_0^{+\infty} S(f) df}.
-
-        Returns
-        -------
-        float
-            Significant wave height, in m.
-
-        """
         return 2 * (self.scale / self.exp_scale) ** 0.5
 
     @functools.cached_property
     def peak_frequency(self) -> float:
-        """Peak frequency.
-
-        Returns
-        -------
-        float
-            Peak frequency, in m.
-
-        """
         return (4 * self.exp_scale / 5) ** 0.25
 
     def density(self, frequency):
@@ -271,7 +282,7 @@ class Bretschneider(_PMFamily):
 
 
 @attrs.define
-class JONSWAP(_ParametrisedSpectrum):
+class JONSWAP(_UnimodalSpectrum):
     """Class encapsulating the JONSWAP spectrum.
 
     The JONSWAP spectrum modifies the PM spectrum by introducing a peak
