@@ -226,7 +226,7 @@ class PiersonMoskowitz(_PMFamily):
 
         """
         scale = cls._make_scale(gravity)
-        exp_scale = 4 * scale / swh
+        exp_scale = 4 * scale / swh**2
         return cls(scale, exp_scale)
 
     @classmethod
