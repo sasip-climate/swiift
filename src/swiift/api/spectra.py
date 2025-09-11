@@ -309,6 +309,8 @@ class JONSWAP(_UnimodalSpectrum):
     def swh(self):
         r"""Significant wave height.
 
+        The SWH is computed with a cubic approximation.
+
         Returns
         -------
         float
@@ -316,13 +318,13 @@ class JONSWAP(_UnimodalSpectrum):
 
         """
         return (
-            (
+            self._base_spectrum.scale**0.5
+            * (
                 1.555
                 + 0.2596 * self.peakedness
                 - 0.02231 * self.peakedness**2
                 + 0.001142 * self.peakedness**3
             )
-            * self._base_spectrum.scale**0.5
             / self.peak_frequency**2
         )
 
