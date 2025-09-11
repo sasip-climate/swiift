@@ -33,13 +33,13 @@ T = typing.TypeVar("T", float, np.ndarray[tuple[int], np.dtype[np.floating]])
 
 class _ParametrisedSpectrum(abc.ABC):
     @abc.abstractmethod
-    def density(self, frequencies: T) -> T:
+    def density(self, frequency: T) -> T:
         """Spectral density as a function of frequency.
 
         Parameters
         ----------
-        frequencies : array_like
-            Frequencies at which to evaluate the density.
+        frequency: array_like
+            Frequency at which to evaluate the density.
 
         Returns
         -------
@@ -85,21 +85,16 @@ class _ParametrisedSpectrum(abc.ABC):
         # Helper method to use angular frequency as input to the density.
         return self.density(angular_frequency / PI_2) / PI_2
 
-    def __call__(self, frequencies: T) -> T:
+    def __call__(self, frequency: T) -> T:
         """Wrapper for `density`.
 
         Parameters
         ----------
-        frequencies : T
-            Frequencies in Hz.
-
-        Returns
-        -------
-        T
-            [TODO:description]
+        frequency : T
+            Frequency in Hz.
 
         """
-        return self.density(frequencies)
+        return self.density(frequency)
 
 
 @attrs.define
@@ -202,7 +197,7 @@ class _PMFamily(_UnimodalSpectrum):
         return (4 * self.exp_scale / 5) ** 0.25
 
     def density(self, frequency):
-        return self.scale * frequency**-5 * np.exp(-self.exp_scale * frequency**-4)
+        return self.scale / frequency**5 * np.exp(-self.exp_scale / frequency**4)
 
 
 @attrs.define
@@ -365,13 +360,13 @@ class JONSWAP(_UnimodalSpectrum):
     # Decoratar actually mandatory for integrate.quad not to error out
     # on this method.
     @_demote_to_scalar
-    def density(self, frequencies):
-        # The dimension of `frequencies` cannot be 0,
+    def density(self, frequency):
+        # The dimension of `frequency` cannot be 0,
         # to allow for masking/assignement.
-        peak_width = np.ones_like(np.atleast_1d(frequencies)) * _PEAK_WIDTH_LEQ
-        peak_width[frequencies > self.peak_frequency] = _PEAK_WIDTH_GT
+        peak_width = np.ones_like(np.atleast_1d(frequency)) * _PEAK_WIDTH_LEQ
+        peak_width[frequency > self.peak_frequency] = _PEAK_WIDTH_GT
         peak_enhancement = self.peakedness ** np.exp(
-            -((frequencies - self.peak_frequency) ** 2)
+            -((frequency - self.peak_frequency) ** 2)
             / (2 * peak_width**2 * self.peak_frequency**2)
         )
-        return self._base_spectrum(frequencies) * peak_enhancement
+        return self._base_spectrum(frequency) * peak_enhancement
