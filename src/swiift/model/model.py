@@ -856,12 +856,16 @@ class Domain:
         phases = np.full((len(floes), self.spectrum.nf), np.nan)
         phases[0] = self.spectrum.phases + floes[0].left_edge * self.fsw.wavenumbers
         for i, floe in enumerate(floes[1:], 1):
-            wui = self._compute_wui(floe.ice)
             prev = floes[i - 1]
-            phases[i:,] = (
-                phases[i - 1]
-                + floe.length * wui.wavenumbers
-                + (prev.right_edge - floe.left_edge) * self.fsw.wavenumbers
+            # To obtain phase at floe j, we take phase at floe j-1, add the
+            # shift that corresponds to wave travel underneath floe j-1, and
+            # add the shift that corresponds to wave travel in the eventual
+            # open water gap between floe j-1 and floe j.
+            water_gap = floe.left_edge - prev.right_edge
+            phases[i, :] = (
+                phases[i - 1, :]
+                + prev.length * self._compute_wui(prev.ice).wavenumbers
+                + (water_gap * self.fsw.wavenumbers)
             )
         return phases % PI_2
 
