@@ -7,3 +7,4 @@ tests/.coverage*
 .benchmarks/*
 ReadMeOar.txt
 dist/*
+doc/build/*
