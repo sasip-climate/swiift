@@ -86,7 +86,7 @@ def parameterisation_yu2022(
 
     .. math::
 
-        \alpha_j h = 0.108 {(\omega\sqrt{\frac{h}{g}})}^4.46
+        \alpha_j h = 0.108 \Bigg(\omega\sqrt{\frac{h}{g}}\Bigg)^{4.46}
 
     where the prefactor and exponents were obtained by a best fit to
     available data [1]_.
