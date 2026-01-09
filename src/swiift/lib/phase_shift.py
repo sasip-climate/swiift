@@ -95,10 +95,6 @@ class UniformScatteringHandler(_RandomScatteringHandler):
     rng : numpy.random.Generator
         Random generator used to sample phases
 
-
-    ------
-                            )]
-
     """
 
     rng: np.random.Generator
