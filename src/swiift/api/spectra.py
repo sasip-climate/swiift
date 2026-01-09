@@ -294,7 +294,7 @@ class JONSWAP(_UnimodalSpectrum):
     _base_spectrum: PiersonMoskowitz
 
     @property
-    def peak_frequency(self):
+    def peak_frequency(self) -> float:
         """Peak frequency.
 
         Returns
