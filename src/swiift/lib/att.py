@@ -95,7 +95,7 @@ def parameterisation_yu2022(
     ----------
     .. [1] Yu, J., W. E. Rogers, and D. W. Wang (2022). A new method for
         parameterization of wave dissipation by sea ice. Cold Regions Science
-        and Technology 199, p. 103582. :doi:`10.1016/j.coldregions.2022.10352`
+        and Technology 199, p. 103582. :doi:`10.1016/j.coldregions.2022.103582`
 
     """
     prefactor, exponent = 0.108, 4.46
