@@ -8,7 +8,7 @@ import numpy as np
 
 
 def no_attenuation():
-    """No attenuation.
+    r"""No attenuation.
 
     Waves propagate indifinitely, as if the ice cover is perfectly elastic and
     the fluid perfectly inviscid.
@@ -31,7 +31,7 @@ def no_attenuation():
 
 
 def parameterisation_01(thickness: float, wavenumbers: np.ndarray) -> np.ndarray:
-    """Parameterised attenuation for individual wave modes.
+    r"""Parameterised attenuation for individual wave modes.
 
     Parameters
     ----------
