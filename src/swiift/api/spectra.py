@@ -300,7 +300,7 @@ class JONSWAP(_UnimodalSpectrum):
         Returns
         -------
         float
-            Peak frequency, in m.
+            Peak frequency, in Hz.
 
         """
         return self._base_spectrum.peak_frequency
