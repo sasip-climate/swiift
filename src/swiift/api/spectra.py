@@ -306,7 +306,7 @@ class JONSWAP(_UnimodalSpectrum):
         return self._base_spectrum.peak_frequency
 
     @functools.cached_property
-    def swh(self):
+    def swh(self) -> float:
         r"""Significant wave height.
 
         The SWH is computed with a cubic approximation.
