@@ -324,7 +324,7 @@ class Experiment:
         Returns
         -------
         dict[float, Step]
-            A dictionary containing the `Step`s matching exactly the input.
+            A dictionary containing the `Step` s matching exactly the input.
 
         """
         times, sort_idx = np.unique(np.ravel(times), return_index=True)
