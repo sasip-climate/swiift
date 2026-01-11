@@ -1,3 +1,7 @@
+import datetime
+
+import swiift.__about__
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -6,10 +10,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "swiift"
-copyright = "2026, Nicolas Mokus"
+project = "SWIIFT"
+copyright = f"2023--{datetime.date.today().year}, Nicolas Mokus"
+
 author = "Nicolas Mokus"
-release = "0.16.3"
+version = swiift.__about__.__version__
+release = version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
