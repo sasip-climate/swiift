@@ -64,8 +64,6 @@ def parameterisation_yu2022(
 
     This parameterisation is issued from Yu et al. (2022) [1]_.
 
-    .. version-added:: 0.16.0
-
     Parameters
     ----------
     thickness : float
@@ -90,6 +88,8 @@ def parameterisation_yu2022(
 
     where the prefactor and exponents were obtained by a best fit to
     available data [1]_.
+
+    .. version-added:: 0.16.0
 
     References
     ----------
