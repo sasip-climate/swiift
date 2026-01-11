@@ -20,7 +20,24 @@ release = version
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    "sphinx.ext.napoleon",
+    # "sphinx.ext.autodoc",
+    "autoapi.extension",
+    "sphinx.ext.extlinks",
+]
+
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+# Prevent duplicates, are __init__ are constructed by attrs
+napoleon_include_init_with_doc = False
+
+autoapi_dirs = ["../../src/swiift"]
+autoapi_type = "python"
+
+extlinks = {
+    "doi": ("https://dx.doi.org/%s", "DOI: %s"),
+}
 
 templates_path = ["_templates"]
 exclude_patterns = []
