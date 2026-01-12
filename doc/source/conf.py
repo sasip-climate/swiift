@@ -54,3 +54,8 @@ exclude_patterns = []
 
 html_theme = "furo"
 html_static_path = ["_static"]
+
+# Line included at the beginning of every rst file
+rst_prolog = f"""
+.. |project| replace:: {project}
+"""
