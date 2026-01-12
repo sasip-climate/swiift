@@ -8,6 +8,8 @@ import numpy as np
 
 # TODO: rename occurences of 'parameterisation' to 'parametrisation' for
 # consistency
+# TODO: add the full param from att-Sutherland2019?
+
 
 def no_attenuation():
     r"""No attenuation.
