@@ -22,7 +22,6 @@ release = version
 
 extensions = [
     "sphinx.ext.napoleon",
-    # "sphinx.ext.autodoc",
     "autoapi.extension",
     "sphinx.ext.extlinks",
 ]
@@ -34,6 +33,13 @@ napoleon_include_init_with_doc = False
 
 autoapi_dirs = ["../../src/swiift"]
 autoapi_type = "python"
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+    "imported-members",
+]
 
 extlinks = {
     "doi": ("https://dx.doi.org/%s", "DOI: %s"),
