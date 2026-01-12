@@ -6,6 +6,8 @@ import typing
 import attrs
 import numpy as np
 
+# TODO: rename occurences of 'parameterisation' to 'parametrisation' for
+# consistency
 
 def no_attenuation():
     r"""No attenuation.
