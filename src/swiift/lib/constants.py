@@ -1,3 +1,5 @@
+"""Mathematical constants used through computations."""
+
 from math import pi, sqrt
 
 PI = pi
