@@ -174,7 +174,7 @@ class Experiment:
         attenuation_spec: att.Attenuation | None = None,
     ):
         if attenuation_spec is None:
-            attenuation_spec = att.AttenuationParameterisation(1)
+            attenuation_spec = att.AttenuationParameterisation.PARAM_01
         domain = md.Domain.from_discrete(
             gravity, spectrum, ocean, attenuation_spec, growth_params
         )
