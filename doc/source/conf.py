@@ -23,7 +23,7 @@ release = version
 extensions = [
     "sphinx.ext.napoleon",
     "autoapi.extension",
-    "sphinx.ext.extlinks",
+    "sphinxcontrib.bibtex",
 ]
 
 napoleon_google_docstring = False
@@ -41,9 +41,8 @@ autoapi_options = [
     "imported-members",
 ]
 
-extlinks = {
-    "doi": ("https://dx.doi.org/%s", "DOI: %s"),
-}
+bibtex_bibfiles = ["references.bib"]
+bibtex_reference_style = "author_year"
 
 templates_path = ["_templates"]
 exclude_patterns = []
