@@ -3,12 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-swiift documentation
-====================
+********************
+SWIIFT documentation
+********************
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Date: |today|, version: |version|.
+
+SWIIFT (Surface Wave Impact on sea Ice---Fracture Toolkit) is a library
+developed to model the wave-induced fracture of sea ice.
 
 
 .. toctree::
