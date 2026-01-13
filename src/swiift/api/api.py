@@ -241,14 +241,16 @@ class Experiment:
 
     @property
     def timesteps(self) -> np.ndarray:
-        """The experiment timesteps in s.
+        """The experiment timesteps, in s.
 
         These can be used to index `self.history`.
+        This method only returns the keys to the current history,
+        not timesteps that might have been dumped previously.
 
         Returns
         -------
-        1D array
-            The existing timesteps.
+        np.ndarray
+            1D array containing the existing timesteps, in s.
 
         """
         return np.array(list(self.history.keys()))
