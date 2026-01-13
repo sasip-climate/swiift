@@ -28,7 +28,7 @@ extensions = [
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
-# Prevent duplicates, are __init__ are constructed by attrs
+# Prevent duplicates, as __init__ are constructed by attrs
 napoleon_include_init_with_doc = False
 
 autoapi_dirs = ["../../src/swiift"]
