@@ -147,6 +147,7 @@ def parameterisation_yu2022(
     )
 
 
+# TODO: using int as values is weird. Should be the functions, maybe.
 class AttenuationParameterisation(enum.Enum):
     """Unique IDs for attenuation parametrisations.
 
