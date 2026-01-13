@@ -47,6 +47,7 @@ import numpy as np
 # TODO: rename occurences of 'parameterisation' to 'parametrisation' for
 # consistency
 # TODO: add the full param from att-Sutherland2019?
+# TODO: maybe move module to api, for semantic reasons
 
 
 def no_attenuation() -> typing.Literal[0]:
