@@ -1,3 +1,5 @@
+"""Model objects."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -30,9 +32,9 @@ class Ocean:
     Parameters
     ----------
     depth : float
-        Ocean depth in m
+        Ocean depth, in m.
     density : float
-        Ocean density in kg m^-3
+        Ocean density, in kg m^-3.
 
     """
 
@@ -470,12 +472,12 @@ class FreeSurfaceWaves:
     ----------
     ocean : Ocean
     wavenumbers : array_like
-        Propagating wavenumbers in rad m^-1
+        Propagating wavenumbers, in rad m^-1.
 
     Attributes
     ----------
-    wavelengths : 1d np.ndarray of float
-        Propagating wavelengths in m
+    wavelengths : 1d array of float
+        Propagating wavelengths, in m.
 
     """
 
@@ -687,11 +689,12 @@ class Domain:
 
     This represents the state of a MIZ at a given time.
 
-
     Attributes
     ----------
     gravity : float
+        Acceleration of gravity, in m s^-2.
     spectrum : DiscreteSpectrum
+        Discretised spectrum forcing the domain.
     fsw : FreeSurfaceWaves
     attenuation: flexrac1d.lib.att.Attenuation
     growth_params : list
