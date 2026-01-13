@@ -15,3 +15,5 @@ documentation for details.
    :maxdepth: 2
    :caption: Contents:
 
+    User guide <use/index>
+    API reference <autoapi/index>

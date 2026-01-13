@@ -35,11 +35,12 @@ autoapi_dirs = ["../../src/swiift"]
 autoapi_type = "python"
 autoapi_options = [
     "members",
-    "undoc-members",
+    # "undoc-members",
     "show-inheritance",
     "show-module-summary",
     "imported-members",
 ]
+autoapi_python_class_content = "class"
 
 bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
