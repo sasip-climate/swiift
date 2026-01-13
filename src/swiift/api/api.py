@@ -1,3 +1,5 @@
+r"""Experiment class."""
+
 from __future__ import annotations
 
 from collections import namedtuple
@@ -158,6 +160,24 @@ def load_pickle(
 
 @attrs.define
 class Experiment:
+    """Experiment holding geometry, fracture mechanism and history.
+
+    Attributes
+    ----------
+    time : float
+        Time from start of experiment, in s.
+    domain : Domain
+        Domain instance supporting the experiment.
+    history : dict[float, Step]
+        History of the experiment. Keys correspond to time, values
+        to geometry.
+    fracture_handler : fh._FractureHandler
+        Instance of a concrete class derived from _FractureHandler,
+        that describes the fracture mechanism used for the experiment.
+        Default to binary fracture from energy criterion.
+
+    """
+
     time: float
     domain: md.Domain
     history: dict[float, Step] = attrs.field(factory=dict, repr=False)
@@ -172,7 +192,43 @@ class Experiment:
         growth_params: tuple | None = None,
         fracture_handler: fh._FractureHandler | None = None,
         attenuation_spec: att.Attenuation | None = None,
-    ):
+    ) -> typing.Self:
+        """Build an Experiment from existing spectrum and ocean.
+
+        Parameters
+        ----------
+        gravity : float
+            Acceleration of gravity, in m s^-2.
+        spectrum : md.DiscreteSpectrum
+            DiscreteSpectrum object holding wave forcing information.
+        ocean : md.Ocean
+            Ocean object holding bearing fluid information.
+        growth_params : tuple | None
+            Parameters parametrising wave growth, that is transition
+            from fluid at rest to developed wave, at the beginning of
+            the experiment. If None, the forcing is considered fully
+            developed accross the domain.
+        fracture_handler : fh._FractureHandler | None
+            Instance of a concrete class derived from _FractureHandler,
+            describing the fracture mechanism used for the experiment.
+            Defaults to binary fracture from energy criterion.
+        attenuation_spec : att.Attenuation | None
+            Attenuation parametrisation or specification. Defaults
+            to PARAM_01.
+
+        Returns
+        -------
+        Experiment
+
+        See Also
+        --------
+        :mod:`swiift.model.fracture_handler`
+            For details on how to specify the fracture handler.
+
+        :mod:`swiift.lib.att`
+            For details on how to specify attenuation.
+
+        """
         if attenuation_spec is None:
             attenuation_spec = att.AttenuationParameterisation.PARAM_01
         domain = md.Domain.from_discrete(
