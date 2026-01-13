@@ -241,7 +241,7 @@ class Experiment:
 
     @property
     def timesteps(self) -> np.ndarray:
-        """The experiment timesteps, in s.
+        """The experiment timesteps.
 
         These can be used to index `self.history`.
         This method only returns the keys to the current history,
@@ -279,38 +279,47 @@ class Experiment:
 
         Returns
         -------
-        1D array of int
-            The indices of the current timesteps corresponding to the states
-            that broke on the next iteration.
+        np.ndarray
+            1D array of `int` containing the indices of existing
+            timesteps corresponding to the states that broke on the next
+            iteration.
 
         """
         _t = [len(step.subdomains) for step in self.history.values()]
         return np.nonzero(np.ediff1d(_t))[0]
 
     def get_pre_fracture_times(self) -> np.ndarray:
-        """Return the times corresponding to states immediately after fracture.
+        """Timesteps corresponding to states immediately before fracture.
 
         These can be used to index `self.history`.
 
         Returns
         -------
-        1D array
-            Output times.
+        np.ndarray
+            1D array of existing timesteps, in s.
+
+        See also
+        --------
+        :property:`timesteps`
 
         """
         return self.timesteps[self._find_fracture_indices()]
 
     def get_post_fracture_times(self) -> np.ndarray:
-        """Return the times corresponding to states immediately after fracture.
+        """Timesteps corresponding to states immediately after fracture.
 
         These can be used to index `self.history`.
-        Note: in these states, the waves have been advected, compared to the
-        corresponding pre-fracture states.
+        Note: in these states, the waves have been advected, compared to
+        the corresponding pre-fracture states.
 
         Returns
         -------
-        1D array
-            Output times.
+        np.ndarray
+            1D array of existing timesteps, in s.
+
+        See also
+        --------
+        :property:`timesteps`
 
         """
         return self.timesteps[self._find_fracture_indices() + 1]
