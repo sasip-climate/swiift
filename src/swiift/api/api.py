@@ -353,7 +353,7 @@ class Experiment:
     ):
         """Move the experiment forward in time.
 
-        On step is a succession of events. First, the current floes are scanned
+        One step is a succession of events. First, the current floes are scanned
         for fractures. The domain is eventually updated with the newly formed
         fragments replacing the fractured floes. Then, the actual time
         progression happens, by updating the wave phases at the edge of every
