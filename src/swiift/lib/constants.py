@@ -1,4 +1,4 @@
-r"""Mathematical constants used through computations.
+r"""Mathematical constants used throughout computations.
 
 Attributes
 ----------
