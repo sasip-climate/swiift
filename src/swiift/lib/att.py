@@ -1,6 +1,6 @@
 r"""
-Attenuation parametrisations.
-=============================
+Attenuation parametrisations
+============================
 
 We model forcing waves as the superposition of damped sine functions,
 which can be written
