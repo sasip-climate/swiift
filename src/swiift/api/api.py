@@ -353,22 +353,26 @@ class Experiment:
     ):
         """Move the experiment forward in time.
 
-        One step is a succession of events. First, the current floes are scanned
-        for fractures. The domain is eventually updated with the newly formed
-        fragments replacing the fractured floes. Then, the actual time
-        progression happens, by updating the wave phases at the edge of every
-        individual floe. Finally, this new state is saved to the history, at
-        the index corresponding to the updated time.
+        One step is a succession of events. First, the current floes are
+        scanned for fractures. The domain is then updated with the newly
+        formed fragments, replacing the fractured floes. Then, the
+        actual time progression happens, by advecting the wave (thus
+        updating the wave phases at the edge of every individual floe).
+        Finally, this new state is saved to the history, at the index
+        corresponding to the updated time.
 
         Parameters
         ----------
         delta_time : float
-            The time increment in second.
+            The time increment, in s.
         an_sol : bool, optional
-            Whether to force the use of a numerical or analytical solution for
-            the deflection of the floes.
+            Whether to force the use of a numerical or analytical
+            solution for the deflection of the floes. When not
+            provided, analytical solutions are used when waves are
+            fully developed, numerical solutions are used otherwise.
         num_params : dict, optional
-            Optional parameters to pass to the numerical solver, if applicable.
+            Optional parameters to pass to the numerical solver, if
+            applicable.
 
         """
         self.domain.breakup(self.fracture_handler, an_sol, num_params)
