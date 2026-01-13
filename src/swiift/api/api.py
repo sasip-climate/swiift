@@ -256,6 +256,21 @@ class Experiment:
         return np.array(list(self.history.keys()))
 
     def add_floes(self, floes: md.Floe | Sequence[md.Floe]):
+        """Add floes to the domain.
+
+        Parameters
+        ----------
+        floes : md.Floe | Sequence[md.Floe]
+            Floe, or sequence of floes to be added to the domain.
+            The domain may already contain floes: the new floes must
+            not overlap with those.
+
+        Warnings
+        --------
+        This method triggers writing to the history. This may lead to
+        the loss of the history for the current timestep.
+
+        """
         self.domain.add_floes(floes)
         self._save_step()
 
