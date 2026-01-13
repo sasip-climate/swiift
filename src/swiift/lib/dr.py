@@ -1,3 +1,12 @@
+"""
+Dispersion relation solvers
+===========================
+
+Find the root of dispersion relations.
+
+
+"""
+
 from __future__ import annotations
 
 import functools
@@ -14,11 +23,41 @@ if typing.TYPE_CHECKING:
 
 @attrs.define
 class FreeSurfaceSolver:
+    """Solve the dispersion relation of free surface waves.
+
+    For a know wave frequency and constant water depth, solves for the
+    wavenumbers.
+
+    Attributes
+    ----------
+    alphas : array_like
+        Squared angular frequency scaled by gravity.
+    depth : float
+        Water depth, in m.
+
+    """
+
     alphas: np.ndarray
     depth: float
 
     @classmethod
-    def from_ocean(cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float):
+    def from_ocean(
+        cls, ocean: Ocean, spectrum: DiscreteSpectrum, gravity: float
+    ) -> typing.Self:
+        """Build a solver from existing objects.
+
+        Parameters
+        ----------
+        ocean : Ocean
+        spectrum : DiscreteSpectrum
+        gravity : float
+            Acceleration of gravity, in m^s-2.
+
+        Returns
+        -------
+        FreeSurfaceSolver
+
+        """
         alphas = spectrum._ang_freqs_pow2 / gravity
         return cls(alphas, ocean.depth)
 
@@ -63,6 +102,28 @@ class FreeSurfaceSolver:
     def compute_wavenumbers(
         self, real: bool = True, n: int | None = None
     ) -> np.ndarray:
+        """Compute wavenumbers.
+
+        Parameters
+        ----------
+        real : bool
+            Whether to look for real or complex wavenumbers.
+            Only the former is implemented at the moment.
+        n : int | None
+            Number of complex wavenumbers to solve for. Has no effect at the
+            moment.
+
+        Returns
+        -------
+        np.ndarray
+            Computed wavenumbers, in m^-1.
+
+        Raises
+        ------
+        NotImplementedError
+            If the parameter `real` is set to `False`.
+
+        """
         if real:
             return self._compute_real_wavenumbers()
         else:
