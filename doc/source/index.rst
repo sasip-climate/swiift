@@ -19,3 +19,4 @@ developed to model the wave-induced fracture of sea ice.
 
     User guide <use/index>
     API reference <autoapi/index>
+    Acknowledgements <ack>
