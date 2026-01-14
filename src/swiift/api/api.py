@@ -300,7 +300,7 @@ class Experiment:
 
         See also
         --------
-        :property:`timesteps`
+        :attr:`timesteps`
 
         """
         return self.timesteps[self._find_fracture_indices()]
@@ -319,7 +319,7 @@ class Experiment:
 
         See also
         --------
-        :property:`timesteps`
+        :attr:`timesteps`
 
         """
         return self.timesteps[self._find_fracture_indices() + 1]
@@ -399,7 +399,7 @@ class Experiment:
 
         See Also
         --------
-        :method:`get_states_strict`
+        :meth:`get_states_strict`
 
         """
         _times = np.ravel(times)  # ensure we have exactly a 1D array
@@ -423,7 +423,7 @@ class Experiment:
 
         See Also
         --------
-        :method:`get_states`
+        :meth:`get_states`
 
         """
         _times, sort_idx = np.unique(np.ravel(times), return_index=True)
