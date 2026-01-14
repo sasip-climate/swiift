@@ -95,7 +95,7 @@ def load_pickles(
     recursive: bool = False,
     **kwargs,
 ) -> Experiment:
-    """Load pickled objects and assemble them into a single :class:`Experiment`.
+    """Load pickles and assemble them into a single :class:`Experiment`.
 
     This function relies on :class:`pathlib.Path` :meth:`~pathlib.Path.glob`
     and :meth:`~pathlib.Path.rglob` methods.
