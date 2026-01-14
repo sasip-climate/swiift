@@ -463,16 +463,19 @@ class Experiment:
     ):
         """Write the results to disk and clear the history.
 
-        The whole object is pickled, before emptying the current history from
-        memory. The filename is constructed with the `prefix` passed as
-        argument, the package version number, and the time interval covered by
-        the history.
+        The whole object is pickled, before emptying the current history
+        from memory. The filename is constructed with the ``prefix``
+        passed as argument, the package version number, and the time
+        interval covered by the history.
 
         Parameters
         ----------
         prefix : str | None
-            Prefix for the file name. If none is provided, defaults to the `id`
-            of the `Experiment` object.
+            Prefix for the file name. Defaults to the ``id`` of the
+            ``Experiment`` instance.
+        dir_path : str | pathlib.Path | None
+            Directory where to store the history. Defaults to the
+            current working directory.
 
         """
         _dir_path = _str_to_path(dir_path)
@@ -535,48 +538,57 @@ class Experiment:
         """Run the experiment for a specified duration.
 
         The experiment is run from its current time for a duration
-        corresponding to `time`, with states regularly spaced with step
-        `delta_time`. If `time` is not an integer multiple of `delta_time`, the
-        number of steps will be rounded up. The experiment can optionally be
-        stopped before `time`, if no fracture happens for `break_time`, and at
-        least one fracture has occured.
+        corresponding to ``time``, with states regularly spaced with
+        step ``delta_time``. If ``time`` is not an integer multiple of
+        `delta_time`, the number of steps will be rounded up. The
+        experiment can optionally be stopped before ``time``, if no
+        fracture happens for ``break_time``, and at least one fracture
+        has occured.
 
-        The current object can be saved at regularly spaced step intervals, as
-        specified by `chunk_size`.
+        The current object can be saved at regularly spaced step
+        intervals, as specified by ``chunk_size``.
 
-        Optional messages can be printed to stdout, with a verbosity level
-        controlled by `verbose`.
+        Optional messages can be printed to stdout, with a verbosity
+        level controlled by ``verbose``.
 
-        A progress bar can be passed as an optional parameter to monitor the
-        experiment. The implementation expect an objects that behaves as a
-        `tqdm` bar; in particular, it needs to expose `update` and close
-        `method`. If used conjonctly with `verbose`, it also needs to expose a
-        `write` method.
+        A progress bar can be passed as an optional parameter to monitor
+        the experiment. The implementation expect an objects that
+        behaves as a ``tqdm`` bar; in particular, it needs to expose
+        ``update`` and ``close`` method. If used conjonctly with
+        ``verbose``, it also needs to expose a ``write`` method.
 
         Parameters
         ----------
         time : float
-            Duration to run the experiment for, in seconds.
+            Duration to run the experiment for, in s.
         delta_time : float
-            Time step between iterations, in seconds.
+            Time step between iterations, in s.
         break_time : float | None
-            Time before stopping the experiment if no fracture occurs, in seconds.
+            Time before stopping the experiment if no fracture occurs,
+            in s.
         chunk_size : int | None
             Number of steps before writing the results to a file.
         verbose : int | None
-            Verbosity level. If 1, outputs for disk writes. If 2, additional
-            outputs for fractures.
+            Verbosity level.
+            If 1:
+                Outputs for disk writes.
+
+            If 2:
+                Additional outputs for fractures.
         pbar : progress bar | None
             Progress bar monitoring the experiment.
         path : str | pathlib.Path | None
-            Directory where files will be saved. If none is provided, files
-            will be saved in the current directory.
+            Directory where files will be saved. Defaults to the current
+            working directory.
         dump_final : bool
-            Whether the results should be saved to disk at the end of the run
-            by calling `dump_history`, thus clearing the history from memory.
+            Whether the results should be saved to disk at the end of
+            the run by calling :meth:`dump_history`, thus clearing
+            the history from memory. If ``False``, at the end of the
+            run, the instance maintains its history which is thus *not*
+            saved.
         dump_prefix : str | None
-            Prefix for the file names used in the dumps. If none is provided,
-            defaults to the `id` of the `Experiment` object.
+            Prefix for the file names when saving chunks. Defaults to
+            the ``id`` of the ``Experiment`` instance.
 
         """
 
