@@ -330,7 +330,7 @@ class Experiment:
         Returns
         -------
         Step
-            The `Step` corresponding to the last timestep.
+            The step corresponding to the last timestep.
 
         """
         return self.history[next(reversed(self.history))]
