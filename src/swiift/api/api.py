@@ -380,45 +380,58 @@ class Experiment:
         self.time += delta_time
         self._save_step()
 
-    def get_states(self, times: np.ndarray | float) -> dict[float, Step]:
+    def get_states(self, times: float | Sequence[float]) -> dict[float, Step]:
         """Return a subset of the history matching the given times.
+
+        If the provided times are not found, their closest matches are
+        returned instead.
 
         Parameters
         ----------
-        times : 1D array_like, float
-            Time, or sequence of times.
+        times : float | Sequence[float]
+            Time, or sequence of times, in s.
 
         Returns
         -------
         dict[float, Step]
-            A dictionary containing the `Step`s closest to the input `times`.
+            A dictionary containing the closest steps to the input
+            times.
+
+        See Also
+        --------
+        :method:`get_states_strict`
 
         """
-        times = np.ravel(times)  # ensure we have exactly a 1D array
+        _times = np.ravel(times)  # ensure we have exactly a 1D array
         timestep_keys = _dct_keys_to_array(self.history)
-        indexes = (np.abs(times - timestep_keys[:, None])).argmin(axis=0)
+        indexes = (np.abs(_times - timestep_keys[:, None])).argmin(axis=0)
         return {k: self.history[k] for k in timestep_keys[indexes]}
 
-    def get_states_strict(self, times: np.ndarray | float) -> dict[float, Step]:
+    def get_states_strict(self, times: float | Sequence[float]) -> dict[float, Step]:
         """Return a subset of the history matching the given times.
 
         Parameters
         ----------
-        times : np.ndarray | float
-            Time, or sequence of times.
+        times : float | Sequence[float]
+            Time, or sequence of times, in s.
 
         Returns
         -------
         dict[float, Step]
-            A dictionary containing the `Step` s matching exactly the input.
+            A dictionary containing the steps matching exactly the input
+            times.
+
+        See Also
+        --------
+        :method:`get_states`
 
         """
-        times, sort_idx = np.unique(np.ravel(times), return_index=True)
+        _times, sort_idx = np.unique(np.ravel(times), return_index=True)
         timestep_keys = _dct_keys_to_array(self.history)
         # We `unsort' the output of np.unique with the index `sort_idx`,
         # so that values are returned in the order they were passed.
-        filtered_times = times[
-            np.isin(times[np.argsort(sort_idx)], timestep_keys, assume_unique=True)
+        filtered_times = _times[
+            np.isin(_times[np.argsort(sort_idx)], timestep_keys, assume_unique=True)
         ]
         return {_time: self.history[_time] for _time in filtered_times}
 
