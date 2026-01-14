@@ -95,25 +95,27 @@ def load_pickles(
     recursive: bool = False,
     **kwargs,
 ) -> Experiment:
-    """Load pickle objects and assemble them into a single `Experiment`.
+    """Load pickled objects and assemble them into a single :class:`Experiment`.
 
-    This function relies on `pathlib.Path`'s `glob` and `rglob` methods.
-    Files found matching the pattern are assembled into a single `Experiment`
-    object: thas is, histories are concatenated. Duplicated keys (timestep
-    entries) are thus lost. This function is therefore intended to be used
-    on files which the user knows have no overlap between their time axes.
+    This function relies on :class:`pathlib.Path` :meth:`~pathlib.Path.glob`
+    and :meth:`~pathlib.Path.rglob` methods.
+    Files found matching the provided pattern are assembled into a
+    single :class:`Experiment` object; histories are thus concatenated,
+    which implies that duplicated keys (timestep entries) are lost.
+    This function is therefore intended to be used on files that the
+    user knows have no overlap between their time axes.
 
     Parameters
     ----------
     pattern : str
         A pattern to glob upon.
-    root : str | pathlib.Path | None
-        The directory in which files will be looked for. If `None`, search from
-        the current working directory.
+    dir_path : str | pathlib.Path | None
+        The directory in which files will be looked for.
+        Defaults to the current working directory.
     recursive : bool
-        Whether to search for the pattern recursively.
+        Whether to search for the pattern recursively from ``dir_path``.
     **kwargs
-        Arguments passed to `pathlib.Path.[r]glob`.
+        Arguments passed to ``pathlib.Path.[r]glob``.
 
     Returns
     -------
@@ -124,7 +126,8 @@ def load_pickles(
     FileNotFoundError
         If no file matches the pattern.
     ValueError
-        If a found file does not correspond to an instance of `Experiment`.
+        If a found file does not correspond to an instance of
+        :class:`Experiment`.
 
     """
     _dir_path = _str_to_path(dir_path)
