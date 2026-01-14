@@ -24,6 +24,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "autoapi.extension",
     "sphinxcontrib.bibtex",
+    "sphinx.ext.intersphinx",
 ]
 
 napoleon_google_docstring = False
@@ -44,6 +45,8 @@ autoapi_python_class_content = "class"
 
 bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
+
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 templates_path = ["_templates"]
 exclude_patterns = []
