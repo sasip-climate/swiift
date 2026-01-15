@@ -163,7 +163,7 @@ def load_pickle(
 
 @attrs.define
 class Experiment:
-    """Experiment holding geometry, fracture mechanism and history.
+    """Container holding geometry, fracture mechanism, and history.
 
     Attributes
     ----------
