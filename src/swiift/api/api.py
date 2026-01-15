@@ -141,7 +141,7 @@ def load_pickles(
 def load_pickle(
     fname: str | pathlib.Path,
 ) -> Experiment:
-    """Read and return an `Experiment` object stored in a pickle file.
+    """Load a pickle and return an class:`Experiment`.
 
     Parameters
     ----------
@@ -155,7 +155,7 @@ def load_pickle(
     Raises
     ------
     FileNotFoundError
-        If files matching `fname` cannot be found.
+        If no file matching ``fname`` can be found.
 
     """
     return _load_pickle(fname)
