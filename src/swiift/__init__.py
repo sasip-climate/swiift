@@ -14,3 +14,8 @@ There are three subpackages that need to be explicitly imported:
 """
 
 from swiift.__about__ import __version__
+
+from .api import *
+from .lib import att
+from .model import *
+from .model import frac_handlers as fh
