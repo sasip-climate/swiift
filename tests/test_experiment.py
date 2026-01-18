@@ -63,7 +63,7 @@ def setup_experiment() -> api.Experiment:
     depth = np.inf
     ocean = Ocean(depth=depth)
     gravity = 9.8
-    return Experiment.from_discrete(gravity, spectrum, ocean)
+    return Experiment.create(gravity, spectrum, ocean)
 
 
 def setup_experiment_with_floe() -> tuple[api.Experiment, Floe]:
@@ -164,7 +164,7 @@ def test_recursive_load(do_recursive: bool):
 
 @given(**ocean_and_mono_spectrum)
 def test_initialisation(gravity, spectrum, ocean):
-    experiment = Experiment.from_discrete(gravity, spectrum, ocean)
+    experiment = Experiment.create(gravity, spectrum, ocean)
 
     assert experiment.time == 0
     assert isinstance(experiment.domain, Domain)
@@ -197,7 +197,7 @@ def test_initialisation_with_opt_params(
     att_spec,
 ):
     fracture_handler = fracture_handler_type()
-    experiment = Experiment.from_discrete(
+    experiment = Experiment.create(
         gravity,
         spectrum,
         ocean,
@@ -220,7 +220,7 @@ def test_initialisation_with_opt_params(
 @given(spectrum=spec_mono(), **coupled_ocean_ice)
 def test_add_floes_single(gravity, spectrum, ocean, ice):
     floe = Floe(left_edge=0, length=100, ice=ice)
-    experiment = Experiment.from_discrete(gravity, spectrum, ocean)
+    experiment = Experiment.create(gravity, spectrum, ocean)
     assert len(experiment.history) == 0
     assert len(experiment.domain.subdomains) == 0
     assert len(experiment.domain.cached_wuis) == 0
@@ -237,7 +237,7 @@ def test_add_floes_single(gravity, spectrum, ocean, ice):
 def test_add_floes_collection(gravity, spectrum, ocean, ice):
     floe1 = Floe(left_edge=0, length=100, ice=ice)
     floe2 = Floe(left_edge=100, length=100, ice=ice)
-    experiment = Experiment.from_discrete(gravity, spectrum, ocean)
+    experiment = Experiment.create(gravity, spectrum, ocean)
     experiment.add_floes((floe1, floe2))
     assert len(experiment.history) == 1
     assert len(experiment.history[0].subdomains) == 2
@@ -248,7 +248,7 @@ def test_add_floes_collection(gravity, spectrum, ocean, ice):
 def test_add_floes_overlap(gravity, spectrum, ocean, ice):
     floe1 = Floe(left_edge=0, length=100, ice=ice)
     floe2 = Floe(left_edge=80, length=100, ice=ice)
-    experiment = Experiment.from_discrete(gravity, spectrum, ocean)
+    experiment = Experiment.create(gravity, spectrum, ocean)
     with pytest.raises(ValueError):
         experiment.add_floes((floe1, floe2))
 
