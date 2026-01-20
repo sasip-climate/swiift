@@ -1,5 +1,3 @@
-r"""Experiment class."""
-
 from __future__ import annotations
 
 from collections import namedtuple
@@ -110,7 +108,7 @@ def load_pickles(
     ----------
     pattern : str
         A pattern to glob upon.
-    dir_path : str | pathlib.Path | None
+    dir_path : str | pathlib.Path, optional
         The directory in which files will be looked for.
         Defaults to the current working directory.
     recursive : bool
@@ -206,16 +204,16 @@ class Experiment:
             DiscreteSpectrum object holding wave forcing information.
         ocean : md.Ocean
             Ocean object holding bearing fluid information.
-        growth_params : tuple | None
+        growth_params : tuple, optional
             Parameters parametrising wave growth, that is transition
             from fluid at rest to developed wave, at the beginning of
             the experiment. If None, the forcing is considered fully
             developed accross the domain.
-        fracture_handler : fh._FractureHandler | None
+        fracture_handler : fh._FractureHandler, optional
             Instance of a concrete class derived from _FractureHandler,
             describing the fracture mechanism used for the experiment.
             Defaults to binary fracture from energy criterion.
-        attenuation_spec : att.Attenuation | None
+        attenuation_spec : att.Attenuation, optional
             Attenuation parametrisation or specification. Defaults
             to PARAM_01.
 
@@ -265,16 +263,16 @@ class Experiment:
             DiscreteSpectrum object holding wave forcing information.
         ocean : md.Ocean
             Ocean object holding bearing fluid information.
-        growth_params : tuple | None
+        growth_params : tuple, optional
             Parameters parametrising wave growth, that is transition
             from fluid at rest to developed wave, at the beginning of
             the experiment. If None, the forcing is considered fully
             developed accross the domain.
-        fracture_handler : fh._FractureHandler | None
+        fracture_handler : fh._FractureHandler, optional
             Instance of a concrete class derived from _FractureHandler,
             describing the fracture mechanism used for the experiment.
             Defaults to binary fracture from energy criterion.
-        attenuation_spec : att.Attenuation | None
+        attenuation_spec : att.Attenuation, optional
             Attenuation parametrisation or specification. Defaults
             to PARAM_01.
 
@@ -536,10 +534,10 @@ class Experiment:
 
         Parameters
         ----------
-        prefix : str | None
+        prefix : str, optional
             Prefix for the file name. Defaults to the ``id`` of the
             ``Experiment`` instance.
-        dir_path : str | pathlib.Path | None
+        dir_path : str | pathlib.Path, optional
             Directory where to store the history. Defaults to the
             current working directory.
 
@@ -629,12 +627,12 @@ class Experiment:
             Duration to run the experiment for, in s.
         delta_time : float
             Time step between iterations, in s.
-        break_time : float | None
+        break_time : float, optional
             Time before stopping the experiment if no fracture occurs,
             in s.
-        chunk_size : int | None
+        chunk_size : int, optional
             Number of steps before writing the results to a file.
-        verbose : int | None
+        verbose : int, optional
             Verbosity level.
 
             If 1:
@@ -642,9 +640,9 @@ class Experiment:
 
             If 2:
                 Additional outputs for fractures.
-        pbar : progress bar | None
+        pbar : progress bar, optional
             Progress bar monitoring the experiment.
-        path : str | pathlib.Path | None
+        path : str | pathlib.Path, optional
             Directory where files will be saved. Defaults to the current
             working directory.
         dump_final : bool
@@ -653,7 +651,7 @@ class Experiment:
             the history from memory. If ``False``, at the end of the
             run, the instance maintains its history which is thus *not*
             saved.
-        dump_prefix : str | None
+        dump_prefix : str, optional
             Prefix for the file names when saving chunks. Defaults to
             the ``id`` of the ``Experiment`` instance.
 
