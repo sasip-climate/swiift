@@ -587,6 +587,9 @@ class Experiment:
         dump_prefix: str | None = ...,
     ): ...
 
+    # TODO: modify default behaviour of dump_final. Should dump final if there
+    # was dumping before, or set explicitely to true. If chunk_size is None,
+    # and dump_final unset, should not dump.
     def run(
         self,
         time: float,
