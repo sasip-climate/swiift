@@ -645,7 +645,7 @@ class Experiment:
         path : str | pathlib.Path, optional
             Directory where files will be saved. Defaults to the current
             working directory.
-        dump_final : bool
+        dump_final : bool, optional
             Whether the results should be saved to disk at the end of
             the run by calling :meth:`dump_history`, thus clearing
             the history from memory. If ``False``, at the end of the
