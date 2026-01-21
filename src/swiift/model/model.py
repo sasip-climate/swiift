@@ -298,6 +298,10 @@ class WavesUnderElasticPlate:
 
 
 # TODO: check docstring
+# TODO: maybe consolidate the different factory methods.
+# TODO: the only propriety from spectra necessary for WUIs is angf.
+# May want using directly period/freq instead of DiscreteSpectrum,
+# as amplitude and phase unnecessary.
 @attrs.define(frozen=True)
 class WavesUnderIce:
     """A non-localised zone characetrised by wave action under floating ice.
