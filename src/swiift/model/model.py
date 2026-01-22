@@ -86,7 +86,7 @@ class Ice:
     density : float
         Density in kg m^-3
     frac_toughness : float
-        Fracture toughness in Pa m^-1/2
+        Fracture toughness in Pa m^(1/2)
     poissons_ratio : float
         Poisson's ratio
     strain_threshold : float
