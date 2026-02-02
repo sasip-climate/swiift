@@ -796,6 +796,9 @@ class Domain:
         return self.cached_phases[delta_time]
 
     def _compute_wui(self, ice: Ice):
+        # TODO: only the fields of ice that impact the DR should enter its hash.
+        # Now, varying eg the critical strain but keeping everything else
+        # constant might lead to the DR having to be recomputed.
         if ice not in self.cached_wuis:
             wup = WavesUnderElasticPlate.from_ocean(
                 ice, self.fsw.ocean, self.spectrum, self.gravity
