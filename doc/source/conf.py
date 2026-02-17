@@ -43,6 +43,30 @@ autoapi_options = [
 ]
 autoapi_python_class_content = "class"
 
+
+def skip_member_filter(app, what, name, obj, skip, options):
+    # Specify the members documented multiple times due to import to
+    # packages. The behaviour we seek is to only document members at
+    # their highest level of accessibility.
+    to_skip = (
+        "swiift.api.Experiment",
+        "swiift.api.api.Experiment",
+        "swiift.api.load_pickle",
+        "swiift.api.api.load_pickle",
+        "swiift.api.load_pickles",
+        "swiift.api.api.load_pickles",
+        "swiift.model.Ocean",
+        "swiift.model.model.Ocean",
+    )
+    if name in to_skip:
+        return True
+    return None
+
+
+def setup(sphinx):
+    sphinx.connect("autoapi-skip-member", skip_member_filter)
+
+
 bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
