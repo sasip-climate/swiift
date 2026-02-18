@@ -99,11 +99,11 @@ class Ice:
     Attributes
     ----------
     quad_moment : float
-        Quadratic moment of area in m^3
+        Quadratic moment of area, in m^3.
     flex_rigidity : float
-        Flexural rigidity in
+        Flexural rigidity in, N m.
     frac_energy_rate : float
-        Fracture energy release rate in J m^-2
+        Fracture energy release rate, in J m^-2.
 
     """
 
