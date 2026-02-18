@@ -84,17 +84,17 @@ class Ice:
     Parameters
     ----------
     density : float
-        Density in kg m^-3
+        Density, in kg m^-3.
     frac_toughness : float
-        Fracture toughness in Pa m^(1/2)
+        Fracture toughness, in Pa m^(1/2).
     poissons_ratio : float
-        Poisson's ratio
+        Poisson's ratio.
     strain_threshold : float
-        Critical flexural strain in m m^-1
+        Critical flexural strain, in m m^-1.
     thickness : float
-        Ice thickness in m
+        Ice thickness, in m.
     youngs_modulus : float
-        Scalar Young's modulus in Pa
+        Scalar Young's modulus, in Pa.
 
     Attributes
     ----------
