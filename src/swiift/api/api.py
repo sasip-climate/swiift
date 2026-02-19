@@ -181,7 +181,7 @@ class Experiment:
     """
 
     time: float
-    domain: md.Domain
+    domain: md.Domain = attrs.field(repr=False)
     history: dict[float, Step] = attrs.field(factory=dict, repr=False)
     fracture_handler: fh._FractureHandler = attrs.field(factory=fh.BinaryFracture)
 
