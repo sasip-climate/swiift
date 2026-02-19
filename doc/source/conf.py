@@ -22,6 +22,7 @@ release = version
 
 extensions = [
     "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
     "autoapi.extension",
     "sphinxcontrib.bibtex",
     "sphinx.ext.intersphinx",
@@ -33,6 +34,9 @@ napoleon_numpy_docstring = True
 # Prevent duplicates, as __init__ are constructed by attrs
 napoleon_include_init_with_doc = False
 
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
+autodoc_typehints_format = "short"
 autoapi_dirs = ["../../src/swiift"]
 autoapi_type = "python"
 autoapi_options = [
