@@ -35,6 +35,10 @@ doc = [
     "myst_nb",
     "jupytext",
     "jupyterlab_myst",
+    "matplotlib",
+    "seaborn",
+    "tqdm",
+    "ipywidgets",
 ]
 
 

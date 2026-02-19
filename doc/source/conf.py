@@ -109,6 +109,6 @@ myst_enable_extensions = ["colon_fence"]
 nb_custom_formats = {
     ".md": ["jupytext.reads", {"fmt": "mystnb"}],
 }
-nb_execution_mode = "off"
+nb_execution_mode = "auto"
 nb_number_source_lines = True
 nb_render_markdown_format = "myst"
