@@ -536,7 +536,7 @@ class Experiment:
         ----------
         prefix : str, optional
             Prefix for the file name. Defaults to the ``id`` of the
-            ``Experiment`` instance.
+            instance.
         dir_path : str | pathlib.Path, optional
             Directory where to store the history. Defaults to the
             current working directory.
