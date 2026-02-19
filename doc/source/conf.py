@@ -66,6 +66,12 @@ def skip_member_filter(app, what, name, obj, skip, options):
         "swiift.api.api.load_pickles",
         "swiift.model.Ocean",
         "swiift.model.model.Ocean",
+        "swiift.model.DiscreteSpectrum",
+        "swiift.model.model.DiscreteSpectrum",
+        "swiift.model.Floe",
+        "swiift.model.model.Floe",
+        "swiift.model.Ice",
+        "swiift.model.model.Ice",
     )
     if name in to_skip:
         return True
