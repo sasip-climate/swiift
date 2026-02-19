@@ -198,64 +198,6 @@ class Experiment:
     history: dict[float, Step] = attrs.field(factory=dict, repr=False)
     fracture_handler: fh._FractureHandler = attrs.field(factory=fh.BinaryFracture)
 
-    def from_discrete(
-        cls,
-        gravity: float,
-        spectrum: md.DiscreteSpectrum,
-        ocean: md.Ocean,
-        growth_params: tuple | None = None,
-        fracture_handler: fh._FractureHandler | None = None,
-        attenuation_spec: att.Attenuation | None = None,
-    ) -> typing.Self:
-        """Build an Experiment from existing spectrum and ocean.
-
-        Parameters
-        ----------
-        gravity : float
-            Acceleration of gravity, in m s^-2.
-        spectrum : md.DiscreteSpectrum
-            DiscreteSpectrum object holding wave forcing information.
-        ocean : md.Ocean
-            Ocean object holding bearing fluid information.
-        growth_params : tuple, optional
-            Parameters parametrising wave growth, that is transition
-            from fluid at rest to developed wave, at the beginning of
-            the experiment. If None, the forcing is considered fully
-            developed accross the domain.
-        fracture_handler : fh._FractureHandler, optional
-            Instance of a concrete class derived from _FractureHandler,
-            describing the fracture mechanism used for the experiment.
-            Defaults to binary fracture from energy criterion.
-        attenuation_spec : att.Attenuation, optional
-            Attenuation parametrisation or specification. Defaults
-            to PARAM_01.
-
-        Returns
-        -------
-        Experiment
-
-        See Also
-        --------
-        :mod:`swiift.model.fracture_handler`
-            For details on how to specify the fracture handler.
-
-        :mod:`swiift.lib.att`
-            For details on how to specify attenuation.
-
-        Notes
-        -----
-        .. version-deprecated:: next
-            Use :meth:`create` instead.
-
-        """
-        warnings.warn(
-            "This method is deprecated as of NEXT, and will be removed in a later release.",
-            DeprecationWarning,
-        )
-        return cls.create(
-            gravity, spectrum, ocean, growth_params, fracture_handler, attenuation_spec
-        )
-
     @classmethod
     def create(
         cls,
@@ -750,3 +692,61 @@ class Experiment:
         if dump_final and len(self.history) > 1:
             # No `pbar` passed as it should have been closed
             dump_and_print(dump_prefix, path, verbose, None)
+
+    def from_discrete(
+        cls,
+        gravity: float,
+        spectrum: md.DiscreteSpectrum,
+        ocean: md.Ocean,
+        growth_params: tuple | None = None,
+        fracture_handler: fh._FractureHandler | None = None,
+        attenuation_spec: att.Attenuation | None = None,
+    ) -> typing.Self:
+        """Build an Experiment from existing spectrum and ocean.
+
+        Parameters
+        ----------
+        gravity : float
+            Acceleration of gravity, in m s^-2.
+        spectrum : md.DiscreteSpectrum
+            DiscreteSpectrum object holding wave forcing information.
+        ocean : md.Ocean
+            Ocean object holding bearing fluid information.
+        growth_params : tuple, optional
+            Parameters parametrising wave growth, that is transition
+            from fluid at rest to developed wave, at the beginning of
+            the experiment. If None, the forcing is considered fully
+            developed accross the domain.
+        fracture_handler : fh._FractureHandler, optional
+            Instance of a concrete class derived from _FractureHandler,
+            describing the fracture mechanism used for the experiment.
+            Defaults to binary fracture from energy criterion.
+        attenuation_spec : att.Attenuation, optional
+            Attenuation parametrisation or specification. Defaults
+            to PARAM_01.
+
+        Returns
+        -------
+        Experiment
+
+        See Also
+        --------
+        :mod:`swiift.model.fracture_handler`
+            For details on how to specify the fracture handler.
+
+        :mod:`swiift.lib.att`
+            For details on how to specify attenuation.
+
+        Notes
+        -----
+        .. version-deprecated:: next
+            Use :meth:`create` instead.
+
+        """
+        warnings.warn(
+            "This method is deprecated as of NEXT, and will be removed in a later release.",
+            DeprecationWarning,
+        )
+        return cls.create(
+            gravity, spectrum, ocean, growth_params, fracture_handler, attenuation_spec
+        )
