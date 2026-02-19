@@ -522,10 +522,20 @@ class WavesUnderFloe(_Subdomain):
     Parameters
     ----------
     wui : WavesUnderIce
-    edge_amplitudes : 1d np.ndarray of complex
-        The wave complex amplitude at the left edge of the floe in m
+    edge_amplitudes : np.ndarray
+        A 1D array contanining wave complex amplitudes at the left edge
+        of the floe, in m.
     generation : int
-        The number of fractures that led to the existence of this floe
+        The number of fractures that led to the existence of this floe.
+
+    Attributes
+    ----------
+    wui : WavesUnderIce
+    edge_amplitudes : np.ndarray
+        A 1D array contanining wave complex amplitudes at the left edge
+        of the floe, in m.
+    generation : int
+        The number of fractures that led to the existence of this floe.
 
     """
 
