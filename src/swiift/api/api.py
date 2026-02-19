@@ -140,7 +140,7 @@ def load_pickles(
 def load_pickle(
     fname: str | pathlib.Path,
 ) -> Experiment:
-    """Load a pickle and return an class:`Experiment`.
+    """Load a pickle and return an :class:`Experiment`.
 
     Parameters
     ----------
