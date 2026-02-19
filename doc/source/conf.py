@@ -29,14 +29,18 @@ extensions = [
     "myst_nb",
 ]
 
+# Options for sphinx-napoleon
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 # Prevent duplicates, as __init__ are constructed by attrs
 napoleon_include_init_with_doc = False
 
+# Options for sphinx-autodoc
 autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
 autodoc_typehints_format = "short"
+
+# Options for autoapi
 autoapi_dirs = ["../../src/swiift"]
 autoapi_type = "python"
 autoapi_options = [
@@ -72,16 +76,18 @@ def setup(sphinx):
     sphinx.connect("autoapi-skip-member", skip_member_filter)
 
 
+# Options for bibtex
 bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
+# Options for intersphinx
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
 
-# -- Options for HTML output -------------------------------------------------
+# Options for HTML output
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
@@ -92,6 +98,7 @@ rst_prolog = f"""
 .. |project| replace:: {project}
 """
 
+# Options for myst-nb
 myst_enable_extensions = ["colon_fence"]
 nb_custom_formats = {
     ".md": ["jupytext.reads", {"fmt": "mystnb"}],
