@@ -164,7 +164,7 @@ def load_pickle(
 class Experiment:
     """Container holding geometry, fracture mechanism, and history.
 
-    Attributes
+    Parameters
     ----------
     time : float
         Time from start of experiment, in s.
