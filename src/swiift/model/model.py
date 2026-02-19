@@ -628,6 +628,22 @@ class WavesUnderFloe(_Subdomain):
 
 @attrs.frozen(init=False)
 class DiscreteSpectrum:
+    """Container for a discretised spectrum.
+
+    This class allows for building a forcing from the linear
+    superposition of harmonic waves.
+
+    Attributes
+    ----------
+    amplitudes : np.ndarray
+        A 1D array of amplitudes, in m.
+    frequencies : np.ndarray
+        A 1D array of frequencies, in Hz.
+    phases : np.ndarray
+        A 1D array of phases, in rad.
+
+    """
+
     amplitudes: np.ndarray
     frequencies: np.ndarray
     phases: np.ndarray
