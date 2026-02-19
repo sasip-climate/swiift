@@ -272,10 +272,10 @@ class Experiment:
         ----------
         gravity : float
             Acceleration of gravity, in m s^-2.
-        spectrum : md.DiscreteSpectrum
-            DiscreteSpectrum object holding wave forcing information.
-        ocean : md.Ocean
-            Ocean object holding bearing fluid information.
+        spectrum : DiscreteSpectrum
+            DiscreteSpectrum object holding information on wave forcing.
+        ocean : Ocean
+            Ocean object holding information on bearing fluid.
         growth_params : tuple, optional
             Parameters parametrising wave growth, that is transition
             from fluid at rest to developed wave, at the beginning of
