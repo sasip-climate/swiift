@@ -167,16 +167,29 @@ class Experiment:
     Parameters
     ----------
     time : float
-        Time from start of experiment, in s.
-    domain : Domain
+        Time at start of experiment, in s.
+    domain : swiift.model.model.Domain
+        Domain instance supporting the experiment.
+    history : dict[float, Step], optional
+        History of the experiment.
+        Keys correspond to time, values to geometry.
+    fracture_handler : swiift.model.fracture_handler._FractureHandler,
+    default fh.BinaryFracture
+        Instance of a concrete class derived from _FractureHandler,
+        that describes the fracture mechanism used for the experiment.
+
+    Attributes
+    ----------
+    time : float
+        Time from the beginning of the experiment, in s.
+    domain : swiift.model.model.Domain
         Domain instance supporting the experiment.
     history : dict[float, Step]
-        History of the experiment. Keys correspond to time, values
-        to geometry.
+        History of the experiment.
+        Keys correspond to time, values to geometry.
     fracture_handler : fh._FractureHandler
         Instance of a concrete class derived from _FractureHandler,
         that describes the fracture mechanism used for the experiment.
-        Default to binary fracture from energy criterion.
 
     """
 
