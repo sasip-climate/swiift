@@ -27,7 +27,15 @@ classifiers = [
 ]
 dependencies = ["attrs", "scipy>=1.12", "numpy>=2", "matplotlib"]
 [project.optional-dependencies]
-doc = ["sphinx", "sphinx-autoapi", "furo", "sphinxcontrib-bibtex"]
+doc = [
+    "sphinx",
+    "sphinx-autoapi",
+    "furo",
+    "sphinxcontrib-bibtex",
+    "myst_nb",
+    "jupytext",
+    "jupyterlab_myst",
+]
 
 
 [tool.hatch.version]

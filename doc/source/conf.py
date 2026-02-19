@@ -25,6 +25,7 @@ extensions = [
     "autoapi.extension",
     "sphinxcontrib.bibtex",
     "sphinx.ext.intersphinx",
+    "myst_nb",
 ]
 
 napoleon_google_docstring = False
@@ -86,3 +87,11 @@ html_static_path = ["_static"]
 rst_prolog = f"""
 .. |project| replace:: {project}
 """
+
+myst_enable_extensions = ["colon_fence"]
+nb_custom_formats = {
+    ".md": ["jupytext.reads", {"fmt": "mystnb"}],
+}
+nb_execution_mode = "off"
+nb_number_source_lines = True
+nb_render_markdown_format = "myst"
