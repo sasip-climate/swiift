@@ -49,33 +49,36 @@ Physical objects---such as ice floes---or concepts---such as a fracture
 mechanism---are abstracted into objects of varying complexity, which can then
 be combined into higher-level objects.
 
-#. :py:class:`swiift.api.api.Experiment` -- the user-facing interface to simulations.
-    It combines a :py:class:`~swiift.model.model.Domain`, a fracture Handler,
-    and add a time dimension.
-    It exposes convenience methods to step through a simulation, save its
-    results, or load existing results from disk.
+#. :py:class:`~swiift.Experiment` -- the user-facing interface to simulations.
+   It combines a :py:class:`~swiift.model.model.Domain`, a fracture Handler,
+   and add a time dimension.
+   It exposes convenience methods to step through a simulation, save its
+   results, or load existing results from disk.
 #. :py:class:`~swiift.model.model.Domain` -- the state of an experiment at a given time.
    It holds informations on the state of the ice (that is, a collection of
    :py:class:`~swiift.model.model.WavesUnderFloe`), the fluid that bears it (a
    :py:class:`~swiift.model.model.FreeSurfaceWaves` object), and forcing waves
-   (:py:class:`~swiift.model.model.DiscreteSpectrum`).
+   (:py:class:`~swiift.DiscreteSpectrum`).
 #. Fracture handler -- the parametrisation of fracture.
    It determines whether floes in a domain should break.
-#. Discrete spectrum -- |project| handles monochromatic or polychromatic sine forcings.
+#. :class:`~swiift.DiscreteSpectrum` -- |project| handles monochromatic or
+   polychromatic sine forcings.
    A polychromatic is a linear superposition of wave modes.
-   :py:class:`~swiift.model.model.DiscreteSpectrum` objects gather amplitudes,
-   frequencies, and phases of these wave modes.
-   These can be automatically built from spectral parametrisation exposed by
-   :py:mod:`swiift.api.spectra`;
-   attenuation is handled at the domain level.
+   These objects gather amplitudes, frequencies, and phases of these wave
+   modes.
+   These can be automatically built from spectral parametrisations exposed by
+   :py:mod:`swiift.api.spectra`; attenuation is handled at the domain level.
    It might be moved to the floe level in the future, to allow for more
    flexibility.
-#. Floes -- from the point of view of |project|, floes are segments,
-   localised in space, that carry information on ice properties (fixed for a
-   given floe) and wave state (that varies along the floe).
-   They are associated methods to compute physical quantities deriving from
-   these properties and perturbations, such as the the vertical displacement
-   or the elastic potential energy.
+#. :class:`~swiift.Floe` -- from the point of view of |project|, floes are
+   segments, localised in space, that carry information on ice properties
+   (fixed for a given floe).
+   When part of a domain, they are promoted to
+   :class:`~swiift.model.model.WavesUnderFloe`, and get knowledge of the wave
+   state (that varies along the floe).
+   The latter have associated methods to compute physical quantities deriving
+   from these properties and the wave forcing, such as the the vertical
+   displacement or the elastic potential energy.
 #. Wave attenuation -- the presence of floes may attenuate wave propagation.
    The module :py:mod:`swiift.lib.att` exposes builtin attenuation schemes,
    and users can define their own schemes as well.
