@@ -35,11 +35,7 @@ where `$var` is to be replaced by the desired version tag (for instance, `v0.4.0
 
 ## Usage
 
-### Setting up an experiment
-
-### Running an experiment
-
-### Helper classes
+Please refer to the [documentation](https://swiift.readthedocs.io/en/latest/).
 
 
 ## Development
