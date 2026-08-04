@@ -1,11 +1,11 @@
 from hypothesis import given
+from hypothesis_miz.strategies import PHYSICAL_STRATEGIES
 import numpy as np
 import pytest
 import scipy.integrate as integrate
 
 import swiift.api.spectra as spectra
 from swiift.lib.constants import PI_2
-from tests.physical_strategies import PHYSICAL_STRATEGIES
 
 _freqencies = (
     np.array([1, 2]),

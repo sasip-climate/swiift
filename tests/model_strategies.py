@@ -3,12 +3,12 @@
 import typing
 
 from hypothesis import strategies as st
-
-from swiift.model.model import DiscreteSpectrum, Floe, Ice, Ocean
-from tests.physical_strategies import (
+from hypothesis_miz.strategies import (
     PHYSICAL_STRATEGIES,
     PHYSICAL_STRATEGIES_COMPOSITE,
 )
+
+from swiift.model.model import DiscreteSpectrum, Floe, Ice, Ocean
 
 
 @st.composite

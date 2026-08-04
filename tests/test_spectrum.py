@@ -1,9 +1,9 @@
 from hypothesis import given, strategies as st
+from hypothesis_miz.strategies import PHYSICAL_STRATEGIES
 import numpy as np
 import pytest
 
 from swiift.model.model import DiscreteSpectrum
-from tests.physical_strategies import PHYSICAL_STRATEGIES
 
 # Valid cases: all sizes the same, or some are 1
 valid_cases = [

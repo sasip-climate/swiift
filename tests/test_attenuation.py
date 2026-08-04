@@ -1,5 +1,6 @@
 from hypothesis import given
 import hypothesis.extra.numpy as npst
+from hypothesis_miz.strategies import PHYSICAL_STRATEGIES
 import numpy as np
 
 import swiift.lib.att as att
@@ -12,7 +13,6 @@ from swiift.model.model import (
     WavesUnderIce,
 )
 from tests.model_strategies import coupled_ocean_ice, spec_mono, spec_poly
-from tests.physical_strategies import PHYSICAL_STRATEGIES
 
 wavenumbers_strategy = npst.arrays(
     float,

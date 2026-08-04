@@ -4,6 +4,7 @@ import pathlib
 import pickle
 
 from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis_miz.utils import float_kw
 import numpy as np
 import pytest
 from pytest_mock import MockerFixture
@@ -15,7 +16,7 @@ import swiift.lib.phase_shift as ps
 import swiift.model.frac_handlers as fh
 from swiift.model.model import DiscreteSpectrum, Domain, Floe, Ice, Ocean
 from tests.model_strategies import coupled_ocean_ice, ocean_and_mono_spectrum, spec_mono
-from tests.utils import float_kw, fracture_handler_types
+from tests.utils import fracture_handler_types
 
 epxeriment_targets_path = "tests/target/experiments"
 fname_pattern = "exper_test_no_sortedlist*"

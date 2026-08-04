@@ -1,8 +1,8 @@
 from hypothesis import given, strategies as st
+from hypothesis_miz.utils import float_kw
 import numpy as np
 
 import swiift.lib.numerical as numerical
-from tests.utils import float_kw
 
 
 @st.composite
