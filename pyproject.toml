@@ -39,6 +39,25 @@ doc = [
   "ipywidgets",
 ]
 
+[dependency-groups]
+dev = [
+  { include-group = "lint" },
+  { include-group = "test" },
+  { include-group = "typecheck" },
+]
+lint = ["black", "flake8", "flake8-bugbear", "isort"]
+test = [
+  "coverage",
+  "hypothesis",
+  "hypothesis-miz",
+  "pytest",
+  "pytest-benchmark",
+  "pytest-mock",
+  "pytest-skip-slow",
+  "pytest-xdist",
+]
+typecheck = ["mypy", "scipy-stubs"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -51,43 +70,6 @@ dynamic_context = "test_function"
 
 [tool.coverage.report]
 exclude_also = ["if typing.TYPE_CHECKING:", "@typing.overload"]
-
-[tool.hatch.version]
-path = "src/swiift/__about__.py"
-
-[tool.hatch.envs.hatch-test]
-dependencies = [
-  "pytest",
-  "pytest-benchmark",
-  "pytest-mock",
-  "pytest-skip-slow",
-  "pytest-xdist",
-  "coverage",
-  "hypothesis",
-  "scipy-stubs",
-]
-
-[[tool.hatch.envs.hatch-test.matrix]]
-python = ["3.11", "3.12", "3.13", "3.14"]
-
-[tool.hatch.envs.hatch-test.scripts]
-run = "pytest{env:HATCH_TEST_ARGS:} {args}"
-run-cov = "coverage run -m pytest{env:HATCH_TEST_ARGS:} {args}"
-cov-combine = "coverage combine"
-cov-report = "coverage html --show-contexts"
-
-[tool.hatch.envs.types]
-template = "hatch-test"
-extra-dependencies = ["mypy>=1.0.0"]
-
-[tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/swiift tests}"
-
-[tool.hatch.envs.doc]
-features = ["doc"]
-
-[tool.hatch.envs.doc.scripts]
-make = "cd doc && make {args:html}"
 
 [tool.isort]
 profile = "black"

@@ -1,0 +1,32 @@
+[envs.hatch-test]
+locked = true
+builder = true
+dependency-groups = ["test"]
+
+[[envs.hatch-test.matrix]]
+python = ["3.11", "3.12", "3.13", "3.14"]
+
+[envs.hatch-test.scripts]
+run = "pytest{env:HATCH_TEST_ARGS:} {args}"
+run-cov = "coverage run -m pytest{env:HATCH_TEST_ARGS:} {args}"
+cov-combine = "coverage combine"
+cov-report = "coverage html --show-contexts"
+
+[envs.types]
+dependency-groups = ["typecheck", "test"]
+
+[envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/swiift tests}"
+
+[envs.dev]
+dependency-groups = ["dev"]
+builder = true
+
+[envs.doc]
+features = ["doc"]
+
+[envs.doc.scripts]
+make = "cd doc && make {args:html}"
+
+[version]
+path = "src/swiift/__about__.py"
