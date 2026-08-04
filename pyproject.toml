@@ -1,61 +1,70 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "SWIIFT"
-dynamic = ["version"]
 description = "A numerical model to study wave-induced fracture of sea ice floes."
 readme = "README.md"
 requires-python = ">= 3.10"
 license = "Apache-2.0"
 authors = [{ name = "Nicolas Mokus", email = "nmks@tuta.io" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
-    "Natural Language :: English",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Topic :: Scientific/Engineering :: Mathematics",
-    "Topic :: Scientific/Engineering :: Oceanography",
-    "Topic :: Scientific/Engineering :: Physics",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Scientific/Engineering :: Oceanography",
+  "Topic :: Scientific/Engineering :: Physics",
 ]
-dependencies = ["attrs", "scipy>=1.12", "numpy>=2", "matplotlib"]
+dependencies = ["attrs", "matplotlib", "numpy>=2", "scipy>=1.12"]
+dynamic = ["version"]
+
 [project.optional-dependencies]
 doc = [
-    "sphinx",
-    "sphinx-autoapi",
-    "furo",
-    "sphinxcontrib-bibtex",
-    "myst_nb",
-    "jupytext",
-    "jupyterlab_myst",
-    "matplotlib",
-    "seaborn",
-    "tqdm",
-    "ipywidgets",
+  "sphinx",
+  "sphinx-autoapi",
+  "furo",
+  "sphinxcontrib-bibtex",
+  "myst_nb",
+  "jupytext",
+  "jupyterlab_myst",
+  "matplotlib",
+  "seaborn",
+  "tqdm",
+  "ipywidgets",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.coverage.run]
+branch = true
+source = ["src", "tests"]
+omit = ["src/swiift/__about__.py"]
+dynamic_context = "test_function"
+
+[tool.coverage.report]
+exclude_also = ["if typing.TYPE_CHECKING:", "@typing.overload"]
 
 [tool.hatch.version]
 path = "src/swiift/__about__.py"
 
 [tool.hatch.envs.hatch-test]
 dependencies = [
-    "pytest",
-    "pytest-benchmark",
-    "pytest-mock",
-    "pytest-skip-slow",
-    "pytest-xdist",
-    "coverage",
-    "hypothesis",
-    "scipy-stubs",
+  "pytest",
+  "pytest-benchmark",
+  "pytest-mock",
+  "pytest-skip-slow",
+  "pytest-xdist",
+  "coverage",
+  "hypothesis",
+  "scipy-stubs",
 ]
 
 [[tool.hatch.envs.hatch-test.matrix]]
@@ -80,21 +89,12 @@ features = ["doc"]
 [tool.hatch.envs.doc.scripts]
 make = "cd doc && make {args:html}"
 
-[tool.pytest.ini_options]
-addopts = "--import-mode=importlib --benchmark-disable"
-markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
-
-[tool.coverage.run]
-branch = true
-source = ["src", "tests"]
-omit = ["src/swiift/__about__.py"]
-dynamic_context = "test_function"
-
-[tool.coverage.report]
-exclude_also = ["if typing.TYPE_CHECKING:", "@typing.overload"]
-
 [tool.isort]
 profile = "black"
 skip = [".gitignore"]
 force_sort_within_sections = true
 combine_as_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib --benchmark-disable"
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
