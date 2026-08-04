@@ -1,4 +1,4 @@
-from hypothesis import given, strategies as st
+from hypothesis import given
 import numpy as np
 import pytest
 import scipy.integrate as integrate
